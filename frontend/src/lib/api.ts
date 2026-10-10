@@ -1,5 +1,9 @@
 import type {
   Dashboard,
+  GameDetail,
+  ScheduleWeek,
+  SimulateUntil,
+  SimulationResult,
   FranchiseListItem,
   LeagueCreate,
   TeamUpdate,
@@ -116,6 +120,11 @@ export const api = {
     request<void>(`/leagues/${leagueId}`, { method: "DELETE" }),
   franchises: () => request<FranchiseListItem[]>("/franchises"),
   activateFranchise: (franchiseId: number) => post<Franchise>(`/franchises/${franchiseId}/activate`),
+  simulate: (seasonId: number, until: SimulateUntil) =>
+    post<SimulationResult>(`/seasons/${seasonId}/simulate`, { until }),
+  schedule: (leagueId: number, week?: number) =>
+    request<ScheduleWeek>(`/leagues/${leagueId}/schedule${week ? `?week=${week}` : ""}`),
+  game: (gameId: number) => request<GameDetail>(`/games/${gameId}`),
   previewImport: (teamId: number, file: File, mode: ImportMode) =>
     request<ImportPreview>(`/teams/${teamId}/roster-import/preview`, {
       method: "POST",

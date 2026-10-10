@@ -108,7 +108,10 @@ export interface Season {
   id: number;
   year: number;
   phase: string;
+  /** Next week to be played; weeks + 1 once the regular season is done. */
   current_week: number;
+  weeks: number;
+  regular_season_complete: boolean;
 }
 
 export interface Game {
@@ -119,6 +122,7 @@ export interface Game {
   home_score: number | null;
   away_score: number | null;
   status: string;
+  overtime: boolean;
 }
 
 export interface StandingRow {
@@ -163,6 +167,7 @@ export interface Dashboard {
   record: { wins: number; losses: number; ties: number };
   division_standings: DivisionStandings;
   upcoming_games: Game[];
+  recent_games: Game[];
   top_players: PlayerSummary[];
   position_groups: PositionGroupSummary[];
   expiring_contracts: number;
@@ -266,4 +271,53 @@ export interface LeagueCreate {
 export interface FranchiseListItem extends Franchise {
   is_active: boolean;
   team_count: number;
+}
+
+export type SimulateUntil = "next_week" | "end_of_regular_season";
+
+export interface SimulationResult {
+  weeks_simulated: number;
+  games_simulated: number;
+  season: Season;
+  /** The active franchise's games from this run, oldest first. */
+  franchise_games: Game[];
+}
+
+export interface ScheduleWeek {
+  season: Season;
+  week: number;
+  games: Game[];
+}
+
+export interface PlayOut {
+  n: number;
+  quarter: number;
+  clock: string;
+  offense: string;
+  down: number | null;
+  distance: number | null;
+  spot: string | null;
+  type: string;
+  text: string;
+  home_score: number;
+  away_score: number;
+  scoring: boolean;
+}
+
+export interface PlayerGameLine {
+  player_id: number;
+  team_id: number;
+  name: string;
+  position: string;
+  stats: Record<string, number>;
+}
+
+export interface GameDetail {
+  game: Game;
+  season_year: number;
+  line_score: { home: number[]; away: number[] };
+  team_stats: { home?: Record<string, number>; away?: Record<string, number> };
+  players: PlayerGameLine[];
+  scoring_plays: PlayOut[];
+  plays: PlayOut[];
 }

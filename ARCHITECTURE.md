@@ -63,7 +63,9 @@ players.team_id NULL  = free agent
 | `player_ratings` | player_id PK + 24 attribute columns (0–99) |
 | `contracts` | player_id, team_id, start_year, years, salary, signing_bonus, is_active |
 | `seasons` | league_id, year (unique per league), phase, current_week |
-| `games` | season_id, week, home/away team, scores (nullable), status |
+| `games` | season_id, week, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB) |
+| `player_game_stats` | game_id, player_id, team_id + one column per `sim.stats.PlayerLine` field |
+| `team_game_stats` | game_id, team_id + one column per `sim.stats.TeamLine` field |
 | `franchises` | name, league_id (unique — one career per league), team_id, activated_at (latest = active) |
 | `depth_chart_entries` | team_id, slot (position), depth (1 = first string), player_id; unique per (team, slot, depth) and (team, slot, player) |
 
@@ -88,6 +90,9 @@ Design notes:
 | `POST /api/leagues` | Create a league from a spec; creates and activates its franchise |
 | `DELETE /api/leagues/{id}` | Delete a league and its contents (not the active one) |
 | `PATCH /api/teams/{id}` | Edit team identity (city, nickname, abbreviation, colors, stadium) |
+| `POST /api/seasons/{id}/simulate` `{until: next_week \| end_of_regular_season}` | Play games with the engine; persist scores, stats, play logs |
+| `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
+| `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play |
 | `GET /api/franchise/dashboard` | Everything the dashboard needs in one call |
 | `GET /api/leagues`, `/api/leagues/{id}` | Leagues |
 | `GET /api/leagues/{id}/teams` | All teams with ratings, payroll, cap space |
@@ -113,7 +118,8 @@ Interactive docs: `http://localhost:8000/docs`.
 ## Frontend
 
 - **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
-  `/leagues` (saved franchises), `/leagues/new` (league builder). Every page reads the
+  `/leagues` (saved franchises), `/leagues/new` (league builder), `/schedule?week=`,
+  `/games/[id]`. Every page reads the
   active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
@@ -125,6 +131,10 @@ Interactive docs: `http://localhost:8000/docs`.
   switching the active franchise does a full page load (`lib/navigation.hardNavigate`),
   because the client router cache can otherwise reuse pages rendered for the previous
   franchise. Covered by `e2e/freshness.spec.ts`.
+- **Season simulation** runs synchronously (a week ≈ 0.5 s, a season ≈ 8 s including
+  writes). `services/season.py` snapshots every roster + depth chart once per run, seeds
+  each game from (league, year, week, game id), and stores the box score rows and play
+  log. Sim controls call `router.refresh()` afterwards so the current page re-renders.
 - **Dialogs** render through a portal to `<body>`: a `.panel`'s `backdrop-filter` traps
   `position: fixed` descendants, which hid dialogs opened from inside panels.
 - **Pure logic** (`lib/format.ts`, `lib/roster.ts`) is framework-free and unit-tested.
@@ -147,6 +157,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip; export → re-import is lossless in every format |
 | Backend leagues | pytest | spec validation, templates, creation (generated/empty rosters, custom identities, schedules for small leagues, determinism), franchise switching, team edits, protected delete |
 | Simulation | pytest | determinism, score/clock/down invariants, box-score consistency, overtime rules, Coach seam, AI 4th-down/kneel calls, depth-chart lineups, calibration targets, rating sensitivity |
+| Season | pytest | week/season simulation, persisted stats match scores, standings and dashboard follow results, reproducible seeds, injured QB benched, schedule/game endpoints, deleting played leagues |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

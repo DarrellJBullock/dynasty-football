@@ -137,6 +137,15 @@ Team ratings come from that lineup:
 - Releasing a player voids the contract and makes him a free agent.
 - Players can be created (custom) and fully edited: bio, position, status, all ratings.
 
+## Playing a season
+
+From the Dashboard or Schedule: **Sim week N** plays the next week; **Sim to end of
+season** (with confirmation) plays every remaining regular-season week. Every game —
+including yours — is simulated play by play using each team's current depth chart, so
+lineup changes take effect next week. Results update standings, your record, and recent
+results immediately; every game has a page with the line score, team stats, box score,
+scoring summary, and full play-by-play. Playoffs come in a later update.
+
 ## Franchise loop (planned)
 
 ```

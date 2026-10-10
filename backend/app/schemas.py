@@ -221,7 +221,9 @@ class SeasonOut(BaseModel):
     id: int
     year: int
     phase: str
-    current_week: int
+    current_week: int  # next week to be played; weeks + 1 once the regular season is done
+    weeks: int
+    regular_season_complete: bool
 
 
 class GameOut(BaseModel):
@@ -232,6 +234,59 @@ class GameOut(BaseModel):
     home_score: int | None
     away_score: int | None
     status: str
+    overtime: bool = False
+
+
+class SimulateRequest(BaseModel):
+    until: Literal["next_week", "end_of_regular_season"] = "next_week"
+
+
+class SimulationResult(BaseModel):
+    weeks_simulated: int
+    games_simulated: int
+    season: SeasonOut
+    # The active franchise's games from this run, oldest first.
+    franchise_games: list[GameOut]
+
+
+class ScheduleWeek(BaseModel):
+    season: SeasonOut
+    week: int
+    games: list[GameOut]
+
+
+class PlayOut(BaseModel):
+    n: int
+    quarter: int
+    clock: str
+    offense: str
+    down: int | None
+    distance: int | None
+    spot: str | None  # broadcast yard line, e.g. "HFD 25"
+    type: str
+    text: str
+    home_score: int
+    away_score: int
+    scoring: bool
+
+
+class PlayerGameLine(BaseModel):
+    player_id: int
+    team_id: int
+    name: str
+    position: str
+    stats: dict[str, int]  # non-zero box-score columns only
+
+
+class GameDetail(BaseModel):
+    game: GameOut
+    season_year: int
+    # Points by period, home and away; index 4+ is overtime.
+    line_score: dict[Literal["home", "away"], list[int]]
+    team_stats: dict[Literal["home", "away"], dict[str, int]]
+    players: list[PlayerGameLine]
+    scoring_plays: list[PlayOut]
+    plays: list[PlayOut]
 
 
 class StandingRow(BaseModel):
@@ -372,6 +427,7 @@ class Dashboard(BaseModel):
     record: Record
     division_standings: DivisionStandings
     upcoming_games: list[GameOut]
+    recent_games: list[GameOut]
     top_players: list[PlayerSummary]
     position_groups: list[PositionGroupSummary]
     expiring_contracts: int

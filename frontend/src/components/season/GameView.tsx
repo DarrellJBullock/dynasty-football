@@ -1,0 +1,279 @@
+import Link from "next/link";
+import { TeamCrest } from "@/components/ui/TeamCrest";
+import { Panel } from "@/components/ui/Panel";
+import { formatPossession } from "@/lib/games";
+import type { GameDetail, PlayerGameLine, PlayOut, TeamSummary } from "@/lib/types";
+
+type Side = "home" | "away";
+
+const PERIOD_LABELS = ["1", "2", "3", "4"];
+
+export function GameView({ detail }: { detail: GameDetail }) {
+  const { game } = detail;
+  const final = game.status === "final";
+  const teams: Record<Side, TeamSummary> = { home: game.home, away: game.away };
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link href={`/schedule?week=${game.week}`} className="text-sm text-gold hover:underline">
+          ← Week {game.week} schedule
+        </Link>
+        <span className="eyebrow">{detail.season_year} · Week {game.week}</span>
+      </div>
+
+      <section className="panel grid grid-cols-[1fr_auto_1fr] items-center gap-4 p-6" aria-label="Scoreboard">
+        <Scoreboard team={game.away} score={game.away_score} won={final && game.away_score! > game.home_score!} label="Away" />
+        <div className="text-center">
+          <div className="font-display text-sm font-semibold uppercase tracking-widest text-mist">
+            {final ? (game.overtime ? "Final / OT" : "Final") : "Not played yet"}
+          </div>
+          <div className="text-xs text-mist">@</div>
+        </div>
+        <Scoreboard team={game.home} score={game.home_score} won={final && game.home_score! > game.away_score!} label="Home" alignRight />
+      </section>
+
+      {!final ? (
+        <p className="panel p-6 text-center text-sm text-mist">
+          This game hasn&apos;t been played yet. Sim the week from the Schedule or Dashboard to see the box score.
+        </p>
+      ) : (
+        <>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Panel title="Line score">
+              <LineScore detail={detail} teams={teams} />
+            </Panel>
+            <Panel title="Team stats">
+              <TeamStats detail={detail} teams={teams} />
+            </Panel>
+          </div>
+          <Panel title="Scoring summary">
+            <PlayList plays={detail.scoring_plays} teams={teams} />
+          </Panel>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {(["away", "home"] as const).map((side) => (
+              <BoxScore key={side} team={teams[side]}
+                players={detail.players.filter((p) => p.team_id === teams[side].id)} />
+            ))}
+          </div>
+          <Panel title="Play-by-play">
+            <PlayByPlay plays={detail.plays} teams={teams} />
+          </Panel>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Scoreboard({ team, score, won, label, alignRight = false }: {
+  team: TeamSummary; score: number | null; won: boolean; label: string; alignRight?: boolean;
+}) {
+  return (
+    <div className={`flex items-center gap-4 ${alignRight ? "flex-row-reverse text-right" : ""}`}>
+      <TeamCrest team={team} size={56} />
+      <div className="min-w-0">
+        <div className="text-xs uppercase tracking-wider text-mist">{label}</div>
+        <div className="truncate font-display text-xl font-bold uppercase sm:text-2xl">{team.full_name}</div>
+      </div>
+      {score !== null && (
+        <div className={`stat-number text-5xl ${won ? "" : "text-mist"} ${alignRight ? "mr-auto" : "ml-auto"}`}
+          data-testid={`score-${label.toLowerCase()}`}>
+          {score}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineScore({ detail, teams }: { detail: GameDetail; teams: Record<Side, TeamSummary> }) {
+  const periods = detail.line_score.home.length;
+  const labels = Array.from({ length: periods }, (_, i) => PERIOD_LABELS[i] ?? (periods > 5 ? `OT${i - 3}` : "OT"));
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-[11px] uppercase tracking-wider text-mist">
+          <th className="pb-2 text-left font-medium">Team</th>
+          {labels.map((l) => <th key={l} className="pb-2 text-center font-medium">{l}</th>)}
+          <th className="pb-2 text-right font-medium">T</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(["away", "home"] as const).map((side) => (
+          <tr key={side} className="border-t border-white/5">
+            <td className="py-2 font-medium">{teams[side].abbreviation}</td>
+            {detail.line_score[side].map((points, i) => (
+              <td key={i} className="py-2 text-center tabular-nums">{points}</td>
+            ))}
+            <td className="stat-number py-2 text-right text-base">
+              {detail.line_score[side].reduce((a, b) => a + b, 0)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+const TEAM_ROWS: [string, (s: Record<string, number>) => string][] = [
+  ["Total yards", (s) => String(s.total_yds)],
+  ["Passing", (s) => `${s.pass_yds} (${s.pass_cmp}/${s.pass_att})`],
+  ["Rushing", (s) => `${s.rush_yds} (${s.rush_att} att)`],
+  ["First downs", (s) => String(s.first_downs)],
+  ["3rd down", (s) => `${s.third_down_conv}/${s.third_down_att}`],
+  ["Turnovers", (s) => String(s.turnovers)],
+  ["Sacks allowed", (s) => String(s.sacks_allowed)],
+  ["Penalties", (s) => `${s.penalties}-${s.penalty_yds}`],
+  ["Possession", (s) => formatPossession(s.time_of_possession)],
+];
+
+function TeamStats({ detail, teams }: { detail: GameDetail; teams: Record<Side, TeamSummary> }) {
+  const away = detail.team_stats.away ?? {};
+  const home = detail.team_stats.home ?? {};
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-[11px] uppercase tracking-wider text-mist">
+          <th className="pb-2 text-left font-medium">{teams.away.abbreviation}</th>
+          <th className="pb-2 font-medium" />
+          <th className="pb-2 text-right font-medium">{teams.home.abbreviation}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {TEAM_ROWS.map(([label, fmt]) => (
+          <tr key={label} className="border-t border-white/5">
+            <td className="py-1.5 tabular-nums">{fmt(away)}</td>
+            <td className="py-1.5 text-center text-xs text-mist">{label}</td>
+            <td className="py-1.5 text-right tabular-nums">{fmt(home)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+const SECTIONS: { title: string; has: string; columns: [string, (s: Record<string, number>) => string | number][] }[] = [
+  { title: "Passing", has: "pass_att", columns: [
+    ["C/ATT", (s) => `${s.pass_cmp ?? 0}/${s.pass_att}`], ["YDS", (s) => s.pass_yds ?? 0],
+    ["TD", (s) => s.pass_td ?? 0], ["INT", (s) => s.pass_int ?? 0], ["SACK", (s) => s.sacked ?? 0]] },
+  { title: "Rushing", has: "rush_att", columns: [
+    ["ATT", (s) => s.rush_att], ["YDS", (s) => s.rush_yds ?? 0], ["TD", (s) => s.rush_td ?? 0],
+    ["LONG", (s) => s.rush_long ?? 0]] },
+  { title: "Receiving", has: "targets", columns: [
+    ["REC", (s) => s.receptions ?? 0], ["TGT", (s) => s.targets], ["YDS", (s) => s.rec_yds ?? 0],
+    ["TD", (s) => s.rec_td ?? 0], ["LONG", (s) => s.rec_long ?? 0]] },
+  { title: "Defense", has: "tackles", columns: [
+    ["TKL", (s) => s.tackles], ["SACK", (s) => s.sacks ?? 0], ["INT", (s) => s.interceptions ?? 0],
+    ["PD", (s) => s.passes_defended ?? 0], ["FF", (s) => s.forced_fumbles ?? 0]] },
+  { title: "Kicking", has: "kicking", columns: [
+    ["FG", (s) => `${s.fg_made ?? 0}/${s.fg_att ?? 0}`], ["LONG", (s) => s.fg_long ?? 0],
+    ["XP", (s) => `${s.xp_made ?? 0}/${s.xp_att ?? 0}`], ["PUNTS", (s) => s.punts ?? 0],
+    ["AVG", (s) => (s.punts ? (s.punt_yds / s.punts).toFixed(1) : "–")]] },
+];
+
+const SORT_KEY: Record<string, string> = {
+  Passing: "pass_att", Rushing: "rush_yds", Receiving: "rec_yds", Defense: "tackles", Kicking: "fg_att",
+};
+
+function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLine[] }) {
+  return (
+    <section className="panel space-y-4 p-5" aria-label={`${team.full_name} box score`}>
+      <h2 className="flex items-center gap-2 font-display text-xl font-bold uppercase">
+        <TeamCrest team={team} size={24} /> {team.nickname}
+      </h2>
+      {SECTIONS.map((section) => {
+        const rows = players
+          .filter((p) => section.has === "kicking"
+            ? (p.stats.fg_att || p.stats.xp_att || p.stats.punts)
+            : p.stats[section.has])
+          .sort((a, b) => (b.stats[SORT_KEY[section.title]] ?? 0) - (a.stats[SORT_KEY[section.title]] ?? 0))
+          .slice(0, section.title === "Defense" ? 6 : 5);
+        if (!rows.length) return null;
+        return (
+          <div key={section.title} className="overflow-x-auto">
+            <table className="w-full text-sm" aria-label={`${team.abbreviation} ${section.title.toLowerCase()}`}>
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wider text-mist">
+                  <th className="pb-1 text-left font-medium">{section.title}</th>
+                  {section.columns.map(([label]) => (
+                    <th key={label} className="pb-1 text-right font-medium">{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => (
+                  <tr key={p.player_id} className="border-t border-white/5">
+                    <td className="py-1 pr-2">
+                      {p.name} <span className="text-xs text-mist">{p.position}</span>
+                    </td>
+                    {section.columns.map(([label, fmt]) => (
+                      <td key={label} className="py-1 text-right tabular-nums">{fmt(p.stats)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function quarterName(q: number): string {
+  return q <= 4 ? `Quarter ${q}` : q === 5 ? "Overtime" : `Overtime ${q - 4}`;
+}
+
+function PlayList({ plays, teams }: { plays: PlayOut[]; teams: Record<Side, TeamSummary> }) {
+  if (!plays.length) return <p className="text-sm text-mist">No scoring.</p>;
+  return (
+    <ol className="space-y-2">
+      {plays.map((play) => (
+        <li key={play.n} className="grid grid-cols-[4.5rem_3rem_minmax(0,1fr)_4.5rem] items-baseline gap-3 text-sm">
+          <span className="text-xs text-mist">{play.quarter <= 4 ? `Q${play.quarter}` : "OT"} {play.clock}</span>
+          <span className="font-display font-semibold">{play.offense}</span>
+          <span>{play.text}</span>
+          <span className="stat-number text-right">
+            {play.away_score}-{play.home_score}
+          </span>
+        </li>
+      ))}
+      <li className="text-right text-[11px] uppercase tracking-wider text-mist">
+        {teams.away.abbreviation}-{teams.home.abbreviation}
+      </li>
+    </ol>
+  );
+}
+
+function PlayByPlay({ plays, teams }: { plays: PlayOut[]; teams: Record<Side, TeamSummary> }) {
+  const quarters = [...new Set(plays.map((p) => p.quarter))];
+  return (
+    <div className="space-y-3">
+      {quarters.map((q) => (
+        <details key={q} open={q === 1} className="rounded-lg border border-white/5">
+          <summary className="cursor-pointer px-4 py-2 font-display font-semibold uppercase tracking-wide">
+            {quarterName(q)}
+          </summary>
+          <ol className="divide-y divide-white/[0.04]" aria-label={quarterName(q)}>
+            {plays.filter((p) => p.quarter === q).map((play) => (
+              <li key={play.n} className={`grid grid-cols-[3.5rem_7rem_minmax(0,1fr)] gap-3 px-4 py-2 text-sm ${play.scoring ? "bg-gold/[0.05]" : ""}`}>
+                <span className="text-xs tabular-nums text-mist">{play.clock}</span>
+                <span className="text-xs text-mist">
+                  {play.down ? `${play.offense} ${ordinal(play.down)}&${play.distance}` : play.offense}
+                  {play.spot && <span className="block">at {play.spot}</span>}
+                </span>
+                <span>{play.text}</span>
+              </li>
+            ))}
+          </ol>
+        </details>
+      ))}
+      <p className="text-xs text-mist">
+        {teams.away.full_name} at {teams.home.full_name} · {plays.length} plays
+      </p>
+    </div>
+  );
+}
+
+function ordinal(n: number): string {
+  return ["", "1st", "2nd", "3rd", "4th"][n] ?? `${n}th`;
+}

@@ -33,9 +33,10 @@ Each milestone ends with working software, green tests, and updated docs.
 
 - [x] Play-level simulation engine (deterministic, seeded, calibrated) — design:
       `docs/design/simulation-engine.md`
-- [ ] Simulate week / to date / full season; box scores
+- [x] Simulate next week / rest of the regular season; stored box scores and play logs
 - [ ] Player & team stats, league leaders
-- [ ] Schedule page, game detail page
+- [x] Schedule page, game page (line score, team stats, box score, scoring summary,
+      play-by-play), live records and recent results on the dashboard
 - [ ] Playoffs and championship
 
 ## M3 — Franchise management
