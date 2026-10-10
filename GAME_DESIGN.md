@@ -115,7 +115,11 @@ TE1, OT2, OG2, C1 / DE2, DT2, OLB2, MLB1, CB2, FS1, SS1 / K, P (FB is a reserve 
 
 Team ratings come from that lineup:
 
-- Offense / Defense / Special Teams = mean OVR of their starters.
+- Offense / Defense / Special Teams = mean OVR across **every** starting spot in the
+  unit (11 / 11 / 2). A spot with no available player — empty, or only Out/IR players —
+  counts as **replacement level (40)**, so short-handed teams rate accordingly instead
+  of averaging only the players they have. The dashboard raises a critical alert naming
+  the unfilled spots.
 - Team OVR = 45% offense + 45% defense + 10% special teams.
 
 ## Contracts and cap

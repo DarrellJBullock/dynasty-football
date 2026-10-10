@@ -243,3 +243,12 @@ class TestDeleteLeague:
         # The original league is untouched.
         assert client.get("/api/franchise/dashboard").json()["team"]["roster_count"] == ROSTER_MAX
         assert len(client.get(f"/api/leagues/{league.id}/teams").json()) == 32
+
+
+def test_empty_roster_league_rates_at_replacement_level(client: TestClient):
+    body = _create(client, _template(client), rosters="empty").json()
+    ratings = client.get(f"/api/teams/{body['team']['id']}").json()["ratings"]
+    assert ratings == {"overall": 40, "offense": 40, "defense": 40, "special_teams": 40}
+    alerts = client.get("/api/franchise/dashboard").json()["alerts"]
+    assert alerts[0]["level"] == "critical"
+    assert alerts[0]["message"].startswith("No available starters — every spot")

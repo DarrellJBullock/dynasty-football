@@ -3,8 +3,16 @@ from dataclasses import dataclass
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain.depth_chart import SLOTS, build_chart, starting_lineup, unit_of
-from app.domain.positions import STARTERS, Position
+from app.domain.depth_chart import (
+    REPLACEMENT_LEVEL,
+    SLOTS,
+    build_chart,
+    starting_lineup,
+    unfilled_slots,
+    unit_of,
+    unit_rating,
+)
+from app.domain.positions import DEFENSE, OFFENSE, SPECIAL_TEAMS, STARTERS, Position
 from app.models import Franchise
 
 
@@ -71,6 +79,39 @@ class TestStartingLineup:
         assert unit_of(Position.QB) == "offense"
         assert unit_of(Position.SS) == "defense"
         assert unit_of(Position.P) == "special_teams"
+
+
+class TestUnitRating:
+    def _full_offense(self, overall: int) -> list[FakePlayer]:
+        players, next_id = [], 1
+        for slot in OFFENSE:
+            for _ in range(STARTERS.get(slot, 0)):
+                players.append(FakePlayer(next_id, slot.value, overall))
+                next_id += 1
+        return players
+
+    def test_full_unit_is_the_plain_average(self):
+        lineup = starting_lineup(build_chart(self._full_offense(80)))
+        assert unit_rating(lineup, OFFENSE) == 80
+        assert unfilled_slots(lineup).keys() == set(DEFENSE) | set(SPECIAL_TEAMS)
+
+    def test_empty_spots_count_as_replacement_level(self):
+        players = [p for p in self._full_offense(80) if p.position != "QB"]
+        lineup = starting_lineup(build_chart(players))
+        # 10 starters at 80 plus one replacement-level QB across 11 spots.
+        assert unit_rating(lineup, OFFENSE) == round((10 * 80 + REPLACEMENT_LEVEL) / 11)
+        assert unfilled_slots(lineup)[Position.QB] == 1
+
+    def test_injured_starter_without_backup_counts_as_replacement(self):
+        players = self._full_offense(80)
+        next(p for p in players if p.position == "QB").injury_status = "out"
+        lineup = starting_lineup(build_chart(players))
+        assert unit_rating(lineup, OFFENSE) == round((10 * 80 + REPLACEMENT_LEVEL) / 11)
+
+    def test_empty_team_is_all_replacement_level(self):
+        lineup = starting_lineup(build_chart([]))
+        assert unit_rating(lineup, DEFENSE) == REPLACEMENT_LEVEL
+        assert sum(unfilled_slots(lineup).values()) == sum(STARTERS.values())
 
 
 # ---------- API ----------

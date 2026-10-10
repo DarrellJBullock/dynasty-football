@@ -86,3 +86,27 @@ def starting_lineup[P: PlayerLike](
                 used.add(player.id)
         lineup[slot] = starters
     return lineup
+
+
+# What an unfilled starting spot is worth: a street free agent signed off the couch.
+REPLACEMENT_LEVEL = 40
+
+
+def unfilled_slots[P: PlayerLike](lineup: Mapping[Position, Sequence[P]]) -> dict[Position, int]:
+    """Starting spots with no available player, by slot (only slots that are short)."""
+    short = {slot: starter_count(slot) - len(lineup.get(slot, ())) for slot in SLOTS}
+    return {slot: missing for slot, missing in short.items() if missing > 0}
+
+
+def unit_rating[P: PlayerLike](
+    lineup: Mapping[Position, Sequence[P]], unit: Iterable[Position],
+) -> int:
+    """Mean OVR across every starting spot in the unit. Unfilled spots count as
+    REPLACEMENT_LEVEL, so short-handed teams rate lower instead of averaging only the
+    players they have."""
+    ratings: list[int] = []
+    for slot in unit:
+        starters = lineup.get(slot, ())
+        ratings.extend(p.overall for p in starters)
+        ratings.extend([REPLACEMENT_LEVEL] * (starter_count(slot) - len(starters)))
+    return round(sum(ratings) / len(ratings)) if ratings else 0

@@ -5,7 +5,8 @@ from statistics import mean
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.domain.positions import ROSTER_MAX, Position, PositionGroup, group_of
+from app.domain.depth_chart import REPLACEMENT_LEVEL, unfilled_slots
+from app.domain.positions import ROSTER_MAX, STARTERS, Position, PositionGroup, group_of
 from app.models import Franchise, Game, Player
 from app.schemas import (
     Alert,
@@ -59,8 +60,21 @@ def _position_groups(roster: list[Player],
 
 
 def _alerts(roster: list[Player], cap_space: int, expiring: int,
-            groups: list[PositionGroupSummary]) -> list[Alert]:
+            groups: list[PositionGroupSummary],
+            lineup: dict[Position, list[Player]]) -> list[Alert]:
     alerts: list[Alert] = []
+    missing = unfilled_slots(lineup)
+    if missing and sum(missing.values()) == sum(STARTERS.values()):
+        alerts.append(Alert(level="critical",
+                            message="No available starters — every spot plays at replacement "
+                                    f"level ({REPLACEMENT_LEVEL}). Import a roster or sign "
+                                    "free agents."))
+    elif missing:
+        spots = ", ".join(f"{slot.value}" + (f" ×{n}" if n > 1 else "")
+                          for slot, n in missing.items())
+        alerts.append(Alert(level="critical",
+                            message=f"No available starter at {spots} — those spots play at "
+                                    f"replacement level ({REPLACEMENT_LEVEL})."))
     if cap_space < 0:
         alerts.append(Alert(level="critical", message="Payroll is over the salary cap."))
     elif cap_space < 5_000_000:
@@ -106,7 +120,8 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
     )
     expiring = sum(1 for p in roster
                    if (c := p.active_contract) is not None and c.end_year <= season.year)
-    groups = _position_groups(roster, team_lineup(roster, overrides))
+    lineup = team_lineup(roster, overrides)
+    groups = _position_groups(roster, lineup)
 
     return Dashboard(
         franchise=franchise_out(db, franchise),
@@ -117,5 +132,5 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
         top_players=[player_summary(p) for p in roster[:TOP_PLAYERS]],
         position_groups=groups,
         expiring_contracts=expiring,
-        alerts=_alerts(roster, detail.cap_space, expiring, groups),
+        alerts=_alerts(roster, detail.cap_space, expiring, groups, lineup),
     )
