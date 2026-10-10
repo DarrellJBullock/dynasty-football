@@ -11,7 +11,7 @@ from app.roster_import.readers import MAX_FILE_BYTES, FileFormat, ImportFileErro
 from app.roster_import.templates import MEDIA_TYPES, build_template
 from app.schemas import ImportMode, ImportPreview, ImportResult
 from app.services import roster_import
-from app.services.teams import load_roster, team_detail
+from app.services.teams import load_overrides, load_roster, team_detail
 
 router = APIRouter(tags=["roster import"])
 
@@ -48,7 +48,8 @@ def commit_import(
     with roster_errors(db):
         imported, released, skipped = roster_import.commit(db, team, plan, skip_invalid)
     return ImportResult(imported=imported, released=released, skipped=skipped,
-                        team=team_detail(team, load_roster(db, team.id)))
+                        team=team_detail(team, load_roster(db, team.id),
+                                         load_overrides(db, [team.id])[team.id]))
 
 
 @router.get("/roster-import/template.{fmt}")

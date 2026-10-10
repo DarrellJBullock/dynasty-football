@@ -289,3 +289,17 @@ class TestImportApi:
         assert _preview(client, team_id, csv_bytes([player()]), mode="merge").status_code == 422
         assert _preview(client, 999999, csv_bytes([player()])).status_code == 404
         assert client.get("/api/roster-import/template.pdf").status_code == 422
+
+    def test_replace_import_clears_saved_depth_chart(self, client: TestClient, team_id: int):
+        chart = client.get(f"/api/teams/{team_id}/depth-chart").json()
+        qbs = [p["id"] for p in next(s for s in chart["slots"] if s["slot"] == "QB")["players"]]
+        client.put(f"/api/teams/{team_id}/depth-chart/QB", json={"player_ids": qbs[::-1]})
+
+        content = csv_bytes([player("New", "Starter", "QB", overall=70)])
+        result = _commit(client, team_id, content, mode="replace").json()
+
+        chart = client.get(f"/api/teams/{team_id}/depth-chart").json()
+        qb = next(s for s in chart["slots"] if s["slot"] == "QB")
+        assert [p["full_name"] for p in qb["players"]] == ["New Starter"]
+        assert qb["starter_ids"] == [qb["players"][0]["id"]]
+        assert result["team"]["ratings"] == chart["team"]["ratings"]

@@ -136,6 +136,29 @@ class SigningRequest(BaseModel):
     years: int = Field(default=1, ge=1, le=7)
 
 
+# ---------- depth chart ----------
+
+class DepthSlot(BaseModel):
+    slot: Position
+    unit: Literal["offense", "defense", "special_teams"]
+    starters: int  # how many starters this slot fields
+    customized: bool  # False = ordered by OVR
+    # Starters actually fielded (skips injured players and anyone starting elsewhere).
+    starter_ids: list[int]
+    players: list[PlayerSummary]
+
+
+class DepthChart(BaseModel):
+    team: TeamDetail
+    slots: list[DepthSlot]
+
+
+class DepthSlotUpdate(BaseModel):
+    # Full order for the slot, first string first. Players whose natural position is
+    # this slot but who are omitted are appended by OVR.
+    player_ids: list[int] = Field(max_length=53)
+
+
 # ---------- roster import ----------
 
 ImportMode = Literal["append", "replace"]

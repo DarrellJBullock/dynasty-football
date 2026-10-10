@@ -19,7 +19,8 @@ Each milestone ends with working software, green tests, and updated docs.
 
 ## M1 — Rosters & customization
 
-- [ ] Depth chart editor (drag-and-drop), used for team ratings and the sim
+- [x] Depth chart editor (drag-and-drop + keyboard), drives team ratings; cross-listing,
+      injured starters skipped, per-slot and full reset
 - [x] Roster import: CSV, Excel (.xlsx), JSON — per-row validation, preview, add or
       replace modes, skip-invalid option, downloadable templates
 - [ ] Roster export (same formats)

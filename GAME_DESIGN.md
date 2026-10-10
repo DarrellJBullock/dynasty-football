@@ -76,11 +76,22 @@ Rating tiers (UI colour): 90+ elite · 80–89 great · 70–79 good · 60–69 
   are excluded from the starting lineup.
 - Bio: age, height, weight, college (fictional), years pro, jersey number.
 
-## Team ratings
+## Depth chart & team ratings
 
-Until depth charts exist, the starting lineup is the best available player(s) by OVR
-at each slot: QB1, RB1, WR3, TE1, OT2, OG2, C1 / DE2, DT2, OLB2, MLB1, CB2, FS1, SS1 /
-K, P.
+Every position is a depth chart slot. Base formation starters per slot: QB1, RB1, WR3,
+TE1, OT2, OG2, C1 / DE2, DT2, OLB2, MLB1, CB2, FS1, SS1 / K, P (FB is a reserve slot).
+
+- An untouched slot is ordered by OVR. Once the user reorders it, the saved order is
+  used; players who join that position later (signings, position changes) are added at
+  the bottom.
+- Players can be **cross-listed** at other slots (e.g. a CB as backup FS).
+- The starting lineup takes the top available players of each slot: Out/IR players are
+  skipped, and a player starts at most once (slots are filled offense → defense →
+  specialists, so the earlier slot wins). The editor explains every skipped player.
+- Releasing a player removes them from the chart; changing position removes them from
+  the old position's slot.
+
+Team ratings come from that lineup:
 
 - Offense / Defense / Special Teams = mean OVR of their starters.
 - Team OVR = 45% offense + 45% defense + 10% special teams.

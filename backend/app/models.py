@@ -177,6 +177,26 @@ class PlayerRatings(Base):
         return {name: getattr(self, name) for name in ATTRIBUTES}
 
 
+class DepthChartEntry(Base):
+    """A user-customized depth chart slot: one row per (team, slot, depth).
+
+    Only customized slots are stored; a slot with no rows is ordered by OVR.
+    A player may be listed at slots other than their own position (cross-listing).
+    """
+
+    __tablename__ = "depth_chart_entries"
+    __table_args__ = (
+        UniqueConstraint("team_id", "slot", "depth", name="uq_depth_chart_team_slot_depth"),
+        UniqueConstraint("team_id", "slot", "player_id", name="uq_depth_chart_team_slot_player"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    slot: Mapped[str] = mapped_column(String(4))  # a Position value
+    depth: Mapped[int] = mapped_column(Integer)  # 1 = first string
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+
+
 class Contract(Base):
     __tablename__ = "contracts"
 

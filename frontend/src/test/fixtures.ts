@@ -1,10 +1,14 @@
 import type {
   Dashboard,
+  DepthChart,
+  DepthSlot,
   PlayerDetail,
   PlayerSummary,
+  Position,
   PositionGroup,
   TeamDetail,
   TeamSummary,
+  Unit,
 } from "@/lib/types";
 
 export const team: TeamSummary = {
@@ -39,7 +43,8 @@ export const teamDetail: TeamDetail = {
 };
 
 const GROUPS: Record<string, PositionGroup> = {
-  QB: "QB", RB: "RB", WR: "WR", TE: "TE", OT: "OL", DE: "DL", MLB: "LB", CB: "DB", K: "ST",
+  QB: "QB", RB: "RB", FB: "RB", WR: "WR", TE: "TE", OT: "OL", OG: "OL", C: "OL",
+  DE: "DL", DT: "DL", OLB: "LB", MLB: "LB", CB: "DB", FS: "DB", SS: "DB", K: "ST", P: "ST",
 };
 
 let nextId = 100;
@@ -118,3 +123,30 @@ export const dashboard: Dashboard = {
   expiring_contracts: 21,
   alerts: [{ level: "info", message: "21 contract(s) expire after this season." }],
 };
+
+const SLOT_UNITS: [Position, Unit, number][] = [
+  ["QB", "offense", 1], ["RB", "offense", 1], ["FB", "offense", 0], ["WR", "offense", 3],
+  ["TE", "offense", 1], ["OT", "offense", 2], ["OG", "offense", 2], ["C", "offense", 1],
+  ["DE", "defense", 2], ["DT", "defense", 2], ["OLB", "defense", 2], ["MLB", "defense", 1],
+  ["CB", "defense", 2], ["FS", "defense", 1], ["SS", "defense", 1],
+  ["K", "special_teams", 1], ["P", "special_teams", 1],
+];
+
+/** A depth chart with every slot; pass players / starters for the slots you care about. */
+export function makeDepthChart(
+  slots: Partial<Record<Position, Partial<DepthSlot>>> = {},
+  teamOverrides: Partial<TeamDetail> = {},
+): DepthChart {
+  return {
+    team: { ...teamDetail, ...teamOverrides },
+    slots: SLOT_UNITS.map(([slot, unit, starters]) => ({
+      slot,
+      unit,
+      starters,
+      customized: false,
+      starter_ids: [],
+      players: [],
+      ...slots[slot],
+    })),
+  };
+}

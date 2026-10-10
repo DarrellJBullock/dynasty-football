@@ -1,5 +1,6 @@
 import type {
   Dashboard,
+  DepthChart,
   ImportFormat,
   ImportMode,
   ImportPreview,
@@ -10,6 +11,7 @@ import type {
   PlayerDetail,
   PlayerSummary,
   PlayerUpdate,
+  Position,
   TeamDetail,
 } from "@/lib/types";
 
@@ -89,6 +91,16 @@ export const api = {
     post<PlayerDetail>(`/teams/${teamId}/signings`, { player_id: playerId, years }),
   createPlayer: (teamId: number, player: PlayerCreate) =>
     post<PlayerDetail>(`/teams/${teamId}/players`, player),
+  depthChart: (teamId: number) => request<DepthChart>(`/teams/${teamId}/depth-chart`),
+  setDepthSlot: (teamId: number, slot: Position, playerIds: number[]) =>
+    request<DepthChart>(`/teams/${teamId}/depth-chart/${slot}`, {
+      method: "PUT",
+      body: JSON.stringify({ player_ids: playerIds }),
+    }),
+  resetDepthSlot: (teamId: number, slot: Position) =>
+    request<DepthChart>(`/teams/${teamId}/depth-chart/${slot}`, { method: "DELETE" }),
+  resetDepthChart: (teamId: number) =>
+    request<DepthChart>(`/teams/${teamId}/depth-chart`, { method: "DELETE" }),
   previewImport: (teamId: number, file: File, mode: ImportMode) =>
     request<ImportPreview>(`/teams/${teamId}/roster-import/preview`, {
       method: "POST",

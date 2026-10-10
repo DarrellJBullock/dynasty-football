@@ -210,3 +210,20 @@ export interface ImportResult {
   skipped: number;
   team: TeamDetail;
 }
+
+export type Unit = "offense" | "defense" | "special_teams";
+
+export interface DepthSlot {
+  slot: Position;
+  unit: Unit;
+  starters: number;
+  customized: boolean;
+  /** Starters actually fielded: skips injured players and anyone starting elsewhere. */
+  starter_ids: number[];
+  players: PlayerSummary[];
+}
+
+export interface DepthChart {
+  team: TeamDetail;
+  slots: DepthSlot[];
+}
