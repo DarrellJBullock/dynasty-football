@@ -24,8 +24,9 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Roster import: CSV, Excel (.xlsx), JSON — per-row validation, preview, add or
       replace modes, skip-invalid option, downloadable templates
 - [x] Roster export (CSV, Excel, JSON) in the import format; exports re-import unchanged
-- [ ] Custom teams (name, city, colours) and custom leagues (team count, divisions, cap)
-- [ ] New-franchise flow: pick league + team
+- [x] Custom teams (name, city, colours) and custom leagues (4–40 teams, 1–4 conferences
+      × 1–4 divisions, cap, season length, generated or empty rosters)
+- [x] New-franchise flow: create a league, pick your team; switch between saved franchises
 - [ ] Playwright end-to-end smoke tests
 
 ## M2 — Quick Sim & season

@@ -5,7 +5,7 @@ import { OvrBadge } from "@/components/ui/OvrBadge";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { POSITIONS, type PlayerSummary, type Position } from "@/lib/types";
-import { Dialog } from "./Dialog";
+import { Dialog } from "@/components/ui/Dialog";
 
 export function FreeAgentsDialog({
   leagueId,

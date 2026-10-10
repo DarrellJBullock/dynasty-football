@@ -17,6 +17,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
       { label: "League", href: "/league", icon: <IconTrophy /> },
+      { label: "My Leagues", href: "/leagues", icon: <IconFolders /> },
     ],
   },
   {
@@ -48,7 +49,8 @@ export function Sidebar() {
             <div className="eyebrow hidden px-3 pb-2 lg:block">{section.heading}</div>
             <ul className="flex gap-1 lg:flex-col">
               {section.items.map((item) => {
-                const active = item.href === pathname;
+                const active =
+                  item.href === pathname || (item.href === "/leagues" && pathname.startsWith("/leagues/"));
                 if (!item.href) {
                   return (
                     <li key={item.label} className="hidden lg:block">
@@ -135,6 +137,13 @@ function IconTrophy() {
     <svg {...iconProps}>
       <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z" />
       <path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" />
+    </svg>
+  );
+}
+function IconFolders() {
+  return (
+    <svg {...iconProps}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
     </svg>
   );
 }

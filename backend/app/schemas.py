@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.domain.positions import Position, PositionGroup
 from app.domain.ratings import ATTRIBUTES
@@ -250,6 +250,89 @@ class DivisionStandings(BaseModel):
     rows: list[StandingRow]
 
 
+# ---------- custom leagues & teams ----------
+
+HexColor = Annotated[str, Field(pattern=r"^#[0-9A-Fa-f]{6}$")]
+TeamAbbreviation = Annotated[str, Field(pattern=r"^[A-Za-z0-9]{2,4}$")]
+MIN_LEAGUE_TEAMS = 4
+MAX_LEAGUE_TEAMS = 40
+
+
+class TeamIdentity(BaseModel):
+    city: str = Field(min_length=1, max_length=60)
+    nickname: str = Field(min_length=1, max_length=60)
+    abbreviation: TeamAbbreviation
+    primary_color: HexColor
+    secondary_color: HexColor
+    stadium: str = Field(min_length=1, max_length=80)
+
+    @field_validator("abbreviation")
+    @classmethod
+    def _upper(cls, value: str) -> str:
+        return value.upper()
+
+
+class TeamUpdate(BaseModel):
+    city: str | None = Field(default=None, min_length=1, max_length=60)
+    nickname: str | None = Field(default=None, min_length=1, max_length=60)
+    abbreviation: TeamAbbreviation | None = None
+    primary_color: HexColor | None = None
+    secondary_color: HexColor | None = None
+    stadium: str | None = Field(default=None, min_length=1, max_length=80)
+
+    @field_validator("abbreviation")
+    @classmethod
+    def _upper(cls, value: str | None) -> str | None:
+        return value.upper() if value else value
+
+
+class DivisionSpec(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    teams: list[TeamIdentity] = Field(min_length=1, max_length=8)
+
+
+class ConferenceSpec(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    abbreviation: str = Field(min_length=2, max_length=4)
+    divisions: list[DivisionSpec] = Field(min_length=1, max_length=4)
+
+
+class LeagueCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    abbreviation: str = Field(pattern=r"^[A-Za-z0-9]{2,8}$")
+    salary_cap: int = Field(default=255_000_000, ge=50_000_000, le=1_000_000_000)
+    season_year: int = Field(default=2026, ge=1900, le=2200)
+    weeks: int = Field(default=17, ge=1, le=20)
+    rosters: Literal["generated", "empty"] = "generated"
+    conferences: list[ConferenceSpec] = Field(min_length=1, max_length=4)
+    # Abbreviation of the team the user will control.
+    user_team: str
+    franchise_name: str | None = Field(default=None, max_length=80)
+    seed: int | None = None
+
+    @model_validator(mode="after")
+    def _check_structure(self) -> "LeagueCreate":
+        teams = self.teams()
+        if not MIN_LEAGUE_TEAMS <= len(teams) <= MAX_LEAGUE_TEAMS:
+            raise ValueError(f"a league needs {MIN_LEAGUE_TEAMS}-{MAX_LEAGUE_TEAMS} teams "
+                             f"(got {len(teams)})")
+        if len(teams) % 2:
+            raise ValueError(f"a league needs an even number of teams (got {len(teams)}) "
+                             "so every team plays every week")
+        seen: set[str] = set()
+        for team in teams:
+            if team.abbreviation in seen:
+                raise ValueError(f"team abbreviation {team.abbreviation} is used twice")
+            seen.add(team.abbreviation)
+        self.user_team = self.user_team.upper()
+        if self.user_team not in seen:
+            raise ValueError(f"user_team {self.user_team} is not one of the league's teams")
+        return self
+
+    def teams(self) -> list[TeamIdentity]:
+        return [t for c in self.conferences for d in c.divisions for t in d.teams]
+
+
 # ---------- franchise dashboard ----------
 
 class FranchiseOut(BaseModel):
@@ -258,6 +341,11 @@ class FranchiseOut(BaseModel):
     league: LeagueOut
     team: TeamSummary
     season: SeasonOut
+
+
+class FranchiseListItem(FranchiseOut):
+    is_active: bool
+    team_count: int
 
 
 class PositionGroupSummary(BaseModel):

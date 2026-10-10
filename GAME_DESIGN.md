@@ -36,6 +36,28 @@ broadcast presentation.
 - Playoffs (planned): 7 teams per conference, top seed bye.
 - Salary cap: **$255M** per team. Roster limit: **53**.
 
+## Custom leagues & franchises
+
+Create a league from **My Leagues → Create league**:
+
+- **Structure:** 1–4 conferences × 1–4 divisions × 1–8 teams (2+ in the builder), 4–40
+  teams in total. The total must be even so every team plays every week.
+- **Settings:** name, abbreviation, salary cap ($50M–$1B), regular-season length (1–20
+  weeks). Small leagues repeat the round-robin rotation to fill the season, keeping
+  each team within one home game of an even split.
+- **Teams** start from a pool of 40 fictional identities; every city, nickname,
+  abbreviation (unique per league), color, stadium, and conference/division name is
+  editable. Teams in any league can be edited later from the League page.
+- **Rosters:** generated fictional players (53 per team, under the cap), or empty for
+  building through roster import and free agency. A 64-player free-agent pool is always
+  created.
+- **Your team:** pick one; the league's franchise is created and becomes active.
+
+Each league holds exactly **one franchise** (career save), so two careers never share a
+league world. **My Leagues** lists every franchise; switching makes it active everywhere.
+A league can be deleted — along with all its players — unless it holds the active
+franchise.
+
 ## Players
 
 ### Positions

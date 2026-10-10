@@ -5,6 +5,7 @@ Given the same seed, the same league, rosters, contracts, and schedule are produ
 
 import random
 from collections.abc import Iterable
+from datetime import UTC, datetime
 
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
@@ -25,6 +26,7 @@ from app.models import (
     Season,
     Team,
 )
+from app.schemas import ConferenceSpec, DivisionSpec, LeagueCreate, TeamIdentity
 from app.seed import data
 
 FREE_AGENT_COUNT = 64
@@ -164,9 +166,10 @@ def _fit_under_cap(contracts: list[Contract], cap: int, ceiling: float = 0.94) -
 def round_robin(team_ids: list[int], rounds: int) -> list[list[tuple[int, int]]]:
     """Circle-method round robin. Returns `rounds` weeks of (home, away) pairs.
 
-    Home field goes to whichever team has hosted fewer games so far (ties go to the
-    team that was away most recently), which keeps every team within one home game
-    of an even split.
+    Each opponent is met once per n-1 weeks; small leagues with more weeks than that
+    cycle through the rotation again. Home field goes to whichever team has hosted
+    fewer games so far (ties go to the team that was away most recently), which keeps
+    every team within one home game of an even split.
     """
     ids = list(team_ids)
     if len(ids) % 2:
@@ -175,7 +178,7 @@ def round_robin(team_ids: list[int], rounds: int) -> list[list[tuple[int, int]]]
     home_games = dict.fromkeys(ids, 0)
     last_home = dict.fromkeys(ids, False)
     weeks: list[list[tuple[int, int]]] = []
-    for _ in range(min(rounds, n - 1)):
+    for _ in range(rounds):
         pairs = []
         for i in range(n // 2):
             a, b = ids[i], ids[n - 1 - i]
@@ -189,46 +192,80 @@ def round_robin(team_ids: list[int], rounds: int) -> list[list[tuple[int, int]]]
     return weeks
 
 
+def default_spec() -> LeagueCreate:
+    """The shipped Dynasty Football League as a league spec."""
+    conferences = [
+        ConferenceSpec(name=conf_name, abbreviation=conf_abbr, divisions=[
+            DivisionSpec(name=f"{conf_abbr} {div_name}",
+                         teams=[_identity(team) for team in team_defs])
+            for div_name, team_defs in divisions.items()
+        ])
+        for (conf_name, conf_abbr), divisions in data.CONFERENCES.items()
+    ]
+    return LeagueCreate(name=data.LEAGUE_NAME, abbreviation=data.LEAGUE_ABBREVIATION,
+                        salary_cap=data.SALARY_CAP, season_year=data.START_YEAR,
+                        weeks=data.REGULAR_SEASON_WEEKS, conferences=conferences,
+                        user_team=DEFAULT_FRANCHISE_TEAM)
+
+
+def league_template(conferences: int, divisions: int, teams_per_division: int) -> LeagueCreate:
+    """A ready-to-edit custom league filled from the fictional team pool."""
+    total = conferences * divisions * teams_per_division
+    if not 1 <= conferences <= len(data.CONFERENCE_NAMES):
+        raise ValueError(f"conferences must be 1-{len(data.CONFERENCE_NAMES)}")
+    if not 1 <= divisions <= len(data.DIVISION_NAMES):
+        raise ValueError(f"divisions must be 1-{len(data.DIVISION_NAMES)}")
+    if total > len(data.TEAM_POOL):
+        raise ValueError(f"at most {len(data.TEAM_POOL)} teams")
+    pool = iter(data.TEAM_POOL)
+    specs = []
+    for conf_name, conf_abbr in data.CONFERENCE_NAMES[:conferences]:
+        div_specs = []
+        for div_name in data.DIVISION_NAMES[:divisions]:
+            name = f"{conf_abbr} {div_name}" if conferences > 1 or divisions > 1 else conf_name
+            div_specs.append(DivisionSpec(
+                name=name, teams=[_identity(next(pool)) for _ in range(teams_per_division)]))
+        specs.append(ConferenceSpec(name=conf_name, abbreviation=conf_abbr, divisions=div_specs))
+    first = specs[0].divisions[0].teams[0].abbreviation
+    return LeagueCreate(name="Custom League", abbreviation="CUST", conferences=specs,
+                        user_team=first)
+
+
+def _identity(team: data.TeamDef) -> TeamIdentity:
+    city, nickname, abbr, primary, secondary, stadium = team
+    return TeamIdentity(city=city, nickname=nickname, abbreviation=abbr,
+                        primary_color=primary, secondary_color=secondary, stadium=stadium)
+
+
 def generate_league(session: Session, seed: int = 2026) -> League:
+    return build_league(session, default_spec(), seed).league
+
+
+def build_league(session: Session, spec: LeagueCreate, seed: int) -> Franchise:
+    """Create a league from a spec: structure, rosters, free agents, schedule, and the
+    user's franchise (activated). Deterministic for a given spec and seed."""
     rng = random.Random(seed)
-    league = League(
-        name=data.LEAGUE_NAME,
-        abbreviation=data.LEAGUE_ABBREVIATION,
-        salary_cap=data.SALARY_CAP,
-    )
+    league = League(name=spec.name, abbreviation=spec.abbreviation.upper(),
+                    salary_cap=spec.salary_cap)
     session.add(league)
 
     teams: list[Team] = []
-    for (conf_name, conf_abbr), divisions in data.CONFERENCES.items():
-        conference = Conference(name=conf_name, abbreviation=conf_abbr)
+    for conf_spec in spec.conferences:
+        conference = Conference(name=conf_spec.name, abbreviation=conf_spec.abbreviation)
         league.conferences.append(conference)
-        for div_name, team_defs in divisions.items():
-            division = Division(name=f"{conf_abbr} {div_name}")
+        for div_spec in conf_spec.divisions:
+            division = Division(name=div_spec.name)
             conference.divisions.append(division)
-            for city, nickname, abbr, primary, secondary, stadium in team_defs:
-                team = Team(
-                    league=league, city=city, nickname=nickname, abbreviation=abbr,
-                    primary_color=primary, secondary_color=secondary, stadium=stadium,
-                )
+            for identity in div_spec.teams:
+                team = Team(league=league, **identity.model_dump())
                 division.teams.append(team)
                 teams.append(team)
     session.flush()
 
-    year = data.START_YEAR
-    for team in teams:
-        quality = rng.gauss(0, 3)
-        taken: set[int] = set()
-        contracts: list[Contract] = []
-        for position, count in ROSTER_TEMPLATE.items():
-            for depth in range(count):
-                target = DEPTH_TARGETS[min(depth, len(DEPTH_TARGETS) - 1)] + quality
-                if position in SPECIAL_TEAMS:
-                    target += SPECIALIST_OFFSET
-                target = rng.gauss(target, 3.5)
-                player = make_player(rng, league, position, round(target), team, taken)
-                session.add(player)
-                contracts.append(_sign(rng, player, team, year))
-        _fit_under_cap(contracts, league.salary_cap)
+    year = spec.season_year
+    if spec.rosters == "generated":
+        for team in teams:
+            _populate_roster(session, rng, league, team, year)
 
     positions = list(ROSTER_TEMPLATE)
     position_weights = list(ROSTER_TEMPLATE.values())
@@ -238,18 +275,38 @@ def generate_league(session: Session, seed: int = 2026) -> League:
 
     season = Season(league=league, year=year, phase="preseason", current_week=1)
     session.add(season)
-    _schedule(session, season, [t.id for t in teams], rng)
+    _schedule(session, season, [t.id for t in teams], rng, spec.weeks)
 
-    user_team = next(t for t in teams if t.abbreviation == DEFAULT_FRANCHISE_TEAM)
-    session.add(Franchise(name=f"{user_team.nickname} Dynasty", league=league, team=user_team))
+    user_team = next(t for t in teams if t.abbreviation == spec.user_team)
+    franchise = Franchise(name=spec.franchise_name or f"{user_team.nickname} Dynasty",
+                          league=league, team=user_team, activated_at=datetime.now(UTC))
+    session.add(franchise)
     session.flush()
-    return league
+    return franchise
 
 
-def _schedule(session: Session, season: Season, team_ids: Iterable[int], rng: random.Random):
+def _populate_roster(session: Session, rng: random.Random, league: League, team: Team,
+                     year: int) -> None:
+    quality = rng.gauss(0, 3)
+    taken: set[int] = set()
+    contracts: list[Contract] = []
+    for position, count in ROSTER_TEMPLATE.items():
+        for depth in range(count):
+            target = DEPTH_TARGETS[min(depth, len(DEPTH_TARGETS) - 1)] + quality
+            if position in SPECIAL_TEAMS:
+                target += SPECIALIST_OFFSET
+            target = rng.gauss(target, 3.5)
+            player = make_player(rng, league, position, round(target), team, taken)
+            session.add(player)
+            contracts.append(_sign(rng, player, team, year))
+    _fit_under_cap(contracts, league.salary_cap)
+
+
+def _schedule(session: Session, season: Season, team_ids: Iterable[int], rng: random.Random,
+              weeks: int) -> None:
     ids = list(team_ids)
     rng.shuffle(ids)
-    for week_number, pairs in enumerate(round_robin(ids, data.REGULAR_SEASON_WEEKS), start=1):
+    for week_number, pairs in enumerate(round_robin(ids, weeks), start=1):
         for home, away in pairs:
             session.add(Game(season=season, week=week_number,
                              home_team_id=home, away_team_id=away))

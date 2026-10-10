@@ -96,3 +96,26 @@ COLLEGES = [
     "Bayou State", "High Desert", "Iron Range", "Piedmont", "Sierra Pacific",
     "Blue Ridge", "Prairie View Tech", "Cumberland", "Tidewater", "Columbia Basin",
 ]
+
+# Extra identities so custom leagues can have up to 40 teams.
+EXTRA_TEAMS: list[TeamDef] = [
+    ("Wichita", "Windjammers", "WIC", "#003566", "#FFC300", "Plains Arena"),
+    ("Des Moines", "Dragoons", "DSM", "#540B0E", "#E09F3E", "Capital Hill Field"),
+    ("Little Rock", "Rangers", "LRK", "#3A5A40", "#DAD7CD", "Riverfront Stadium"),
+    ("Chattanooga", "Choo Choos", "CHA", "#7209B7", "#4CC9F0", "Lookout Park"),
+    ("Knoxville", "Mountaineers", "KNX", "#FB8500", "#023047", "Smoky Ridge Field"),
+    ("Reno", "Rollers", "RNO", "#14213D", "#E5E5E5", "High Sierra Dome"),
+    ("Tucson", "Thunderbirds", "TUC", "#9E2A2B", "#FFF3B0", "Saguaro Stadium"),
+    ("Madison", "Marshals", "MSN", "#283618", "#FEFAE0", "Isthmus Field"),
+]
+
+# All fictional team identities, in default-league order, then extras.
+TEAM_POOL: list[TeamDef] = [
+    team for divisions in CONFERENCES.values() for teams in divisions.values() for team in teams
+] + EXTRA_TEAMS
+
+CONFERENCE_NAMES: list[tuple[str, str]] = [
+    ("Atlantic Conference", "ATL"), ("Pacific Conference", "PAC"),
+    ("Central Conference", "CEN"), ("Frontier Conference", "FRO"),
+]
+DIVISION_NAMES = ["North", "East", "South", "West"]

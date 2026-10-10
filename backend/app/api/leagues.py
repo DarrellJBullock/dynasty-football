@@ -1,11 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.errors import roster_errors
 from app.db import get_db
 from app.domain.positions import Position
 from app.models import League, Player, Team
-from app.schemas import DivisionStandings, LeagueOut, PlayerSummary, TeamDetail
+from app.schemas import (
+    DivisionStandings,
+    FranchiseOut,
+    LeagueCreate,
+    LeagueOut,
+    PlayerSummary,
+    TeamDetail,
+)
+from app.seed.generator import league_template
+from app.services import leagues as league_service
+from app.services.dashboard import franchise_out
 from app.services.serializers import league_out, player_summary
 from app.services.standings import league_standings
 from app.services.teams import current_season, load_overrides, team_detail
@@ -23,6 +34,30 @@ def get_league(league_id: int, db: Session = Depends(get_db)) -> League:
 @router.get("", response_model=list[LeagueOut])
 def list_leagues(db: Session = Depends(get_db)):
     return [league_out(league) for league in db.scalars(select(League).order_by(League.id))]
+
+
+@router.get("/template", response_model=LeagueCreate)
+def template(conferences: int = Query(2, ge=1, le=4), divisions: int = Query(4, ge=1, le=4),
+             teams_per_division: int = Query(4, ge=1, le=8)):
+    """An editable custom-league spec filled with fictional teams."""
+    try:
+        return league_template(conferences, divisions, teams_per_division)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.post("", response_model=FranchiseOut, status_code=201)
+def create_league(spec: LeagueCreate, db: Session = Depends(get_db)):
+    """Create a league and the user's franchise in it; the franchise becomes active."""
+    with roster_errors(db):
+        franchise = league_service.create_league(db, spec)
+    return franchise_out(db, franchise)
+
+
+@router.delete("/{league_id}", status_code=204)
+def delete_league(league: League = Depends(get_league), db: Session = Depends(get_db)):
+    with roster_errors(db):
+        league_service.delete_league(db, league)
 
 
 @router.get("/{league_id}", response_model=LeagueOut)

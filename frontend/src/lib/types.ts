@@ -227,3 +227,43 @@ export interface DepthChart {
   team: TeamDetail;
   slots: DepthSlot[];
 }
+
+export interface TeamIdentity {
+  city: string;
+  nickname: string;
+  abbreviation: string;
+  primary_color: string;
+  secondary_color: string;
+  stadium: string;
+}
+
+export type TeamUpdate = Partial<TeamIdentity>;
+
+export interface DivisionSpec {
+  name: string;
+  teams: TeamIdentity[];
+}
+
+export interface ConferenceSpec {
+  name: string;
+  abbreviation: string;
+  divisions: DivisionSpec[];
+}
+
+export interface LeagueCreate {
+  name: string;
+  abbreviation: string;
+  salary_cap: number;
+  season_year: number;
+  weeks: number;
+  rosters: "generated" | "empty";
+  conferences: ConferenceSpec[];
+  user_team: string;
+  franchise_name?: string | null;
+  seed?: number | null;
+}
+
+export interface FranchiseListItem extends Franchise {
+  is_active: boolean;
+  team_count: number;
+}

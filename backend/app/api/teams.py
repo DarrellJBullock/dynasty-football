@@ -4,7 +4,15 @@ from sqlalchemy.orm import Session
 from app.api.errors import roster_errors
 from app.db import get_db
 from app.models import Team
-from app.schemas import PlayerCreate, PlayerDetail, PlayerSummary, SigningRequest, TeamDetail
+from app.schemas import (
+    PlayerCreate,
+    PlayerDetail,
+    PlayerSummary,
+    SigningRequest,
+    TeamDetail,
+    TeamUpdate,
+)
+from app.services import leagues as league_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
 from app.services.teams import load_overrides, load_roster, team_detail
@@ -21,6 +29,15 @@ def get_team(team_id: int, db: Session = Depends(get_db)) -> Team:
 
 @router.get("/{team_id}", response_model=TeamDetail)
 def read_team(team: Team = Depends(get_team), db: Session = Depends(get_db)):
+    return team_detail(team, load_roster(db, team.id), load_overrides(db, [team.id])[team.id])
+
+
+@router.patch("/{team_id}", response_model=TeamDetail)
+def update_team(payload: TeamUpdate, team: Team = Depends(get_team),
+                db: Session = Depends(get_db)):
+    """Edit a team's identity: city, nickname, abbreviation, colors, stadium."""
+    with roster_errors(db):
+        league_service.update_team(db, team, payload)
     return team_detail(team, load_roster(db, team.id), load_overrides(db, [team.id])[team.id])
 
 
