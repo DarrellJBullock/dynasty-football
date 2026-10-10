@@ -5,7 +5,7 @@ from statistics import mean
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.domain.positions import ROSTER_MAX, PositionGroup, group_of
+from app.domain.positions import ROSTER_MAX, Position, PositionGroup, group_of
 from app.models import Franchise, Game, Player
 from app.schemas import (
     Alert,
@@ -22,7 +22,7 @@ from app.services.serializers import (
     team_summary,
 )
 from app.services.standings import league_standings
-from app.services.teams import current_season, load_roster, starting_lineup, team_detail
+from app.services.teams import current_season, load_overrides, load_roster, team_detail, team_lineup
 
 UPCOMING_GAMES = 5
 TOP_PLAYERS = 6
@@ -40,8 +40,9 @@ def franchise_out(db: Session, franchise: Franchise) -> FranchiseOut:
                         team=team_summary(franchise.team), season=season_out(season))
 
 
-def _position_groups(roster: list[Player]) -> list[PositionGroupSummary]:
-    starters = {p.id for players in starting_lineup(roster).values() for p in players}
+def _position_groups(roster: list[Player],
+                     lineup: dict[Position, list[Player]]) -> list[PositionGroupSummary]:
+    starters = {p.id for players in lineup.values() for p in players}
     summaries = []
     for group in PositionGroup:
         members = [p for p in roster if group_of(p.position) == group]
@@ -87,7 +88,8 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
     league = franchise.league
     season = current_season(db, league.id)
     roster = load_roster(db, team.id)
-    detail = team_detail(team, roster)
+    overrides = load_overrides(db, [team.id])[team.id]
+    detail = team_detail(team, roster, overrides)
 
     standings = league_standings(db, league, season)
     division = next(d for d in standings if d.division == team.division.name)
@@ -102,7 +104,7 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
     )
     expiring = sum(1 for p in roster
                    if (c := p.active_contract) is not None and c.end_year <= season.year)
-    groups = _position_groups(roster)
+    groups = _position_groups(roster, team_lineup(roster, overrides))
 
     return Dashboard(
         franchise=franchise_out(db, franchise),

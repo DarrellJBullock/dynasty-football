@@ -8,7 +8,7 @@ from app.models import League, Player, Team
 from app.schemas import DivisionStandings, LeagueOut, PlayerSummary, TeamDetail
 from app.services.serializers import league_out, player_summary
 from app.services.standings import league_standings
-from app.services.teams import current_season, team_detail
+from app.services.teams import current_season, load_overrides, team_detail
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
 
@@ -40,8 +40,9 @@ def list_teams(league: League = Depends(get_league), db: Session = Depends(get_d
     by_team: dict[int, list[Player]] = {}
     for player in players:
         by_team.setdefault(player.team_id, []).append(player)
-    teams = db.scalars(select(Team).where(Team.league_id == league.id).order_by(Team.id))
-    return [team_detail(team, by_team.get(team.id, [])) for team in teams]
+    teams = db.scalars(select(Team).where(Team.league_id == league.id).order_by(Team.id)).all()
+    overrides = load_overrides(db, [team.id for team in teams])
+    return [team_detail(team, by_team.get(team.id, []), overrides[team.id]) for team in teams]
 
 
 @router.get("/{league_id}/standings", response_model=list[DivisionStandings])

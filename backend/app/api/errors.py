@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.services.roster import RosterError
+from app.services.errors import RosterError
 
 
 @contextmanager

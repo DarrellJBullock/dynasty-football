@@ -24,7 +24,7 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   alembic/        migrations
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
-  src/app/        routes: / (dashboard), /roster, /league
+  src/app/        routes: / (dashboard), /roster, /depth-chart, /league
   src/components/ UI by feature (dashboard, roster, league, field, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers
 ```
@@ -76,4 +76,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   children through the parent relationship (`player.contracts.append(...)`).
 - **Test isolation:** each test runs in a rolled-back SAVEPOINT. The SQLite engine in
   `tests/conftest.py` needs the pysqlite transaction workaround — keep it.
+- **Team ratings need the depth chart:** `team_detail()` takes the team's saved
+  overrides (`load_overrides`). Never compute a lineup from the raw roster; use
+  `team_lineup()` / `domain.depth_chart`.
+- **Next dev server** can serve a stale server render of a client component edited
+  mid-session (shows as a hydration mismatch). Restart `make dev-frontend` to clear it.
 - Single franchise for now: `current_franchise()` returns the earliest `franchises` row.

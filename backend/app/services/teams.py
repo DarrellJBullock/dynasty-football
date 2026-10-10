@@ -1,24 +1,16 @@
-"""Team-level calculations: lineup, team ratings, payroll."""
+"""Team-level calculations: depth chart lineup, team ratings, payroll."""
 
-from collections import defaultdict
+from collections.abc import Iterable
 from statistics import mean
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.domain.positions import (
-    DEFENSE,
-    OFFENSE,
-    ROSTER_MAX,
-    SPECIAL_TEAMS,
-    STARTERS,
-    Position,
-)
-from app.models import Player, Season, Team
+from app.domain.depth_chart import build_chart, starting_lineup
+from app.domain.positions import DEFENSE, OFFENSE, ROSTER_MAX, SPECIAL_TEAMS, Position
+from app.models import DepthChartEntry, Player, Season, Team
 from app.schemas import TeamDetail, TeamRatings
 from app.services.serializers import team_summary
-
-UNAVAILABLE = {"out", "injured_reserve"}
 
 
 def load_roster(db: Session, team_id: int) -> list[Player]:
@@ -36,16 +28,27 @@ def current_season(db: Session, league_id: int) -> Season | None:
     return db.scalars(stmt).first()
 
 
-def starting_lineup(players: list[Player]) -> dict[Position, list[Player]]:
-    """Best available players at each starting slot (by OVR) until depth charts exist."""
-    by_position: dict[Position, list[Player]] = defaultdict(list)
-    for player in players:
-        if player.injury_status not in UNAVAILABLE:
-            by_position[Position(player.position)].append(player)
-    return {
-        position: sorted(by_position[position], key=lambda p: -p.overall)[:count]
-        for position, count in STARTERS.items()
-    }
+Overrides = dict[Position, list[int]]
+
+
+def load_overrides(db: Session, team_ids: Iterable[int]) -> dict[int, Overrides]:
+    """Saved depth chart orders, keyed by team then slot."""
+    ids = list(team_ids)
+    result: dict[int, Overrides] = {team_id: {} for team_id in ids}
+    if not ids:
+        return result
+    entries = db.scalars(
+        select(DepthChartEntry)
+        .where(DepthChartEntry.team_id.in_(ids))
+        .order_by(DepthChartEntry.team_id, DepthChartEntry.slot, DepthChartEntry.depth)
+    )
+    for entry in entries:
+        result[entry.team_id].setdefault(Position(entry.slot), []).append(entry.player_id)
+    return result
+
+
+def team_lineup(players: list[Player], overrides: Overrides) -> dict[Position, list[Player]]:
+    return starting_lineup(build_chart(players, overrides))
 
 
 def _unit_rating(lineup: dict[Position, list[Player]], unit: set[Position]) -> int:
@@ -53,8 +56,7 @@ def _unit_rating(lineup: dict[Position, list[Player]], unit: set[Position]) -> i
     return round(mean(overalls)) if overalls else 0
 
 
-def team_ratings(players: list[Player]) -> TeamRatings:
-    lineup = starting_lineup(players)
+def team_ratings(lineup: dict[Position, list[Player]]) -> TeamRatings:
     offense = _unit_rating(lineup, OFFENSE)
     defense = _unit_rating(lineup, DEFENSE)
     special = _unit_rating(lineup, SPECIAL_TEAMS)
@@ -66,12 +68,12 @@ def payroll(players: list[Player]) -> int:
     return sum(c.salary for p in players if (c := p.active_contract) is not None)
 
 
-def team_detail(team: Team, players: list[Player]) -> TeamDetail:
+def team_detail(team: Team, players: list[Player], overrides: Overrides) -> TeamDetail:
     total = payroll(players)
     return TeamDetail(
         **team_summary(team).model_dump(),
         stadium=team.stadium,
-        ratings=team_ratings(players),
+        ratings=team_ratings(team_lineup(players, overrides)),
         roster_count=len(players),
         roster_max=ROSTER_MAX,
         payroll=total,
