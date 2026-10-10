@@ -15,13 +15,13 @@ const NAV: { heading: string; items: NavItem[] }[] = [
     items: [
       { label: "Dashboard", href: "/", icon: <IconGrid /> },
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
+      { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
       { label: "League", href: "/league", icon: <IconTrophy /> },
     ],
   },
   {
     heading: "Coming soon",
     items: [
-      { label: "Depth Chart", icon: <IconList /> },
       { label: "Schedule", icon: <IconCalendar /> },
       { label: "Draft & Trades", icon: <IconSwap /> },
       { label: "Play Game", icon: <IconPlay /> },

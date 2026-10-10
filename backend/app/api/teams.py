@@ -7,7 +7,7 @@ from app.models import Team
 from app.schemas import PlayerCreate, PlayerDetail, PlayerSummary, SigningRequest, TeamDetail
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
-from app.services.teams import load_roster, team_detail
+from app.services.teams import load_overrides, load_roster, team_detail
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -21,7 +21,7 @@ def get_team(team_id: int, db: Session = Depends(get_db)) -> Team:
 
 @router.get("/{team_id}", response_model=TeamDetail)
 def read_team(team: Team = Depends(get_team), db: Session = Depends(get_db)):
-    return team_detail(team, load_roster(db, team.id))
+    return team_detail(team, load_roster(db, team.id), load_overrides(db, [team.id])[team.id])
 
 
 @router.get("/{team_id}/roster", response_model=list[PlayerSummary])

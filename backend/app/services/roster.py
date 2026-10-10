@@ -7,18 +7,13 @@ from app.domain.positions import ROSTER_MAX, Position, available_jersey
 from app.domain.ratings import ATTRIBUTES, calculate_overall
 from app.models import Contract, Player, PlayerRatings, Team
 from app.schemas import PlayerCreate, PlayerUpdate, SigningRequest
+from app.services.depth_chart import remove_player
+from app.services.errors import RosterError
 from app.services.teams import current_season, load_roster, payroll
 
 DEFAULT_RATING = 50
 
 
-class RosterError(Exception):
-    """A roster rule was violated. Routes translate this to an HTTP error."""
-
-    def __init__(self, message: str, status_code: int = 409):
-        super().__init__(message)
-        self.message = message
-        self.status_code = status_code
 
 
 def _season_year(db: Session, team: Team) -> int:
@@ -86,6 +81,10 @@ def create_player(db: Session, team: Team, payload: PlayerCreate) -> Player:
 
 def update_player(db: Session, player: Player, payload: PlayerUpdate) -> Player:
     changes = payload.model_dump(exclude_unset=True, exclude={"ratings"})
+    new_position = changes.get("position")
+    if new_position is not None and new_position != player.position:
+        # Leave the old position's depth chart; the player joins the new one at the bottom.
+        remove_player(db, player, Position(player.position))
     if "jersey_number" in changes and player.team_id is not None:
         _check_jersey(load_roster(db, player.team_id), changes["jersey_number"], player.id)
     for field, value in changes.items():
@@ -105,6 +104,7 @@ def release_player(db: Session, player: Player) -> Player:
         raise RosterError("player is already a free agent")
     for contract in player.contracts:
         contract.is_active = False
+    remove_player(db, player)
     player.team_id = None
     db.flush()
     return player

@@ -1,11 +1,13 @@
 import type {
   Dashboard,
+  DepthChart,
   DivisionStandings,
   Franchise,
   PlayerCreate,
   PlayerDetail,
   PlayerSummary,
   PlayerUpdate,
+  Position,
   TeamDetail,
 } from "@/lib/types";
 
@@ -83,6 +85,16 @@ export const api = {
     post<PlayerDetail>(`/teams/${teamId}/signings`, { player_id: playerId, years }),
   createPlayer: (teamId: number, player: PlayerCreate) =>
     post<PlayerDetail>(`/teams/${teamId}/players`, player),
+  depthChart: (teamId: number) => request<DepthChart>(`/teams/${teamId}/depth-chart`),
+  setDepthSlot: (teamId: number, slot: Position, playerIds: number[]) =>
+    request<DepthChart>(`/teams/${teamId}/depth-chart/${slot}`, {
+      method: "PUT",
+      body: JSON.stringify({ player_ids: playerIds }),
+    }),
+  resetDepthSlot: (teamId: number, slot: Position) =>
+    request<DepthChart>(`/teams/${teamId}/depth-chart/${slot}`, { method: "DELETE" }),
+  resetDepthChart: (teamId: number) =>
+    request<DepthChart>(`/teams/${teamId}/depth-chart`, { method: "DELETE" }),
 };
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: unknown };
