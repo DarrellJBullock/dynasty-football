@@ -1,0 +1,85 @@
+"""ORM -> API schema conversion, kept in one place so routes stay thin."""
+
+from app.domain.positions import group_of
+from app.domain.ratings import key_attributes
+from app.models import Contract, Game, League, Player, Season, Team
+from app.schemas import (
+    ContractOut,
+    GameOut,
+    LeagueOut,
+    PlayerDetail,
+    PlayerSummary,
+    SeasonOut,
+    TeamSummary,
+)
+
+
+def league_out(league: League) -> LeagueOut:
+    return LeagueOut(id=league.id, name=league.name, abbreviation=league.abbreviation,
+                     salary_cap=league.salary_cap)
+
+
+def season_out(season: Season) -> SeasonOut:
+    return SeasonOut(id=season.id, year=season.year, phase=season.phase,
+                     current_week=season.current_week)
+
+
+def team_summary(team: Team) -> TeamSummary:
+    return TeamSummary(
+        id=team.id,
+        city=team.city,
+        nickname=team.nickname,
+        full_name=team.full_name,
+        abbreviation=team.abbreviation,
+        primary_color=team.primary_color,
+        secondary_color=team.secondary_color,
+        division=team.division.name,
+        conference=team.division.conference.name,
+    )
+
+
+def contract_out(contract: Contract | None) -> ContractOut | None:
+    if contract is None:
+        return None
+    return ContractOut(start_year=contract.start_year, years=contract.years,
+                       end_year=contract.end_year, salary=contract.salary,
+                       signing_bonus=contract.signing_bonus)
+
+
+def _player_fields(player: Player) -> dict:
+    ratings = player.ratings.as_dict()
+    return dict(
+        id=player.id,
+        team_id=player.team_id,
+        first_name=player.first_name,
+        last_name=player.last_name,
+        full_name=player.full_name,
+        position=player.position,
+        position_group=group_of(player.position),
+        jersey_number=player.jersey_number,
+        age=player.age,
+        height_in=player.height_in,
+        weight_lb=player.weight_lb,
+        college=player.college,
+        years_pro=player.years_pro,
+        overall=player.overall,
+        potential=player.potential,
+        development_trait=player.development_trait,
+        injury_status=player.injury_status,
+        contract=contract_out(player.active_contract),
+        key_ratings={name: ratings[name] for name in key_attributes(player.position)},
+    )
+
+
+def player_summary(player: Player) -> PlayerSummary:
+    return PlayerSummary(**_player_fields(player))
+
+
+def player_detail(player: Player) -> PlayerDetail:
+    return PlayerDetail(**_player_fields(player), ratings=player.ratings.as_dict())
+
+
+def game_out(game: Game) -> GameOut:
+    return GameOut(id=game.id, week=game.week, home=team_summary(game.home_team),
+                   away=team_summary(game.away_team), home_score=game.home_score,
+                   away_score=game.away_score, status=game.status)

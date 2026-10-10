@@ -1,0 +1,20 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Env files (examples are committed)
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings
+.claude/settings.local.json

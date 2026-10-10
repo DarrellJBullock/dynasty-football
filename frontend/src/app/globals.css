@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/*
+ * Dynasty Football design tokens. The game UI is intentionally dark-only
+ * (broadcast-graphics look); team colours are injected per page via
+ * --team-primary / --team-secondary.
+ */
+@theme {
+  --color-ink-950: #05070a;
+  --color-ink-900: #090d13;
+  --color-ink-850: #0d121a;
+  --color-ink-800: #121924;
+  --color-ink-700: #1b2431;
+  --color-ink-600: #273344;
+  --color-ink-500: #3a4a5e;
+  --color-chalk: #e8edf3;
+  --color-mist: #8d9bab;
+  --color-gold: #f2b544;
+  --color-turf: #1f7a4d;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-barlow), var(--font-geist-sans);
+}
+
+:root {
+  --team-primary: #f2b544;
+  --team-secondary: #e8edf3;
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgb(242 181 68 / 0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(31 122 77 / 0.08), transparent 60%),
+    var(--color-ink-950);
+  color: var(--color-chalk);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-white/[0.06] bg-ink-850/80 shadow-[0_1px_0_0_rgb(255_255_255/0.03)_inset,0_20px_40px_-24px_rgb(0_0_0/0.8)] backdrop-blur;
+  }
+  .eyebrow {
+    @apply font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-mist;
+  }
+  .stat-number {
+    @apply font-display font-bold tabular-nums leading-none;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold;
+  }
+  .btn-primary {
+    @apply bg-gold text-ink-950 hover:bg-amber-300;
+  }
+  .btn-ghost {
+    @apply border border-white/10 bg-white/[0.03] text-chalk hover:bg-white/[0.08];
+  }
+  .btn-danger {
+    @apply border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20;
+  }
+  .field-input {
+    @apply w-full rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-chalk placeholder:text-mist/60 focus:border-gold/60 focus:outline-none;
+  }
+}
+
+/* Thin, unobtrusive scrollbars for dense tables */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}

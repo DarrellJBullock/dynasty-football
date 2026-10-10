@@ -1,0 +1,16 @@
+# Optional: PostgreSQL in Docker, for machines without a local Postgres install.
+# `docker compose up -d db`, then use the same DATABASE_URL with user/password:
+#   postgresql+psycopg://dynasty:dynasty@localhost:5432/dynasty_football
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: dynasty
+      POSTGRES_PASSWORD: dynasty
+      POSTGRES_DB: dynasty_football
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
