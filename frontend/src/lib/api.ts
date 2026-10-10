@@ -121,6 +121,10 @@ function importForm(file: File, mode: ImportMode, skipInvalid?: boolean): FormDa
   return form;
 }
 
+export function rosterExportUrl(teamId: number, format: ImportFormat): string {
+  return `${apiBaseUrl()}/api/teams/${teamId}/roster-export.${format}`;
+}
+
 export function importTemplateUrl(format: ImportFormat): string {
   return `${apiBaseUrl()}/api/roster-import/template.${format}`;
 }

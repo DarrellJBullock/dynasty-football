@@ -68,11 +68,13 @@ def _read_csv(content: bytes) -> list[RawRow]:
     except UnicodeDecodeError:
         text = content.decode("latin-1")
     sample = text[:4096]
+    # Only the delimiter is sniffed. The sniffer's quoting guesses are unreliable (it can
+    # misread doubled quotes inside a field), so standard CSV quoting is always used.
     try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+        delimiter = csv.Sniffer().sniff(sample, delimiters=",;\t|").delimiter
     except csv.Error:
-        dialect = csv.excel
-    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
+        delimiter = ","
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
     if not reader.fieldnames:
         raise ImportFileError("CSV has no header row.")
     # DictReader puts overflow cells under None; drop them.

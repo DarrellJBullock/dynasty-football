@@ -303,3 +303,11 @@ class TestImportApi:
         assert [p["full_name"] for p in qb["players"]] == ["New Starter"]
         assert qb["starter_ids"] == [qb["players"][0]["id"]]
         assert result["team"]["ratings"] == chart["team"]["ratings"]
+
+
+def test_csv_quoted_fields_with_embedded_quotes_and_delimiters():
+    content = (b'first_name,last_name,position,college\n'
+               b'Ty,"O\'Neil, Jr.",QB,"The ""U"" of Somewhere"\n')
+    row = read_rows(content, FileFormat.CSV)[0]
+    assert row["last_name"] == "O'Neil, Jr."
+    assert row["college"] == 'The "U" of Somewhere'

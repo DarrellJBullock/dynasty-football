@@ -41,7 +41,7 @@ Server Components call it server-side for initial page data.
 | `app/services` | domain, models, schemas | Game logic needing the DB: roster mutations (`RosterError` on rule violations), team ratings/payroll, standings, dashboard assembly, ORM→schema serializers. |
 | `app/api` | services | Thin routers. `roster_errors()` wraps a mutation in one transaction and maps `RosterError` → 4xx. |
 | `app/seed` | domain, models | `generate_league(session, seed)` builds the default league deterministically. |
-| `app/roster_import` | domain | File handling with no DB: `readers` (CSV/XLSX/JSON → raw rows), `rows` (normalize + validate each row), `templates`. `services/roster_import.py` adds roster-level checks (capacity, jerseys, payroll) and commits. |
+| `app/roster_import` | domain | File handling with no DB: `readers` (CSV/XLSX/JSON → raw rows), `rows` (normalize + validate each row), `writers` (rows → CSV/XLSX/JSON, shared by templates and exports), `templates`. `services/roster_import.py` adds roster-level checks (capacity, jerseys, payroll) and commits. |
 
 ### Data model
 
@@ -97,6 +97,7 @@ Design notes:
 | `POST /api/teams/{id}/roster-import/preview` | Multipart `file` + `mode` (append/replace); validates without changing anything |
 | `POST /api/teams/{id}/roster-import/commit` | Same file again + `skip_invalid`; all-or-nothing by default |
 | `GET /api/roster-import/template.{csv,xlsx,json}` | Downloadable import template |
+| `GET /api/teams/{id}/roster-export.{csv,xlsx,json}` | Roster in the import format (`HFD-roster-2026.csv`) |
 | `GET /api/players/{id}` | Player with all 24 ratings |
 | `PATCH /api/players/{id}` | Partial edit (bio, position, status, ratings); OVR recomputed |
 | `POST /api/players/{id}/release` | Release to free agency |
@@ -129,7 +130,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend domain | pytest | OVR math, salary curve, jersey allocation, roster template |
 | Backend generator | pytest | determinism, structure, roster composition, unique jerseys, cap compliance, schedule validity |
 | Backend API | pytest + TestClient | every endpoint incl. 404/409/422 paths |
-| Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip |
+| Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip; export → re-import is lossless in every format |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |
@@ -158,6 +159,6 @@ runs in a rolled-back SAVEPOINT.
 
 ### Later concerns
 
-Auth & multiple saves (franchise per user), roster export,
+Auth & multiple saves (franchise per user), league-wide export,
 stats tables (game_player_stats), records, background jobs, deployment (containerised
 API + Postgres; Next.js on a Node host).

@@ -115,7 +115,7 @@ class Player(Base):
     overall: Mapped[int] = mapped_column(Integer, index=True)  # cached from ratings
     potential: Mapped[int] = mapped_column(Integer)
     development_trait: Mapped[str] = mapped_column(String(12), default="normal")
-    injury_status: Mapped[str] = mapped_column(String(12), default="healthy")
+    injury_status: Mapped[str] = mapped_column(String(20), default="healthy")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     league: Mapped[League] = relationship()
