@@ -172,11 +172,8 @@ export function RosterManager({
       </dl>
 
       {notice && (
-        <div
-          role="status"
-          className="flex items-center justify-between rounded-lg border border-emerald-400/20 bg-emerald-400/5 px-4 py-2 text-sm text-emerald-200"
-        >
-          {notice}
+        <div className="flex items-center justify-between rounded-lg border border-emerald-400/20 bg-emerald-400/5 px-4 py-2 text-sm text-emerald-200">
+          <p role="status">{notice}</p>
           <button type="button" className="text-emerald-200/60 hover:text-emerald-100" onClick={() => setNotice(null)} aria-label="Dismiss">
             ✕
           </button>

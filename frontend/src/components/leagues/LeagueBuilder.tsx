@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
+import { hardNavigate } from "@/lib/navigation";
 import { formatMoney } from "@/lib/format";
 import {
   DEFAULT_STRUCTURE,
@@ -64,8 +65,9 @@ export function LeagueBuilder() {
     setError(null);
     try {
       await api.createLeague(spec);
-      router.push("/");
-      router.refresh();
+      // A new active franchise changes every page; a full load guarantees no page shows
+      // the previous franchise from the client router cache.
+      hardNavigate("/");
     } catch (e) {
       setError((e as Error).message);
       setCreating(false);

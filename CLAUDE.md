@@ -38,6 +38,8 @@ make dev-backend      # API on :8000 (OpenAPI docs at /docs)
 make dev-frontend     # web on :3000
 make test             # backend (PostgreSQL) + frontend tests
 make test-backend-fast  # backend on in-memory SQLite, no services needed
+make e2e-setup        # once: e2e database + Playwright Chromium
+make e2e              # Playwright: real browser, own DB and ports (8001/3001)
 make lint             # ruff + eslint + tsc
 make reseed           # wipe and regenerate the sample league
 ```
@@ -58,7 +60,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **Determinism:** generators and (future) simulation take an explicit seed /
   `random.Random`; never use the global `random` module.
 - **Tests:** every backend rule gets a pytest; every interactive frontend flow gets a
-  Testing Library test with `@/lib/api` mocked. Keep both suites green.
+  Testing Library test with `@/lib/api` mocked; user-visible flows that cross pages or
+  need a real browser (drag-and-drop, downloads/uploads, navigation) get a Playwright
+  spec in `frontend/e2e/`. Keep all suites green.
+- **E2E locators:** use roles and accessible names, scope `getByRole("alert")` to
+  `getByRole("main")` (Next adds a route announcer with role="alert"), and pass
+  `exact: true` when one name is a substring of another ("League" / "My Leagues").
 - Python: ruff (line length 100). TS: eslint via `eslint-config-next`.
 - **CI** (`.github/workflows/ci.yml`) runs on every PR and push to `main`: backend lint,
   migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres and SQLite;
@@ -73,6 +80,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   - The React lint rule forbids building JSX inside `try/catch`; use `attempt()` from
     `src/lib/api.ts` and render the error outside.
   - `LayoutProps`/`PageProps` types come from `next typegen` (run by `npm run typecheck`).
+- **Dialogs must portal** to `document.body` (see `components/ui/Dialog.tsx`); any
+  ancestor with `backdrop-filter` (every `.panel`) otherwise traps the fixed overlay.
+- **After creating/switching a franchise use `hardNavigate("/")`**, not `router.push` —
+  the client router cache can serve pages from the previous franchise.
 - **Three.js** components must be client-only: load via `next/dynamic` with
   `ssr: false` from a client component (see `components/field/FieldPreviewLoader.tsx`).
   Mock them in jsdom tests.

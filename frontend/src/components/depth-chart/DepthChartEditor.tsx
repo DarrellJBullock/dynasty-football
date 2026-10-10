@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type Announcements,
   closestCenter,
   DndContext,
   type DragEndEvent,
@@ -221,6 +222,27 @@ function SlotEditor({
   const players = slot.players;
   const candidates = useMemo(() => addablePlayers(chart, slot), [chart, slot]);
 
+  // Screen-reader announcements in football terms (dnd-kit's defaults read out raw ids).
+  const announcements = useMemo<Announcements>(() => {
+    const name = (id: string | number) => players.find((p) => p.id === id)?.full_name ?? "player";
+    const spot = (id: string | number) => players.findIndex((p) => p.id === id) + 1;
+    const where = (id: string | number) => `${slot.slot} ${spot(id)} of ${players.length}`;
+    return {
+      onDragStart: ({ active }) => `Picked up ${name(active.id)} at ${where(active.id)}.`,
+      // Hovering over its own spot (e.g. right after pickup) isn't news; stay quiet so the
+      // pickup announcement isn't cut off.
+      onDragOver: ({ active, over }) =>
+        !over
+          ? `${name(active.id)} is no longer over a spot.`
+          : over.id === active.id
+            ? undefined
+            : `${name(active.id)} is over ${where(over.id)}.`,
+      onDragEnd: ({ active, over }) =>
+        over ? `${name(active.id)} moved to ${where(over.id)}.` : `${name(active.id)} was dropped.`,
+      onDragCancel: ({ active }) => `Cancelled. ${name(active.id)} stays at ${where(active.id)}.`,
+    };
+  }, [players, slot.slot]);
+
   function onDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
     const from = players.findIndex((p) => p.id === active.id);
@@ -273,6 +295,13 @@ function SlotEditor({
           collisionDetection={closestCenter}
           modifiers={[restrictToVerticalAxis]}
           onDragEnd={onDragEnd}
+          accessibility={{
+            announcements,
+            screenReaderInstructions: {
+              draggable:
+                "To reorder, press space or enter to pick up the player, use the up and down arrow keys to move, then press space or enter to drop, or escape to cancel.",
+            },
+          }}
         >
           <SortableContext items={players.map((p) => p.id)} strategy={verticalListSortingStrategy}>
             <ol className="space-y-2" aria-label={`${slot.slot} depth order`}>

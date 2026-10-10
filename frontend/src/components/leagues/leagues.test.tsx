@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
+import { hardNavigate } from "@/lib/navigation";
 import type { FranchiseListItem } from "@/lib/types";
 import { dashboard, makeSpec, opponent, teamDetail } from "@/test/fixtures";
 import { LeagueBuilder } from "./LeagueBuilder";
@@ -10,6 +11,7 @@ import { TeamEditDialog } from "./TeamEditButton";
 
 const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("@/lib/navigation", () => ({ hardNavigate: vi.fn() }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -46,8 +48,7 @@ describe("LeagueBuilder", () => {
 
     expect(mocked.createLeague).toHaveBeenCalledWith(
       expect.objectContaining({ user_team: "CCC", rosters: "empty", name: "Test League" }));
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/"));
-    expect(router.refresh).toHaveBeenCalled();
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith("/"));
   });
 
   it("refetches the template when the structure changes and blocks odd totals", async () => {
@@ -85,7 +86,7 @@ describe("LeagueBuilder", () => {
     await screen.findAllByTestId("builder-team");
     await userEvent.click(screen.getByRole("button", { name: "Create league" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("not one of the league's teams");
-    expect(router.push).not.toHaveBeenCalled();
+    expect(hardNavigate).not.toHaveBeenCalled();
   });
 });
 
@@ -108,7 +109,7 @@ describe("LeaguesHub", () => {
 
     await userEvent.click(within(card).getByRole("button", { name: "Switch to this franchise" }));
     expect(mocked.activateFranchise).toHaveBeenCalledWith(2);
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith("/"));
   });
 
   it("only lets inactive leagues be deleted, with confirmation", async () => {
@@ -125,6 +126,7 @@ describe("LeaguesHub", () => {
     expect(mocked.deleteLeague).toHaveBeenCalledWith(9);
     await waitFor(() =>
       expect(screen.queryByRole("listitem", { name: "Krakens Dynasty" })).not.toBeInTheDocument());
+    expect(router.refresh).toHaveBeenCalled();
   });
 
   it("shows errors from the server", async () => {

@@ -27,7 +27,7 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Custom teams (name, city, colours) and custom leagues (4–40 teams, 1–4 conferences
       × 1–4 divisions, cap, season length, generated or empty rosters)
 - [x] New-franchise flow: create a league, pick your team; switch between saved franchises
-- [ ] Playwright end-to-end smoke tests
+- [x] Playwright end-to-end tests (17 real-browser flows, run in CI)
 
 ## M2 — Quick Sim & season
 

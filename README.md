@@ -26,6 +26,7 @@ No Homebrew Postgres? `docker compose up -d db` and set `DATABASE_URL` in `backe
 | Command | Does |
 |---|---|
 | `make test` | All tests (backend on PostgreSQL + frontend) |
+| `make e2e` | End-to-end tests in a real browser (run `make e2e-setup` once first) |
 | `make lint` | ruff, eslint, TypeScript |
 | `make reseed` | Regenerate the sample league |
 | `make help` | Everything else |
