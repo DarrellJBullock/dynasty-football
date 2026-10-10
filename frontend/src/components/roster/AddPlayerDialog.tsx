@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { POSITIONS, type PlayerCreate, type Position } from "@/lib/types";
-import { Dialog } from "./Dialog";
+import { Dialog } from "@/components/ui/Dialog";
 
 /** Create a custom player with default (50) ratings; fine-tune them afterwards in the editor. */
 export function AddPlayerDialog({

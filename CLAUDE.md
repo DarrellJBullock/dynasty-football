@@ -25,7 +25,7 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   alembic/        migrations
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
-  src/app/        routes: / (dashboard), /roster, /depth-chart, /league
+  src/app/        routes: / (dashboard), /roster, /depth-chart, /league, /leagues, /leagues/new
   src/components/ UI by feature (dashboard, roster, league, field, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers
 ```
@@ -85,4 +85,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   `team_lineup()` / `domain.depth_chart`.
 - **Next dev server** can serve a stale server render of a client component edited
   mid-session (shows as a hydration mismatch). Restart `make dev-frontend` to clear it.
-- Single franchise for now: `current_franchise()` returns the earliest `franchises` row.
+- **Active franchise** = most recent `franchises.activated_at` (`current_franchise()`).
+  Every page reads `/api/franchise`, so never hard-code a league or team id. One
+  franchise per league (unique constraint).
+- **League deletion** deletes child rows explicitly (`services/leagues.delete_league`)
+  because SQLite tests don't enforce `ON DELETE CASCADE`. Add new league-owned tables there.
+- **Generator RNG order is load-bearing:** `build_league` must keep the default league
+  byte-identical for a given seed. Append new random draws after existing ones.

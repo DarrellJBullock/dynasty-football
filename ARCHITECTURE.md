@@ -40,7 +40,7 @@ Server Components call it server-side for initial page data.
 | `app/models.py` | `db` | ORM tables. Source of truth for migrations. |
 | `app/services` | domain, models, schemas | Game logic needing the DB: roster mutations (`RosterError` on rule violations), team ratings/payroll, standings, dashboard assembly, ORM→schema serializers. |
 | `app/api` | services | Thin routers. `roster_errors()` wraps a mutation in one transaction and maps `RosterError` → 4xx. |
-| `app/seed` | domain, models | `generate_league(session, seed)` builds the default league deterministically. |
+| `app/seed` | domain, models | `build_league(session, spec, seed)` builds any league deterministically from a `LeagueCreate` spec; `generate_league` is the default spec. `league_template` makes editable specs from the fictional team pool. |
 | `app/roster_import` | domain | File handling with no DB: `readers` (CSV/XLSX/JSON → raw rows), `rows` (normalize + validate each row), `writers` (rows → CSV/XLSX/JSON, shared by templates and exports), `templates`. `services/roster_import.py` adds roster-level checks (capacity, jerseys, payroll) and commits. |
 
 ### Data model
@@ -64,7 +64,7 @@ players.team_id NULL  = free agent
 | `contracts` | player_id, team_id, start_year, years, salary, signing_bonus, is_active |
 | `seasons` | league_id, year (unique per league), phase, current_week |
 | `games` | season_id, week, home/away team, scores (nullable), status |
-| `franchises` | name, league_id, team_id |
+| `franchises` | name, league_id (unique — one career per league), team_id, activated_at (latest = active) |
 | `depth_chart_entries` | team_id, slot (position), depth (1 = first string), player_id; unique per (team, slot, depth) and (team, slot, player) |
 
 Design notes:
@@ -82,6 +82,12 @@ Design notes:
 |---|---|
 | `GET /api/health` | Liveness |
 | `GET /api/franchise` | Active franchise (league, team, season) |
+| `GET /api/franchises` | Every franchise, most recently active first |
+| `POST /api/franchises/{id}/activate` | Make a franchise active |
+| `GET /api/leagues/template?conferences=&divisions=&teams_per_division=` | Editable league spec filled with fictional teams |
+| `POST /api/leagues` | Create a league from a spec; creates and activates its franchise |
+| `DELETE /api/leagues/{id}` | Delete a league and its contents (not the active one) |
+| `PATCH /api/teams/{id}` | Edit team identity (city, nickname, abbreviation, colors, stadium) |
 | `GET /api/franchise/dashboard` | Everything the dashboard needs in one call |
 | `GET /api/leagues`, `/api/leagues/{id}` | Leagues |
 | `GET /api/leagues/{id}/teams` | All teams with ratings, payroll, cap space |
@@ -106,7 +112,9 @@ Interactive docs: `http://localhost:8000/docs`.
 
 ## Frontend
 
-- **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`.
+- **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
+  `/leagues` (saved franchises), `/leagues/new` (league builder). Every page reads the
+  active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
   captured with `attempt()` and rendered by `ServerError` (offline / not seeded).
@@ -131,6 +139,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend generator | pytest | determinism, structure, roster composition, unique jerseys, cap compliance, schedule validity |
 | Backend API | pytest + TestClient | every endpoint incl. 404/409/422 paths |
 | Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip; export → re-import is lossless in every format |
+| Backend leagues | pytest | spec validation, templates, creation (generated/empty rosters, custom identities, schedules for small leagues, determinism), franchise switching, team edits, protected delete |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

@@ -29,8 +29,10 @@ TOP_PLAYERS = 6
 
 
 def current_franchise(db: Session) -> Franchise | None:
-    """Single-save for now: the earliest franchise is the active one."""
-    return db.scalars(select(Franchise).order_by(Franchise.id)).first()
+    """The active franchise: the most recently activated one."""
+    return db.scalars(
+        select(Franchise).order_by(Franchise.activated_at.desc(), Franchise.id.desc())
+    ).first()
 
 
 def franchise_out(db: Session, franchise: Franchise) -> FranchiseOut:

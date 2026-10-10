@@ -2,11 +2,13 @@ import type {
   Dashboard,
   DepthChart,
   DepthSlot,
+  LeagueCreate,
   PlayerDetail,
   PlayerSummary,
   Position,
   PositionGroup,
   TeamDetail,
+  TeamIdentity,
   TeamSummary,
   Unit,
 } from "@/lib/types";
@@ -148,5 +150,28 @@ export function makeDepthChart(
       players: [],
       ...slots[slot],
     })),
+  };
+}
+
+/** A small valid 4-team league spec for builder tests. */
+function specTeam(abbreviation: string, overrides: Partial<TeamIdentity> = {}): TeamIdentity {
+  return {
+    city: `City ${abbreviation}`, nickname: `Nick ${abbreviation}`, abbreviation,
+    primary_color: "#112233", secondary_color: "#445566", stadium: "Field", ...overrides,
+  };
+}
+
+export function makeSpec(overrides: Partial<LeagueCreate> = {}): LeagueCreate {
+  return {
+    name: "Test League", abbreviation: "TST", salary_cap: 255_000_000, season_year: 2026,
+    weeks: 17, rosters: "generated", user_team: "AAA",
+    conferences: [{
+      name: "Alpha Conference", abbreviation: "ALP",
+      divisions: [
+        { name: "ALP North", teams: [specTeam("AAA"), specTeam("BBB")] },
+        { name: "ALP South", teams: [specTeam("CCC"), specTeam("DDD")] },
+      ],
+    }],
+    ...overrides,
   };
 }

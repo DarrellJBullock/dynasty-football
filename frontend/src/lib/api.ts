@@ -1,5 +1,8 @@
 import type {
   Dashboard,
+  FranchiseListItem,
+  LeagueCreate,
+  TeamUpdate,
   DepthChart,
   ImportFormat,
   ImportMode,
@@ -50,6 +53,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     throw new ApiError(response.status, await errorMessage(response));
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
@@ -101,6 +105,17 @@ export const api = {
     request<DepthChart>(`/teams/${teamId}/depth-chart/${slot}`, { method: "DELETE" }),
   resetDepthChart: (teamId: number) =>
     request<DepthChart>(`/teams/${teamId}/depth-chart`, { method: "DELETE" }),
+  updateTeam: (teamId: number, update: TeamUpdate) =>
+    request<TeamDetail>(`/teams/${teamId}`, { method: "PATCH", body: JSON.stringify(update) }),
+  leagueTemplate: (conferences: number, divisions: number, teamsPerDivision: number) =>
+    request<LeagueCreate>(
+      `/leagues/template?conferences=${conferences}&divisions=${divisions}&teams_per_division=${teamsPerDivision}`,
+    ),
+  createLeague: (spec: LeagueCreate) => post<Franchise>("/leagues", spec),
+  deleteLeague: (leagueId: number) =>
+    request<void>(`/leagues/${leagueId}`, { method: "DELETE" }),
+  franchises: () => request<FranchiseListItem[]>("/franchises"),
+  activateFranchise: (franchiseId: number) => post<Franchise>(`/franchises/${franchiseId}/activate`),
   previewImport: (teamId: number, file: File, mode: ImportMode) =>
     request<ImportPreview>(`/teams/${teamId}/roster-import/preview`, {
       method: "POST",

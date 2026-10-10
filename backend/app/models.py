@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -251,15 +252,22 @@ class Game(Base):
 
 
 class Franchise(Base):
-    """The user's career save: which league and which team they control."""
+    """The user's career save: which league and which team they control.
+
+    One franchise per league, so two careers never share (and fight over) one league.
+    """
 
     __tablename__ = "franchises"
+    __table_args__ = (UniqueConstraint("league_id", name="uq_franchises_league"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80))
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"))
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # The most recently activated franchise is the one the app shows.
+    activated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, server_default=func.now())
 
     league: Mapped[League] = relationship()
     team: Mapped[Team] = relationship()

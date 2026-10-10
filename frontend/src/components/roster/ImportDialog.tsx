@@ -5,7 +5,7 @@ import { OvrBadge } from "@/components/ui/OvrBadge";
 import { api, importTemplateUrl } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import type { ImportFormat, ImportMode, ImportPreview, ImportResult, ImportRow } from "@/lib/types";
-import { Dialog } from "./Dialog";
+import { Dialog } from "@/components/ui/Dialog";
 
 const ACCEPT = ".csv,.xlsx,.json";
 const TEMPLATES: { format: ImportFormat; label: string }[] = [

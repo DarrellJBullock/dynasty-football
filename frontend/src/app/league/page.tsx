@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
+import { TeamEditButton } from "@/components/leagues/TeamEditButton";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { PageHeader, Panel, Skeleton } from "@/components/ui/Panel";
 import { ServerError } from "@/components/ui/ServerError";
@@ -48,7 +50,11 @@ async function LeagueContent() {
       <PageHeader
         eyebrow={`${franchise.season.year} season · ${teams.length} teams`}
         title={franchise.league.name}
-      />
+      >
+        <Link href="/leagues" className="btn btn-ghost">
+          My leagues
+        </Link>
+      </PageHeader>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-8">
           {conferences.map((conference) => (
@@ -80,6 +86,7 @@ async function LeagueContent() {
                                   <span className={`flex items-center gap-2 ${mine ? "text-gold" : ""}`}>
                                     <TeamCrest team={row.team} size={20} />
                                     <span className="truncate">{row.team.full_name}</span>
+                                    {detail && <TeamEditButton team={detail} />}
                                   </span>
                                 </td>
                                 <td className="py-2 text-center">

@@ -23,6 +23,7 @@ def create_app() -> FastAPI:
 
     for module in (franchise, leagues, teams, depth_chart, roster_import, players):
         api.include_router(module.router)
+    api.include_router(franchise.franchises_router)
     app.include_router(api)
     return app
 
