@@ -7,6 +7,8 @@ A Franchise is the user's career save: one controlled team inside a league.
 from datetime import UTC, datetime
 
 from sqlalchemy import (
+    JSON,
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -15,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -245,10 +248,92 @@ class Game(Base):
     home_score: Mapped[int | None] = mapped_column(Integer)
     away_score: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(12), default="scheduled")  # scheduled | final
+    overtime: Mapped[bool] = mapped_column(default=False, server_default="false")
+    # Simulation provenance: replaying `seed` with `sim_version` reproduces `play_log`.
+    seed: Mapped[int | None] = mapped_column(BigInteger)
+    sim_version: Mapped[str | None] = mapped_column(String(16))
+    play_log: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
 
     season: Mapped[Season] = relationship(back_populates="games")
     home_team: Mapped[Team] = relationship(foreign_keys=[home_team_id])
     away_team: Mapped[Team] = relationship(foreign_keys=[away_team_id])
+
+
+class PlayerGameStats(Base):
+    """One player's box-score line for one game. Columns mirror app.sim.stats.PlayerLine."""
+
+    __tablename__ = "player_game_stats"
+    __table_args__ = (UniqueConstraint("game_id", "player_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey("games.id", ondelete="CASCADE"), index=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"),
+                                           index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    pass_att: Mapped[int] = mapped_column(Integer, default=0)
+    pass_cmp: Mapped[int] = mapped_column(Integer, default=0)
+    pass_yds: Mapped[int] = mapped_column(Integer, default=0)
+    pass_td: Mapped[int] = mapped_column(Integer, default=0)
+    pass_int: Mapped[int] = mapped_column(Integer, default=0)
+    sacked: Mapped[int] = mapped_column(Integer, default=0)
+    sack_yds_lost: Mapped[int] = mapped_column(Integer, default=0)
+    rush_att: Mapped[int] = mapped_column(Integer, default=0)
+    rush_yds: Mapped[int] = mapped_column(Integer, default=0)
+    rush_td: Mapped[int] = mapped_column(Integer, default=0)
+    rush_long: Mapped[int] = mapped_column(Integer, default=0)
+    targets: Mapped[int] = mapped_column(Integer, default=0)
+    receptions: Mapped[int] = mapped_column(Integer, default=0)
+    rec_yds: Mapped[int] = mapped_column(Integer, default=0)
+    rec_td: Mapped[int] = mapped_column(Integer, default=0)
+    rec_long: Mapped[int] = mapped_column(Integer, default=0)
+    fumbles: Mapped[int] = mapped_column(Integer, default=0)
+    fumbles_lost: Mapped[int] = mapped_column(Integer, default=0)
+    tackles: Mapped[int] = mapped_column(Integer, default=0)
+    sacks: Mapped[int] = mapped_column(Integer, default=0)
+    interceptions: Mapped[int] = mapped_column(Integer, default=0)
+    int_return_yds: Mapped[int] = mapped_column(Integer, default=0)
+    passes_defended: Mapped[int] = mapped_column(Integer, default=0)
+    forced_fumbles: Mapped[int] = mapped_column(Integer, default=0)
+    fg_att: Mapped[int] = mapped_column(Integer, default=0)
+    fg_made: Mapped[int] = mapped_column(Integer, default=0)
+    fg_long: Mapped[int] = mapped_column(Integer, default=0)
+    xp_att: Mapped[int] = mapped_column(Integer, default=0)
+    xp_made: Mapped[int] = mapped_column(Integer, default=0)
+    punts: Mapped[int] = mapped_column(Integer, default=0)
+    punt_yds: Mapped[int] = mapped_column(Integer, default=0)
+    penalties: Mapped[int] = mapped_column(Integer, default=0)
+
+    player: Mapped["Player"] = relationship()
+
+
+class TeamGameStats(Base):
+    """One team's totals for one game. Columns mirror app.sim.stats.TeamLine."""
+
+    __tablename__ = "team_game_stats"
+    __table_args__ = (UniqueConstraint("game_id", "team_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey("games.id", ondelete="CASCADE"), index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    points: Mapped[int] = mapped_column(Integer, default=0)
+    plays: Mapped[int] = mapped_column(Integer, default=0)
+    total_yds: Mapped[int] = mapped_column(Integer, default=0)
+    pass_yds: Mapped[int] = mapped_column(Integer, default=0)
+    rush_yds: Mapped[int] = mapped_column(Integer, default=0)
+    pass_att: Mapped[int] = mapped_column(Integer, default=0)
+    pass_cmp: Mapped[int] = mapped_column(Integer, default=0)
+    rush_att: Mapped[int] = mapped_column(Integer, default=0)
+    first_downs: Mapped[int] = mapped_column(Integer, default=0)
+    third_down_att: Mapped[int] = mapped_column(Integer, default=0)
+    third_down_conv: Mapped[int] = mapped_column(Integer, default=0)
+    turnovers: Mapped[int] = mapped_column(Integer, default=0)
+    sacks_allowed: Mapped[int] = mapped_column(Integer, default=0)
+    penalties: Mapped[int] = mapped_column(Integer, default=0)
+    penalty_yds: Mapped[int] = mapped_column(Integer, default=0)
+    punts: Mapped[int] = mapped_column(Integer, default=0)
+    fg_att: Mapped[int] = mapped_column(Integer, default=0)
+    fg_made: Mapped[int] = mapped_column(Integer, default=0)
+    time_of_possession: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Franchise(Base):

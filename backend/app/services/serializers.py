@@ -19,9 +19,10 @@ def league_out(league: League) -> LeagueOut:
                      salary_cap=league.salary_cap)
 
 
-def season_out(season: Season) -> SeasonOut:
+def season_out(season: Season, weeks: int) -> SeasonOut:
     return SeasonOut(id=season.id, year=season.year, phase=season.phase,
-                     current_week=season.current_week)
+                     current_week=season.current_week, weeks=weeks,
+                     regular_season_complete=season.current_week > weeks)
 
 
 def team_summary(team: Team) -> TeamSummary:
@@ -82,4 +83,5 @@ def player_detail(player: Player) -> PlayerDetail:
 def game_out(game: Game) -> GameOut:
     return GameOut(id=game.id, week=game.week, home=team_summary(game.home_team),
                    away=team_summary(game.away_team), home_score=game.home_score,
-                   away_score=game.away_score, status=game.status)
+                   away_score=game.away_score, status=game.status,
+                   overtime=bool(game.overtime))

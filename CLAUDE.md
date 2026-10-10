@@ -26,7 +26,8 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   alembic/        migrations
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
-  src/app/        routes: / (dashboard), /roster, /depth-chart, /league, /leagues, /leagues/new
+  src/app/        routes: / (dashboard), /roster, /depth-chart, /schedule, /games/[id],
+                  /league, /leagues, /leagues/new
   src/components/ UI by feature (dashboard, roster, league, field, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers
 ```
@@ -71,6 +72,8 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **E2E locators:** use roles and accessible names, scope `getByRole("alert")` to
   `getByRole("main")` (Next adds a route announcer with role="alert"), and pass
   `exact: true` when one name is a substring of another ("League" / "My Leagues").
+  Next keeps up to 3 visited pages mounted but hidden (React `<Activity>`), so scope text
+  locators to a visible region/role; page-wide `getByText` can match hidden pages.
 - Python: ruff (line length 100). TS: eslint via `eslint-config-next`.
 - **CI** (`.github/workflows/ci.yml`) runs on every PR and push to `main`: backend lint,
   migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres and SQLite;
@@ -85,6 +88,11 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   - The React lint rule forbids building JSX inside `try/catch`; use `attempt()` from
     `src/lib/api.ts` and render the error outside.
   - `LayoutProps`/`PageProps` types come from `next typegen` (run by `npm run typecheck`).
+- **Client hooks reading the URL** (`usePathname`, `useSearchParams`) in the layout must
+  sit inside `<Suspense>`, or dynamic routes like `/games/[id]` can't prerender (see
+  `shell/Sidebar.tsx`).
+- **Stats columns mirror `sim.stats` dataclasses**; a test fails if they drift. Add a
+  field to `PlayerLine`/`TeamLine` → add the column + a migration.
 - **Dialogs must portal** to `document.body` (see `components/ui/Dialog.tsx`); any
   ancestor with `backdrop-filter` (every `.panel`) otherwise traps the fixed overlay.
 - **After creating/switching a franchise use `hardNavigate("/")`**, not `router.push` —

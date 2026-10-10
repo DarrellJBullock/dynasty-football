@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { FieldPreviewLoader } from "@/components/field/FieldPreviewLoader";
+import { SimControls } from "@/components/season/SimControls";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatMoney, formatPhase, formatRecord, ratingTier, TIER_BAR } from "@/lib/format";
+import { OUTCOME_STYLES, resultFor } from "@/lib/games";
 import type { Alert, Dashboard, Game, PositionGroupSummary, TeamSummary } from "@/lib/types";
 
 export function DashboardView({ data }: { data: Dashboard }) {
@@ -77,9 +79,21 @@ export function DashboardView({ data }: { data: Dashboard }) {
         </div>
       </div>
 
-      <Panel title="Upcoming schedule">
-        <Schedule games={data.upcoming_games} team={team} />
-      </Panel>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <Panel
+          title="Recent results"
+          action={
+            <Link href="/schedule" className="text-xs text-gold hover:underline">
+              Schedule →
+            </Link>
+          }
+        >
+          <RecentResults games={data.recent_games} team={team} />
+        </Panel>
+        <Panel title="Upcoming schedule">
+          <Schedule games={data.upcoming_games} team={team} />
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -160,6 +174,9 @@ function Hero({ data, awayColor }: { data: Dashboard; awayColor: string }) {
             {team.stadium}
           </div>
         </div>
+      </div>
+      <div className="relative border-t border-white/5 px-6 py-4 md:px-8">
+        <SimControls season={franchise.season} teamId={team.id} />
       </div>
     </section>
   );
@@ -338,18 +355,53 @@ function Schedule({ games, team }: { games: Game[]; team: TeamSummary }) {
         const home = game.home.id === team.id;
         const opponent = home ? game.away : game.home;
         return (
-          <li
-            key={game.id}
-            className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3"
-          >
-            <TeamCrest team={opponent} size={28} />
-            <div className="min-w-0">
-              <div className="eyebrow text-[10px]">Week {game.week}</div>
-              <div className="truncate text-sm font-medium">
-                {home ? "vs " : "@ "}
-                {opponent.nickname}
+          <li key={game.id}>
+            <Link
+              href={`/games/${game.id}`}
+              className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 hover:border-white/15"
+            >
+              <TeamCrest team={opponent} size={28} />
+              <div className="min-w-0">
+                <div className="eyebrow text-[10px]">Week {game.week}</div>
+                <div className="truncate text-sm font-medium">
+                  {home ? "vs " : "@ "}
+                  {opponent.nickname}
+                </div>
               </div>
-            </div>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function RecentResults({ games, team }: { games: Game[]; team: TeamSummary }) {
+  if (!games.length) {
+    return <p className="text-sm text-mist">No games played yet. Sim a week to get started.</p>;
+  }
+  return (
+    <ul className="space-y-2">
+      {games.map((game) => {
+        const r = resultFor(game, team.id);
+        return (
+          <li key={game.id}>
+            <Link
+              href={`/games/${game.id}`}
+              className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/[0.03]"
+            >
+              <span className={`stat-number w-6 rounded text-center text-sm ${OUTCOME_STYLES[r.outcome ?? "T"]}`}>
+                {r.outcome}
+              </span>
+              <TeamCrest team={r.opponent} size={22} />
+              <span className="min-w-0 flex-1 truncate text-sm">
+                {r.home ? "vs" : "@"} {r.opponent.nickname}
+              </span>
+              <span className="stat-number text-base tabular-nums">
+                {r.pointsFor}-{r.pointsAgainst}
+                {game.overtime && <span className="ml-1 text-xs text-mist">OT</span>}
+              </span>
+            </Link>
           </li>
         );
       })}

@@ -15,6 +15,7 @@ from app.schemas import (
     PositionGroupSummary,
     Record,
 )
+from app.services.season import season_weeks
 from app.services.serializers import (
     game_out,
     league_out,
@@ -26,6 +27,7 @@ from app.services.standings import league_standings
 from app.services.teams import current_season, load_overrides, load_roster, team_detail, team_lineup
 
 UPCOMING_GAMES = 5
+RECENT_GAMES = 3
 TOP_PLAYERS = 6
 
 
@@ -40,7 +42,8 @@ def franchise_out(db: Session, franchise: Franchise) -> FranchiseOut:
     season = current_season(db, franchise.league_id)
     return FranchiseOut(id=franchise.id, name=franchise.name,
                         league=league_out(franchise.league),
-                        team=team_summary(franchise.team), season=season_out(season))
+                        team=team_summary(franchise.team),
+                        season=season_out(season, season_weeks(db, season.id)))
 
 
 def _position_groups(roster: list[Player],
@@ -111,12 +114,18 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
     division = next(d for d in standings if d.division == team.division.name)
     own_row = next(r for r in division.rows if r.team.id == team.id)
 
+    mine = or_(Game.home_team_id == team.id, Game.away_team_id == team.id)
     upcoming = db.scalars(
         select(Game)
-        .where(Game.season_id == season.id, Game.status == "scheduled",
-               or_(Game.home_team_id == team.id, Game.away_team_id == team.id))
+        .where(Game.season_id == season.id, Game.status == "scheduled", mine)
         .order_by(Game.week)
         .limit(UPCOMING_GAMES)
+    )
+    recent = db.scalars(
+        select(Game)
+        .where(Game.season_id == season.id, Game.status == "final", mine)
+        .order_by(Game.week.desc())
+        .limit(RECENT_GAMES)
     )
     expiring = sum(1 for p in roster
                    if (c := p.active_contract) is not None and c.end_year <= season.year)
@@ -129,6 +138,7 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
         record=Record(wins=own_row.wins, losses=own_row.losses, ties=own_row.ties),
         division_standings=division,
         upcoming_games=[game_out(g) for g in upcoming],
+        recent_games=[game_out(g) for g in recent],
         top_players=[player_summary(p) for p in roster[:TOP_PLAYERS]],
         position_groups=groups,
         expiring_contracts=expiring,

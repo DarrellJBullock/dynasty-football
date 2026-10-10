@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { dashboard } from "@/test/fixtures";
 import { DashboardView } from "./DashboardView";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+
 // WebGL isn't available in jsdom; the 3D preview is exercised in the browser.
 vi.mock("@/components/field/FieldPreviewLoader", () => ({
   FieldPreviewLoader: () => <div data-testid="field-preview" />,

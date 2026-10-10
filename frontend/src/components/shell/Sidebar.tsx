@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 interface NavItem {
   label: string;
@@ -16,6 +17,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Dashboard", href: "/", icon: <IconGrid /> },
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
+      { label: "Schedule", href: "/schedule", icon: <IconCalendar /> },
       { label: "League", href: "/league", icon: <IconTrophy /> },
       { label: "My Leagues", href: "/leagues", icon: <IconFolders /> },
     ],
@@ -23,7 +25,6 @@ const NAV: { heading: string; items: NavItem[] }[] = [
   {
     heading: "Coming soon",
     items: [
-      { label: "Schedule", icon: <IconCalendar /> },
       { label: "Draft & Trades", icon: <IconSwap /> },
       { label: "Play Game", icon: <IconPlay /> },
     ],
@@ -31,8 +32,6 @@ const NAV: { heading: string; items: NavItem[] }[] = [
 ];
 
 export function Sidebar() {
-  const pathname = usePathname();
-
   return (
     <aside className="sticky top-0 z-30 border-b border-white/5 bg-ink-900/90 backdrop-blur lg:h-screen lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r">
       <div className="flex items-center gap-3 px-4 py-3 lg:px-5 lg:py-6">
@@ -42,47 +41,68 @@ export function Sidebar() {
           <div className="eyebrow mt-0.5 text-[10px] text-gold">Football · Next Gen</div>
         </div>
       </div>
+      {/* The active link depends on the URL, which dynamic routes (e.g. /games/[id]) only
+          know at request time; the fallback keeps the shell prerenderable. */}
+      <Suspense fallback={<NavLinks pathname={null} />}>
+        <ActiveNavLinks />
+      </Suspense>
+    </aside>
+  );
+}
 
-      <nav aria-label="Main" className="overflow-x-auto px-2 pb-2 lg:px-3">
-        {NAV.map((section) => (
-          <div key={section.heading} className="contents lg:mb-6 lg:block">
-            <div className="eyebrow hidden px-3 pb-2 lg:block">{section.heading}</div>
-            <ul className="flex gap-1 lg:flex-col">
-              {section.items.map((item) => {
-                const active =
-                  item.href === pathname || (item.href === "/leagues" && pathname.startsWith("/leagues/"));
-                if (!item.href) {
-                  return (
-                    <li key={item.label} className="hidden lg:block">
-                      <span className="flex cursor-default items-center gap-3 rounded-lg px-3 py-2 text-sm text-mist/50">
-                        {item.icon}
-                        {item.label}
-                      </span>
-                    </li>
-                  );
-                }
+function ActiveNavLinks() {
+  return <NavLinks pathname={usePathname()} />;
+}
+
+function isActive(href: string, pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    href === pathname ||
+    (href === "/leagues" && pathname.startsWith("/leagues/")) ||
+    (href === "/schedule" && pathname.startsWith("/games/"))
+  );
+}
+
+function NavLinks({ pathname }: { pathname: string | null }) {
+  return (
+    <nav aria-label="Main" className="overflow-x-auto px-2 pb-2 lg:px-3">
+      {NAV.map((section) => (
+        <div key={section.heading} className="contents lg:mb-6 lg:block">
+          <div className="eyebrow hidden px-3 pb-2 lg:block">{section.heading}</div>
+          <ul className="flex gap-1 lg:flex-col">
+            {section.items.map((item) => {
+              if (!item.href) {
                 return (
-                  <li key={item.label}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
-                        active
-                          ? "bg-white/[0.07] font-medium text-chalk shadow-[inset_2px_0_0_0_var(--color-gold)]"
-                          : "text-mist hover:bg-white/[0.04] hover:text-chalk"
-                      }`}
-                    >
+                  <li key={item.label} className="hidden lg:block">
+                    <span className="flex cursor-default items-center gap-3 rounded-lg px-3 py-2 text-sm text-mist/50">
                       {item.icon}
                       {item.label}
-                    </Link>
+                    </span>
                   </li>
                 );
-              })}
-            </ul>
-          </div>
-        ))}
-      </nav>
-    </aside>
+              }
+              const active = isActive(item.href, pathname);
+              return (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
+                      active
+                        ? "bg-white/[0.07] font-medium text-chalk shadow-[inset_2px_0_0_0_var(--color-gold)]"
+                        : "text-mist hover:bg-white/[0.04] hover:text-chalk"
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
   );
 }
 

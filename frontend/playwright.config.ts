@@ -5,6 +5,7 @@ import { API_PORT, API_URL, BACKEND_DIR, E2E_DATABASE_URL, E2E_PYTHON, WEB_PORT 
 // so they never touch your dev servers (3000/8000) or dev data.
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/support/global-setup.ts",
   // Every test reseeds the shared e2e database, so tests run one at a time.
   workers: 1,
   fullyParallel: false,
