@@ -168,3 +168,45 @@ export interface Dashboard {
   expiring_contracts: number;
   alerts: Alert[];
 }
+
+export type ImportMode = "append" | "replace";
+export type ImportFormat = "csv" | "xlsx" | "json";
+
+export interface ImportRow {
+  row_number: number;
+  status: "ok" | "warning" | "error";
+  first_name: string;
+  last_name: string;
+  position: Position | null;
+  jersey_number: number | null;
+  age: number;
+  height_in: number;
+  weight_lb: number;
+  college: string;
+  overall: number | null;
+  potential: number | null;
+  salary: number | null;
+  messages: { level: "error" | "warning"; message: string }[];
+}
+
+export interface ImportPreview {
+  format: ImportFormat;
+  mode: ImportMode;
+  file_warnings: string[];
+  rows: ImportRow[];
+  summary: { total: number; valid: number; warnings: number; errors: number };
+  roster_before: number;
+  released: number;
+  roster_after: number;
+  roster_max: number;
+  payroll_after: number;
+  salary_cap: number;
+  can_commit: boolean;
+}
+
+export interface ImportResult {
+  imported: number;
+  released: number;
+  skipped: number;
+  team: TeamDetail;
+}

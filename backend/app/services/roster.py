@@ -7,21 +7,13 @@ from app.domain.positions import ROSTER_MAX, Position, available_jersey
 from app.domain.ratings import ATTRIBUTES, calculate_overall
 from app.models import Contract, Player, PlayerRatings, Team
 from app.schemas import PlayerCreate, PlayerUpdate, SigningRequest
+from app.services.errors import RosterError
 from app.services.teams import current_season, load_roster, payroll
 
 DEFAULT_RATING = 50
 
 
-class RosterError(Exception):
-    """A roster rule was violated. Routes translate this to an HTTP error."""
-
-    def __init__(self, message: str, status_code: int = 409):
-        super().__init__(message)
-        self.message = message
-        self.status_code = status_code
-
-
-def _season_year(db: Session, team: Team) -> int:
+def season_year(db: Session, team: Team) -> int:
     season = current_season(db, team.league_id)
     if season is None:
         raise RosterError("league has no active season", 400)
@@ -59,9 +51,12 @@ def create_player(db: Session, team: Team, payload: PlayerCreate) -> Player:
         Position(payload.position), overall)
     _check_cap(team, roster, salary)
 
-    player = Player(
-        league_id=team.league_id,
-        team_id=team.id,
+    player = new_player(
+        team,
+        season_year=season_year(db, team),
+        ratings=ratings,
+        salary=salary,
+        contract_years=payload.contract_years,
         first_name=payload.first_name,
         last_name=payload.last_name,
         position=payload.position.value,
@@ -70,17 +65,31 @@ def create_player(db: Session, team: Team, payload: PlayerCreate) -> Player:
         height_in=payload.height_in,
         weight_lb=payload.weight_lb,
         college=payload.college,
-        years_pro=0,
-        overall=overall,
-        potential=max(overall, payload.potential or overall),
+        potential=payload.potential,
         development_trait=payload.development_trait,
-        injury_status="healthy",
-        ratings=PlayerRatings(**ratings),
     )
-    player.contracts.append(Contract(team_id=team.id, start_year=_season_year(db, team),
-                                     years=payload.contract_years, salary=salary))
     db.add(player)
     db.flush()
+    return player
+
+
+def new_player(team: Team, *, season_year: int, ratings: dict[str, int], salary: int,
+               contract_years: int, potential: int | None = None, **fields) -> Player:
+    """Build (not persist) a rostered player with ratings, cached OVR, and a contract.
+
+    `fields` are Player column values (names, position, jersey_number, age, ...).
+    """
+    overall = calculate_overall(fields["position"], ratings)
+    player = Player(
+        league_id=team.league_id,
+        team_id=team.id,
+        **({"years_pro": 0, "injury_status": "healthy"} | fields),
+        overall=overall,
+        potential=max(overall, potential or overall),
+        ratings=PlayerRatings(**ratings),
+    )
+    player.contracts.append(Contract(team_id=team.id, start_year=season_year,
+                                     years=contract_years, salary=salary))
     return player
 
 
@@ -126,7 +135,7 @@ def sign_player(db: Session, team: Team, request: SigningRequest) -> Player:
     if player.jersey_number in taken:
         player.jersey_number = available_jersey(player.position, taken)
     player.team_id = team.id
-    player.contracts.append(Contract(team_id=team.id, start_year=_season_year(db, team),
+    player.contracts.append(Contract(team_id=team.id, start_year=season_year(db, team),
                                      years=request.years, salary=salary))
     db.flush()
     return player

@@ -112,12 +112,40 @@ Preseason → Regular season (17 weeks) → Playoffs → Championship
 - **Draft:** generated fictional draft classes with scouting fog.
 - **Trades:** AI evaluates value from OVR, age, contract, and positional need.
 
-## Custom data (planned, M1)
+## Custom data: roster import
 
-Roster upload in CSV, Excel (.xlsx), or JSON. Columns map 1:1 to the API:
-`first_name, last_name, position, jersey_number, age, height_in, weight_lb, college,
-<24 attribute columns>`; missing attributes default to 50; OVR is always recomputed.
-Imports are validated row by row with a preview before committing.
+Upload a roster as **CSV, Excel (.xlsx), or JSON** from the Roster screen (Import).
+
+- **Preview first.** Every row is validated and shown with errors (row can't be
+  imported) and warnings (imported with an adjustment). Nothing changes until you confirm.
+- **Modes:** *Add to roster* fills open spots (53 max); *Replace roster* releases the
+  current players to free agency first.
+- **All-or-nothing by default;** tick "skip rows with errors" to import only the good rows.
+- **Templates** in all three formats are downloadable from the dialog.
+
+Columns (header names are case-insensitive; common aliases accepted):
+
+| Field | Aliases / notes |
+|---|---|
+| `first_name`, `last_name` | or a single `name` column (split at the first space) |
+| `position` | our 17 positions plus common labels: HB→RB, LT/RT→OT, LG/RG→OG, EDGE→DE, NT→DT, LB/ILB→MLB, S→SS, PK→K |
+| `jersey_number` | `#`, `number`, `jersey`. Missing or taken numbers are auto-assigned (with a warning when taken) |
+| `age`, `height_in`, `weight_lb` | height accepts inches (`74`) or feet-inches (`6-2`, `6'2"`) |
+| `college`, `years_pro`, `potential`, `development_trait`, `injury_status` | optional; unrecognized traits/statuses fall back to defaults with a warning |
+| `salary`, `contract_years` | salary defaults to market value; years default to 1 |
+| 24 attributes | full names (`throw_power`) or the roster-table abbreviations (`THP`) |
+| `overall` | optional; see below |
+
+Ratings: values above 99 are capped (warning); missing attributes default to 50. If an
+`overall` is listed, missing **key** attributes for the position are filled so the
+calculated OVR matches it — so an OVR-only spreadsheet imports at the intended ratings.
+OVR is always recalculated from attributes; a listed overall that can't be reached is
+reported as a warning.
+
+Imports may exceed the salary cap (warning), since commissioners often load real-world-
+style payrolls; the team simply can't sign free agents until it's back under. JSON may be
+a list of players or `{"players": [...]}` and accepts the API's own player shape (nested
+`ratings` and `contract`), so exports round-trip.
 
 ## Simulation & 3D gameplay (planned, M4–M6)
 

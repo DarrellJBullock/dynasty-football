@@ -136,6 +136,62 @@ class SigningRequest(BaseModel):
     years: int = Field(default=1, ge=1, le=7)
 
 
+# ---------- roster import ----------
+
+ImportMode = Literal["append", "replace"]
+
+
+class ImportMessage(BaseModel):
+    level: Literal["error", "warning"]
+    message: str
+
+
+class ImportRow(BaseModel):
+    row_number: int
+    status: Literal["ok", "warning", "error"]
+    first_name: str
+    last_name: str
+    position: Position | None
+    jersey_number: int | None
+    age: int
+    height_in: int
+    weight_lb: int
+    college: str
+    overall: int | None
+    potential: int | None
+    salary: int | None
+    messages: list[ImportMessage]
+
+
+class ImportSummary(BaseModel):
+    total: int
+    valid: int
+    warnings: int
+    errors: int
+
+
+class ImportPreview(BaseModel):
+    format: str
+    mode: ImportMode
+    file_warnings: list[str]
+    rows: list[ImportRow]
+    summary: ImportSummary
+    roster_before: int
+    released: int  # players who would be released (replace mode)
+    roster_after: int
+    roster_max: int
+    payroll_after: int
+    salary_cap: int
+    can_commit: bool  # true when every row is valid
+
+
+class ImportResult(BaseModel):
+    imported: int
+    released: int
+    skipped: int
+    team: TeamDetail
+
+
 # ---------- season ----------
 
 class SeasonOut(BaseModel):

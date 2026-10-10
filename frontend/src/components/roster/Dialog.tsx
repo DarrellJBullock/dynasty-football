@@ -6,10 +6,12 @@ export function Dialog({
   title,
   onClose,
   children,
+  size = "md",
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  size?: "md" | "lg";
 }) {
   const modalRef = useModal<HTMLDivElement>(onClose);
 
@@ -22,7 +24,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-t-2xl outline-none border border-white/10 bg-ink-900 shadow-2xl sm:rounded-2xl"
+        className={`relative flex max-h-[90vh] w-full flex-col ${size === "lg" ? "max-w-5xl" : "max-w-2xl"} rounded-t-2xl outline-none border border-white/10 bg-ink-900 shadow-2xl sm:rounded-2xl`}
       >
         <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
           <h2 className="font-display text-xl font-bold uppercase tracking-wide">{title}</h2>

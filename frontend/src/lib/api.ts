@@ -1,5 +1,9 @@
 import type {
   Dashboard,
+  ImportFormat,
+  ImportMode,
+  ImportPreview,
+  ImportResult,
   DivisionStandings,
   Franchise,
   PlayerCreate,
@@ -32,9 +36,11 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
+    // JSON bodies are strings; FormData sets its own multipart boundary header.
+    const json = typeof init?.body === "string";
     response = await fetch(`${apiBaseUrl()}/api${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: { ...(json ? { "Content-Type": "application/json" } : {}), ...init?.headers },
     });
   } catch {
     throw new ApiError(0, `Cannot reach the game server at ${apiBaseUrl()}.`);
@@ -83,7 +89,29 @@ export const api = {
     post<PlayerDetail>(`/teams/${teamId}/signings`, { player_id: playerId, years }),
   createPlayer: (teamId: number, player: PlayerCreate) =>
     post<PlayerDetail>(`/teams/${teamId}/players`, player),
+  previewImport: (teamId: number, file: File, mode: ImportMode) =>
+    request<ImportPreview>(`/teams/${teamId}/roster-import/preview`, {
+      method: "POST",
+      body: importForm(file, mode),
+    }),
+  commitImport: (teamId: number, file: File, mode: ImportMode, skipInvalid: boolean) =>
+    request<ImportResult>(`/teams/${teamId}/roster-import/commit`, {
+      method: "POST",
+      body: importForm(file, mode, skipInvalid),
+    }),
 };
+
+function importForm(file: File, mode: ImportMode, skipInvalid?: boolean): FormData {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("mode", mode);
+  if (skipInvalid !== undefined) form.append("skip_invalid", String(skipInvalid));
+  return form;
+}
+
+export function importTemplateUrl(format: ImportFormat): string {
+  return `${apiBaseUrl()}/api/roster-import/template.${format}`;
+}
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: unknown };
 

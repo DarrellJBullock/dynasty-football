@@ -41,6 +41,7 @@ Server Components call it server-side for initial page data.
 | `app/services` | domain, models, schemas | Game logic needing the DB: roster mutations (`RosterError` on rule violations), team ratings/payroll, standings, dashboard assembly, ORM→schema serializers. |
 | `app/api` | services | Thin routers. `roster_errors()` wraps a mutation in one transaction and maps `RosterError` → 4xx. |
 | `app/seed` | domain, models | `generate_league(session, seed)` builds the default league deterministically. |
+| `app/roster_import` | domain | File handling with no DB: `readers` (CSV/XLSX/JSON → raw rows), `rows` (normalize + validate each row), `templates`. `services/roster_import.py` adds roster-level checks (capacity, jerseys, payroll) and commits. |
 
 ### Data model
 
@@ -84,6 +85,9 @@ Design notes:
 | `GET /api/teams/{id}`, `/api/teams/{id}/roster` | Team detail, roster |
 | `POST /api/teams/{id}/players` | Create a custom player (409 if full / jersey taken / over cap) |
 | `POST /api/teams/{id}/signings` | Sign a free agent |
+| `POST /api/teams/{id}/roster-import/preview` | Multipart `file` + `mode` (append/replace); validates without changing anything |
+| `POST /api/teams/{id}/roster-import/commit` | Same file again + `skip_invalid`; all-or-nothing by default |
+| `GET /api/roster-import/template.{csv,xlsx,json}` | Downloadable import template |
 | `GET /api/players/{id}` | Player with all 24 ratings |
 | `PATCH /api/players/{id}` | Partial edit (bio, position, status, ratings); OVR recomputed |
 | `POST /api/players/{id}/release` | Release to free agency |
@@ -113,6 +117,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend domain | pytest | OVR math, salary curve, jersey allocation, roster template |
 | Backend generator | pytest | determinism, structure, roster composition, unique jerseys, cap compliance, schedule validity |
 | Backend API | pytest + TestClient | every endpoint incl. 404/409/422 paths |
+| Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors |
 
@@ -140,6 +145,6 @@ runs in a rolled-back SAVEPOINT.
 
 ### Later concerns
 
-Auth & multiple saves (franchise per user), roster import pipeline (pandas/openpyxl),
+Auth & multiple saves (franchise per user), roster export,
 stats tables (game_player_stats), records, background jobs, deployment (containerised
 API + Postgres; Next.js on a Node host).
