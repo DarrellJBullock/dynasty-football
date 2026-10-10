@@ -17,6 +17,9 @@ vi.mock("@/lib/api", async (importOriginal) => {
       freeAgents: vi.fn(),
       signPlayer: vi.fn(),
       createPlayer: vi.fn(),
+      roster: vi.fn(),
+      previewImport: vi.fn(),
+      commitImport: vi.fn(),
     },
   };
 });
@@ -164,6 +167,28 @@ describe("RosterManager", () => {
     }
     await userEvent.tab({ shift: true });
     expect(panel).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it("imports a roster file and refreshes the roster", async () => {
+    const imported = makePlayer({ first_name: "Trey", last_name: "Calloway", position: "RB", position_group: "RB" });
+    mocked.previewImport.mockResolvedValue({
+      format: "csv", mode: "replace", file_warnings: [], rows: [], released: 3,
+      summary: { total: 1, valid: 1, warnings: 0, errors: 0 }, roster_before: 3,
+      roster_after: 1, roster_max: 53, payroll_after: 1, salary_cap: 2, can_commit: true,
+    });
+    mocked.commitImport.mockResolvedValue({ imported: 1, released: 3, skipped: 0, team: teamDetail });
+    mocked.roster.mockResolvedValue([imported]);
+    renderManager();
+
+    await userEvent.click(screen.getByRole("button", { name: "Import" }));
+    const dialog = await screen.findByRole("dialog", { name: "Import roster" });
+    await userEvent.upload(within(dialog).getByLabelText("Roster file"), new File(["x"], "r.csv"));
+    await userEvent.click(within(dialog).getByRole("radio", { name: /Replace roster/ }));
+    await userEvent.click(await within(dialog).findByRole("button", { name: "Replace roster with 1 player" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(rowNames()).toEqual(["Trey Calloway"]);
+    expect(screen.getByRole("status")).toHaveTextContent("Imported 1 player, released 3 to free agency.");
   });
 
   it("signs a free agent", async () => {

@@ -16,6 +16,7 @@ import {
 } from "@/lib/roster";
 import {
   POSITION_GROUPS,
+  type ImportResult,
   type PlayerCreate,
   type PlayerDetail,
   type PlayerSummary,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/types";
 import { AddPlayerDialog } from "./AddPlayerDialog";
 import { FreeAgentsDialog } from "./FreeAgentsDialog";
+import { ImportDialog } from "./ImportDialog";
 import { PlayerPanel } from "./PlayerPanel";
 import { RosterTable } from "./RosterTable";
 
@@ -52,7 +54,7 @@ export function RosterManager({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [dialog, setDialog] = useState<"free-agents" | "add" | null>(null);
+  const [dialog, setDialog] = useState<"free-agents" | "add" | "import" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const visible = useMemo(
@@ -105,6 +107,17 @@ export function RosterManager({
     await refreshTeam();
   }
 
+  async function handleImported(result: ImportResult) {
+    setRoster(await api.roster(team.id));
+    setTeam(result.team);
+    setDialog(null);
+    setSelectedId(null);
+    const parts = [`Imported ${result.imported} player${result.imported === 1 ? "" : "s"}`];
+    if (result.released) parts.push(`released ${result.released} to free agency`);
+    if (result.skipped) parts.push(`skipped ${result.skipped} invalid row${result.skipped === 1 ? "" : "s"}`);
+    setNotice(`${parts.join(", ")}.`);
+  }
+
   const closePanel = useCallback(() => setSelectedId(null), []);
 
   return (
@@ -119,7 +132,10 @@ export function RosterManager({
             </h1>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn btn-ghost" onClick={() => setDialog("import")}>
+            Import
+          </button>
           <button type="button" className="btn btn-ghost" onClick={() => setDialog("free-agents")}>
             Free agents
           </button>
@@ -219,6 +235,14 @@ export function RosterManager({
           leagueId={leagueId}
           rosterFull={rosterFull}
           onSign={handleSign}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "import" && (
+        <ImportDialog
+          teamId={team.id}
+          rosterCount={roster.length}
+          onImported={handleImported}
           onClose={() => setDialog(null)}
         />
       )}

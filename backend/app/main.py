@@ -1,7 +1,7 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import depth_chart, franchise, leagues, players, teams
+from app.api import depth_chart, franchise, leagues, players, roster_import, teams
 from app.config import get_settings
 
 
@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for module in (franchise, leagues, teams, depth_chart, players):
+    for module in (franchise, leagues, teams, depth_chart, roster_import, players):
         api.include_router(module.router)
     app.include_router(api)
     return app

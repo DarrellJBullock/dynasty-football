@@ -21,6 +21,7 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   app/models.py   ORM models (schema source of truth for Alembic autogenerate)
   app/schemas.py  Pydantic request/response models
   app/seed/       deterministic fictional league generator (`python -m app.seed`)
+  app/roster_import/  CSV/XLSX/JSON readers, row validation, templates (no DB)
   alembic/        migrations
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F

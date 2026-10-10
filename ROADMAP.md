@@ -21,7 +21,8 @@ Each milestone ends with working software, green tests, and updated docs.
 
 - [x] Depth chart editor (drag-and-drop + keyboard), drives team ratings; cross-listing,
       injured starters skipped, per-slot and full reset
-- [ ] Roster import: CSV, Excel (.xlsx), JSON — validation, preview, error report
+- [x] Roster import: CSV, Excel (.xlsx), JSON — per-row validation, preview, add or
+      replace modes, skip-invalid option, downloadable templates
 - [ ] Roster export (same formats)
 - [ ] Custom teams (name, city, colours) and custom leagues (team count, divisions, cap)
 - [ ] New-franchise flow: pick league + team
