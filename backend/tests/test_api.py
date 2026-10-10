@@ -102,6 +102,14 @@ class TestRoster:
         assert response.json()["full_name"] == f"Rookie {player['last_name']}"
         assert response.json()["injury_status"] == "questionable"
 
+    def test_every_injury_status_can_be_saved(self, client: TestClient, franchise: Franchise):
+        # Regression: injured_reserve (15 chars) overflowed a 12-char column on PostgreSQL.
+        player_id = _roster(client, franchise.team_id)[0]["id"]
+        for status in ("questionable", "out", "injured_reserve", "healthy"):
+            response = client.patch(f"/api/players/{player_id}", json={"injury_status": status})
+            assert response.status_code == 200, status
+            assert response.json()["injury_status"] == status
+
     def test_position_change_recomputes_overall(self, client: TestClient,
                                                 franchise: Franchise):
         kicker = next(p for p in _roster(client, franchise.team_id) if p["position"] == "K")

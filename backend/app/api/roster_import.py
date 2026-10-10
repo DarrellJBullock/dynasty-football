@@ -8,12 +8,13 @@ from app.api.teams import get_team
 from app.db import get_db
 from app.models import Team
 from app.roster_import.readers import MAX_FILE_BYTES, FileFormat, ImportFileError
-from app.roster_import.templates import MEDIA_TYPES, build_template
+from app.roster_import.templates import build_template
+from app.roster_import.writers import MEDIA_TYPES
 from app.schemas import ImportMode, ImportPreview, ImportResult
-from app.services import roster_import
+from app.services import roster_export, roster_import
 from app.services.teams import load_overrides, load_roster, team_detail
 
-router = APIRouter(tags=["roster import"])
+router = APIRouter(tags=["roster import & export"])
 
 
 def _plan(db: Session, team: Team, file: UploadFile, mode: ImportMode):
@@ -58,4 +59,16 @@ def download_template(fmt: FileFormat):
         content=build_template(fmt),
         media_type=MEDIA_TYPES[fmt],
         headers={"Content-Disposition": f'attachment; filename="roster-template.{fmt.value}"'},
+    )
+
+
+@router.get("/teams/{team_id}/roster-export.{fmt}")
+def export_roster(fmt: FileFormat, team: Team = Depends(get_team),
+                  db: Session = Depends(get_db)):
+    """Download the roster in the import format (re-importing it reproduces the roster)."""
+    content, filename = roster_export.export_roster(db, team, fmt)
+    return Response(
+        content=content,
+        media_type=MEDIA_TYPES[fmt],
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

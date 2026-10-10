@@ -12,6 +12,7 @@ def create_app() -> FastAPI:
         allow_origins=get_settings().cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["Content-Disposition"],  # download filenames for exports
     )
 
     api = APIRouter(prefix="/api")

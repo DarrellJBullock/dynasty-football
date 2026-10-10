@@ -23,6 +23,7 @@ import {
   type TeamDetail,
 } from "@/lib/types";
 import { AddPlayerDialog } from "./AddPlayerDialog";
+import { ExportMenu } from "./ExportMenu";
 import { FreeAgentsDialog } from "./FreeAgentsDialog";
 import { ImportDialog } from "./ImportDialog";
 import { PlayerPanel } from "./PlayerPanel";
@@ -136,6 +137,7 @@ export function RosterManager({
           <button type="button" className="btn btn-ghost" onClick={() => setDialog("import")}>
             Import
           </button>
+          <ExportMenu teamId={team.id} />
           <button type="button" className="btn btn-ghost" onClick={() => setDialog("free-agents")}>
             Free agents
           </button>

@@ -123,7 +123,7 @@ Preseason → Regular season (17 weeks) → Playoffs → Championship
 - **Draft:** generated fictional draft classes with scouting fog.
 - **Trades:** AI evaluates value from OVR, age, contract, and positional need.
 
-## Custom data: roster import
+## Custom data: roster import & export
 
 Upload a roster as **CSV, Excel (.xlsx), or JSON** from the Roster screen (Import).
 
@@ -133,6 +133,9 @@ Upload a roster as **CSV, Excel (.xlsx), or JSON** from the Roster screen (Impor
   current players to free agency first.
 - **All-or-nothing by default;** tick "skip rows with errors" to import only the good rows.
 - **Templates** in all three formats are downloadable from the dialog.
+- **Export** (Roster → Export) downloads the roster as CSV, Excel, or JSON in exactly this
+  format — grouped by position, with remaining contract years — so an export can be
+  edited in a spreadsheet and imported back (Replace) without losing anything.
 
 Columns (header names are case-insensitive; common aliases accepted):
 
