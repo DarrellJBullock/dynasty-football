@@ -1,12 +1,11 @@
 """Team-level calculations: depth chart lineup, team ratings, payroll."""
 
 from collections.abc import Iterable
-from statistics import mean
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.domain.depth_chart import build_chart, starting_lineup
+from app.domain.depth_chart import build_chart, starting_lineup, unit_rating
 from app.domain.positions import DEFENSE, OFFENSE, ROSTER_MAX, SPECIAL_TEAMS, Position
 from app.models import DepthChartEntry, Player, Season, Team
 from app.schemas import TeamDetail, TeamRatings
@@ -51,15 +50,10 @@ def team_lineup(players: list[Player], overrides: Overrides) -> dict[Position, l
     return starting_lineup(build_chart(players, overrides))
 
 
-def _unit_rating(lineup: dict[Position, list[Player]], unit: set[Position]) -> int:
-    overalls = [p.overall for pos, starters in lineup.items() if pos in unit for p in starters]
-    return round(mean(overalls)) if overalls else 0
-
-
 def team_ratings(lineup: dict[Position, list[Player]]) -> TeamRatings:
-    offense = _unit_rating(lineup, OFFENSE)
-    defense = _unit_rating(lineup, DEFENSE)
-    special = _unit_rating(lineup, SPECIAL_TEAMS)
+    offense = unit_rating(lineup, OFFENSE)
+    defense = unit_rating(lineup, DEFENSE)
+    special = unit_rating(lineup, SPECIAL_TEAMS)
     overall = round(0.45 * offense + 0.45 * defense + 0.10 * special)
     return TeamRatings(overall=overall, offense=offense, defense=defense, special_teams=special)
 

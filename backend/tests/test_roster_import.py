@@ -311,3 +311,24 @@ def test_csv_quoted_fields_with_embedded_quotes_and_delimiters():
     row = read_rows(content, FileFormat.CSV)[0]
     assert row["last_name"] == "O'Neil, Jr."
     assert row["college"] == 'The "U" of Somewhere'
+
+
+def test_short_roster_rates_below_full_roster(client: TestClient, franchise: Franchise):
+    """Regression: a 3-player roster used to average only its 3 players (e.g. 88 OVR)."""
+    team_id = franchise.team_id
+    full = client.get(f"/api/teams/{team_id}").json()["ratings"]
+    content = csv_bytes([player("Star", "Back", "RB", overall=90),
+                         player("Star", "Tackle", "OT", overall=90),
+                         player("Star", "Corner", "CB", overall=90)])
+    result = client.post(f"/api/teams/{team_id}/roster-import/commit",
+                         files={"file": ("r.csv", content)}, data={"mode": "replace"}).json()
+    short = result["team"]["ratings"]
+    assert short["overall"] < full["overall"]
+    assert short["overall"] < 50
+    assert short["special_teams"] == 40  # no kicker or punter
+
+    alerts = [a for a in client.get("/api/franchise/dashboard").json()["alerts"]
+              if a["level"] == "critical"]
+    assert len(alerts) == 1
+    assert "No available starter at QB" in alerts[0]["message"]
+    assert "WR ×3" in alerts[0]["message"]
