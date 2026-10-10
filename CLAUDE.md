@@ -59,6 +59,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **Tests:** every backend rule gets a pytest; every interactive frontend flow gets a
   Testing Library test with `@/lib/api` mocked. Keep both suites green.
 - Python: ruff (line length 100). TS: eslint via `eslint-config-next`.
+- **CI** (`.github/workflows/ci.yml`) runs on every PR and push to `main`: backend lint,
+  migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres and SQLite;
+  frontend lint, typecheck, Vitest, and production build. Keep it green.
 
 ## Gotchas
 
