@@ -12,13 +12,15 @@ PG := $(if $(wildcard $(PG_BIN)/createdb),$(PG_BIN)/,)
 
 DB_NAME ?= dynasty_football
 TEST_DB_NAME ?= dynasty_football_test
+E2E_DB_NAME ?= dynasty_football_e2e
 TEST_DATABASE_URL ?= postgresql+psycopg://localhost:5432/$(TEST_DB_NAME)
 
 .PHONY: help setup setup-backend setup-frontend db-start db-create migrate seed reseed \
-        dev-backend dev-frontend test test-backend test-backend-fast test-frontend lint build
+        dev-backend dev-frontend test test-backend test-backend-fast test-frontend lint build \
+        e2e-setup e2e
 
 help: ## Show available commands
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[33m%-18s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[33m%-18s\033[0m %s\n", $$1, $$2}'
 
 setup: setup-backend setup-frontend db-create migrate seed ## One-time setup: deps, databases, schema, sample league
 
@@ -37,6 +39,7 @@ db-start: ## Start PostgreSQL via Homebrew services
 db-create: ## Create the dev and test databases (no-op if they exist)
 	-$(PG)createdb $(DB_NAME) 2>/dev/null || true
 	-$(PG)createdb $(TEST_DB_NAME) 2>/dev/null || true
+	-$(PG)createdb $(E2E_DB_NAME) 2>/dev/null || true
 
 migrate: ## Apply database migrations
 	cd $(BACKEND) && .venv/bin/alembic upgrade head
@@ -68,6 +71,15 @@ lint: ## Lint and typecheck everything
 	cd $(BACKEND) && .venv/bin/ruff check app tests
 	npm --prefix $(FRONTEND) run lint
 	npm --prefix $(FRONTEND) run typecheck
+
+e2e-setup: ## One-time: e2e database + Playwright's Chromium
+	-$(PG)createdb $(E2E_DB_NAME) 2>/dev/null || true
+	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/$(E2E_DB_NAME) .venv/bin/alembic upgrade head
+	cd $(FRONTEND) && npx playwright install chromium
+
+e2e: ## End-to-end tests in a real browser (own DB and ports 8001/3001)
+	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/$(E2E_DB_NAME) .venv/bin/alembic upgrade head
+	npm --prefix $(FRONTEND) run e2e
 
 build: ## Production build of the frontend
 	npm --prefix $(FRONTEND) run build

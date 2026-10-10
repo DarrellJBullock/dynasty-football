@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useModal } from "@/components/ui/useModal";
 
 export function Dialog({
@@ -15,7 +16,9 @@ export function Dialog({
 }) {
   const modalRef = useModal<HTMLDivElement>(onClose);
 
-  return (
+  // Portal to <body>: a dialog opened from inside a `.panel` would otherwise be trapped
+  // by the panel's backdrop-filter, which confines position:fixed descendants.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-ink-950/70 backdrop-blur-[2px]" onClick={onClose} />
       <div
@@ -34,6 +37,7 @@ export function Dialog({
         </div>
         <div className="overflow-y-auto p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

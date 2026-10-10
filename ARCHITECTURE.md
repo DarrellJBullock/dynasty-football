@@ -121,6 +121,12 @@ Interactive docs: `http://localhost:8000/docs`.
 - **Interactivity:** the roster screen is a client component (`RosterManager`) seeded
   with server data, then mutating through the API and updating local state; the team
   header is re-fetched after each mutation.
+- **Freshness:** mutations go straight to the API, so Next.js can't see them. Creating or
+  switching the active franchise does a full page load (`lib/navigation.hardNavigate`),
+  because the client router cache can otherwise reuse pages rendered for the previous
+  franchise. Covered by `e2e/freshness.spec.ts`.
+- **Dialogs** render through a portal to `<body>`: a `.panel`'s `backdrop-filter` traps
+  `position: fixed` descendants, which hid dialogs opened from inside panels.
 - **Pure logic** (`lib/format.ts`, `lib/roster.ts`) is framework-free and unit-tested.
 - **Design system:** tokens in `src/app/globals.css` (`@theme`): ink surface scale,
   chalk/mist text, gold accent, Barlow Condensed display font, `.panel`/`.btn`
@@ -144,9 +150,16 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |
 
+| End-to-end | Playwright (Chromium) | Real browser against a production build + real API/Postgres: navigation, roster edit/release/sign, depth chart mouse drag + keyboard reorder with screen-reader announcements, export → re-import via real download/upload, messy-file import, league create → switch → delete, team editing, cross-page data freshness |
+
 Backend tests run on in-memory SQLite by default and on PostgreSQL with
 `TEST_DATABASE_URL` (`make test`). The league is generated once per session; each test
 runs in a rolled-back SAVEPOINT.
+
+End-to-end tests (`frontend/e2e/`, `make e2e`) start their own API (port 8001) and
+production Next.js build (port 3001, built into `.next-e2e/`) against the
+`dynasty_football_e2e` database, reseeding it before every test, so they never touch dev
+servers or dev data. CI runs them as a third job and uploads traces on failure.
 
 ## Future architecture (planned)
 

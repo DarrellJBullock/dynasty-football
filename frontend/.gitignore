@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 !.env.example
+
+# end-to-end tests
+/.next-e2e/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

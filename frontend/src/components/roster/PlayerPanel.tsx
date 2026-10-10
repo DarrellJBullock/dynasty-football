@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { RatingBar } from "@/components/ui/RatingBar";
 import { useModal } from "@/components/ui/useModal";
@@ -62,7 +63,8 @@ export function PlayerPanel({
 
   const modalRef = useModal<HTMLElement>(onClose);
 
-  return (
+  // Portal to <body> so no ancestor's backdrop-filter can trap the fixed overlay.
+  return createPortal(
     <>
       <div className="fixed inset-0 z-40 bg-ink-950/60 backdrop-blur-[2px]" onClick={onClose} />
       <aside
@@ -103,7 +105,8 @@ export function PlayerPanel({
             ))}
         </div>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
 

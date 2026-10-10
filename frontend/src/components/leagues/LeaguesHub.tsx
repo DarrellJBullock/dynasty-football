@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
+import { hardNavigate } from "@/lib/navigation";
 import { formatMoney, formatPhase } from "@/lib/format";
 import type { FranchiseListItem } from "@/lib/types";
 
@@ -20,8 +21,8 @@ export function LeaguesHub({ initialFranchises }: { initialFranchises: Franchise
     setError(null);
     try {
       await api.activateFranchise(franchise.id);
-      router.push("/");
-      router.refresh();
+      // Switching franchises changes every page; a full load guarantees nothing stale.
+      hardNavigate("/");
     } catch (e) {
       setError((e as Error).message);
       setBusyId(null);
@@ -35,6 +36,7 @@ export function LeaguesHub({ initialFranchises }: { initialFranchises: Franchise
       await api.deleteLeague(franchise.league.id);
       setFranchises((current) => current.filter((f) => f.id !== franchise.id));
       setConfirmingId(null);
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
