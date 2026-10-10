@@ -1,5 +1,7 @@
 # Dynasty Football: Next Gen
 
+[![CI](https://github.com/DarrellJBullock/dynasty-football/actions/workflows/ci.yml/badge.svg)](https://github.com/DarrellJBullock/dynasty-football/actions/workflows/ci.yml)
+
 A premium web-based American football franchise simulation with fictional teams and players.
 
 **Stack:** Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · Three.js / React Three Fiber ·
