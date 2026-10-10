@@ -72,6 +72,8 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **E2E locators:** use roles and accessible names, scope `getByRole("alert")` to
   `getByRole("main")` (Next adds a route announcer with role="alert"), and pass
   `exact: true` when one name is a substring of another ("League" / "My Leagues").
+  Next keeps up to 3 visited pages mounted but hidden (React `<Activity>`), so scope text
+  locators to a visible region/role; page-wide `getByText` can match hidden pages.
 - Python: ruff (line length 100). TS: eslint via `eslint-config-next`.
 - **CI** (`.github/workflows/ci.yml`) runs on every PR and push to `main`: backend lint,
   migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres and SQLite;

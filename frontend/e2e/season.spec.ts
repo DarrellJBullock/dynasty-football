@@ -17,7 +17,7 @@ test("sims a week, then follows the result to the box score and other pages", as
 
   await result.click();
   await expect(page).toHaveURL(/\/games\/\d+$/);
-  await expect(page.getByText(/^Final/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Scoreboard" }).getByText(/^Final/)).toBeVisible();
   const line = page.getByRole("region", { name: "Line score" });
   await expect(line.getByRole("row")).toHaveCount(3);
   await expect(page.getByRole("table", { name: "HFD passing" })).toBeVisible();
@@ -35,7 +35,10 @@ test("sims a week, then follows the result to the box score and other pages", as
   await expect(page.getByRole("heading", { name: "Week 2" })).toBeVisible();
   await page.getByRole("navigation", { name: "Weeks" }).getByRole("link", { name: "Wk 1", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Week 1" })).toBeVisible();
-  await expect(page.getByText("Final", { exact: true })).toHaveCount(16);
+  // Scoped to the visible week: Next keeps recently visited pages mounted but hidden
+  // (React <Activity>), so a page-wide text search can also match the hidden game page.
+  const week1 = page.getByRole("region", { name: "Week 1 games" });
+  await expect(week1.getByText(/^Final/)).toHaveCount(16); // "Final" or "Final/OT"
 });
 
 test("sims the rest of the regular season from the schedule", async ({ page }) => {
