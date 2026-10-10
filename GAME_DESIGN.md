@@ -187,7 +187,11 @@ style payrolls; the team simply can't sign free agents until it's back under. JS
 a list of players or `{"players": [...]}` and accepts the API's own player shape (nested
 `ratings` and `contract`), so exports round-trip.
 
-## Simulation & 3D gameplay (planned, M4–M6)
+## Simulation & 3D gameplay
+
+The play-level engine is built (Milestone 2); see
+[docs/design/simulation-engine.md](docs/design/simulation-engine.md) for how plays are
+resolved, the AI, overtime and playoff rules, and calibration targets. Remaining:
 
 - One deterministic play engine (seeded) resolves each play from the two play calls,
   the 22 players' ratings, and fatigue. It outputs an **event timeline** (snap, routes,

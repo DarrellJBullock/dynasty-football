@@ -31,7 +31,8 @@ Each milestone ends with working software, green tests, and updated docs.
 
 ## M2 — Quick Sim & season
 
-- [ ] Ratings-driven drive/play simulation (deterministic, seeded)
+- [x] Play-level simulation engine (deterministic, seeded, calibrated) — design:
+      `docs/design/simulation-engine.md`
 - [ ] Simulate week / to date / full season; box scores
 - [ ] Player & team stats, league leaders
 - [ ] Schedule page, game detail page

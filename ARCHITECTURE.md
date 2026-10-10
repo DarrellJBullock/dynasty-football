@@ -19,7 +19,7 @@
 │   services/  roster rules, standings, dashboard, team ratings   │
 │   domain/    pure rules: positions, ratings/OVR, contracts      │
 │   seed/      deterministic fictional league generator           │
-│   (future) sim/  deterministic play & game engine               │
+│   sim/       deterministic play-level game engine (pure)        │
 └──────────────┬──────────────────────────────────────────────────┘
                │ SQLAlchemy 2 (psycopg 3)
 ┌──────────────▼──────────────────────────────────────────────────┐
@@ -146,6 +146,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend API | pytest + TestClient | every endpoint incl. 404/409/422 paths |
 | Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip; export → re-import is lossless in every format |
 | Backend leagues | pytest | spec validation, templates, creation (generated/empty rosters, custom identities, schedules for small leagues, determinism), franchise switching, team edits, protected delete |
+| Simulation | pytest | determinism, score/clock/down invariants, box-score consistency, overtime rules, Coach seam, AI 4th-down/kneel calls, depth-chart lineups, calibration targets, rating sensitivity |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |
@@ -165,11 +166,21 @@ servers or dev data. CI runs them as a third job and uploads traces on failure.
 
 ### Simulation engine (`backend/app/sim/`)
 
-- Deterministic, seeded, pure Python first (port hot paths later if needed).
-- `simulate_play(state, offense_call, defense_call, rng) -> PlayResult` where the
-  result includes an **event timeline** (per-player positions/actions over time).
-- `simulate_game` composes plays; Quick Sim persists box scores and player stats.
-- Long jobs (season sims) run in a background worker; progress via polling/SSE.
+Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design/simulation-engine.md).
+
+- **Pure and deterministic:** `simulate_game(home, away, seed)` takes two `SimTeam`
+  snapshots (built from rosters + depth charts by `build_sim_team`) and returns a
+  `GameResult` with a play log. Same inputs → same game. No DB access in `app/sim/`.
+- **Play-level:** each snap is resolved from the two calls (`playcalls.AICoach`; the
+  `Coach` protocol is the Coach Mode seam) and the specific players' matchups
+  (`resolve.py`). Probabilities are `sigmoid(base + k · rating_difference)`.
+- **Events are the contract:** every play records semantic events (handoff, rush, pass,
+  sack, tackle, penalty, kicks…). Play-by-play text (`text.py`) and box scores
+  (`stats.py`) are derived from events only, and the 3D client will animate from them —
+  the engine never computes player positions.
+- **Calibration:** all constants live in `tuning.py`; `calibration.py` measures league
+  output against targets, and `tests/test_sim_calibration.py` enforces them plus rating
+  sensitivity (+5 OVR ≈ 70% wins). A full 272-game season simulates in ~2 s.
 
 ### 3D game client
 

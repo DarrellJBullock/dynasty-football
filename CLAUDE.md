@@ -22,6 +22,7 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   app/schemas.py  Pydantic request/response models
   app/seed/       deterministic fictional league generator (`python -m app.seed`)
   app/roster_import/  CSV/XLSX/JSON readers, row validation, templates (no DB)
+  app/sim/        play-level game simulation engine (pure, deterministic)
   alembic/        migrations
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
@@ -57,8 +58,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **Ratings:** the 24 attributes live in `app/domain/ratings.py::ATTRIBUTES`; the
   `player_ratings` columns and `frontend/src/lib/attributes.ts` must match it.
   `Player.overall` is a cached value — recompute it whenever ratings or position change.
-- **Determinism:** generators and (future) simulation take an explicit seed /
+- **Determinism:** generators and the simulation take an explicit seed /
   `random.Random`; never use the global `random` module.
+- **Simulation tuning:** change constants in `app/sim/tuning.py` (or `RATING_SPREAD`
+  in `sim/teams.py`), never hard-code numbers in resolvers. Check with
+  `python -m app.sim.calibration`; `tests/test_sim_calibration.py` must stay green. Stats
+  and play-by-play must be derived from play events, never computed separately.
 - **Tests:** every backend rule gets a pytest; every interactive frontend flow gets a
   Testing Library test with `@/lib/api` mocked; user-visible flows that cross pages or
   need a real browser (drag-and-drop, downloads/uploads, navigation) get a Playwright
