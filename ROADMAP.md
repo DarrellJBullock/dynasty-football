@@ -81,7 +81,10 @@ Each milestone ends with working software, green tests, and updated docs.
       them; concepts fare better or worse against each coverage shell; names in the
       play-by-play and the Watch page) — design: `docs/design/coach-mode.md`
 - [ ] Play-call UI
-- [ ] AI players: routes, blocking assignments, pursuit, coverage
+- [x] AI players: routes, blocking assignments, pursuit, coverage (each named play's
+      formation, routes and run scheme — pulling guards, pitches, play-action fakes,
+      boots, screens — and each defensive call's zones, man matchups and blitzers, drawn
+      in 3D)
 - [ ] Special teams: field goals, punts, kickoffs
 - [ ] Coach Mode (call plays, AI executes) and Watch Mode
 

@@ -30,10 +30,20 @@ export const NUMBERS: Record<string, number> = {
 
 export type Package = "base" | "nickel" | "dime";
 
-export function offenseSpots(): Spot[] {
+/** Where the quarterback and the back line up (depth, lateral) in each formation; the
+ * rest of the 11 line up the same. Under center for singleback and I-form. */
+const BACKFIELD: Record<string, { qb: number; rb: [number, number] }> = {
+  singleback: { qb: 1.2, rb: [6.5, 0] },
+  iform: { qb: 1.2, rb: [7.5, 0] },
+  shotgun: { qb: 5, rb: [5, 1.6] },
+  pistol: { qb: 4, rb: [7, 0] },
+};
+
+export function offenseSpots(formation = "singleback"): Spot[] {
+  const { qb, rb } = BACKFIELD[formation] ?? BACKFIELD.singleback;
   return [
-    { role: "QB", position: "QB", depth: 1.2, lateral: 0, stance: "stance2" },
-    { role: "RB", position: "RB", depth: 6.5, lateral: 0, stance: "stance2" },
+    { role: "QB", position: "QB", depth: qb, lateral: 0, stance: "stance2" },
+    { role: "RB", position: "RB", depth: rb[0], lateral: rb[1], stance: "stance2" },
     { role: "X", position: "WR", depth: 1, lateral: -17, stance: "stance2" },
     { role: "Z", position: "WR", depth: 1, lateral: 16, stance: "stance2" },
     { role: "SLOT", position: "WR", depth: 1.2, lateral: -9, stance: "stance2" },

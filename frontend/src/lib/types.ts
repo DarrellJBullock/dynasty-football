@@ -763,7 +763,7 @@ export interface PlaybackPlay {
   distance: number | null;
   ball_on: number | null; // yards from the offense's own goal line
   call: Record<string, unknown> | null;
-  defense: { package: string; coverage: string; blitz: boolean } | null;
+  defense: { package: string; coverage: string; blitz: boolean; play?: string } | null;
   result: { type: string; yards?: number; [key: string]: unknown };
   events: PlayEvent[];
   elapsed: number;
