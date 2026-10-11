@@ -692,7 +692,8 @@ class DraftPickOut(BaseModel):
     round: int
     number: int  # overall
     pick_in_round: int
-    team: TeamSummary
+    team: TeamSummary  # who picks
+    original_team: TeamSummary | None = None  # set if the pick was traded ("via")
     player: PlayerSummary | None
 
 
@@ -721,3 +722,72 @@ class DraftRequest(BaseModel):
 class DraftResult(BaseModel):
     season: SeasonOut
     picks: list[DraftPickOut]
+
+
+# ---------- trades ----------
+
+
+class TradeAssetOut(BaseModel):
+    kind: Literal["player", "pick"]
+    id: int
+    label: str
+    value: float  # trade value, as the AI sees it
+    player: PlayerSummary | None = None
+    round: int | None = None  # picks
+    year: int | None = None
+    projected_number: int | None = None
+
+
+class TradeAssets(BaseModel):
+    players: list[TradeAssetOut]  # most valuable first
+    picks: list[TradeAssetOut]
+
+
+class TradeItem(BaseModel):
+    kind: Literal["player", "pick"]
+    id: int
+    label: str
+
+
+class TradeOut(BaseModel):
+    id: int
+    partner: TeamSummary
+    season_phase: str
+    week: int
+    sent: list[TradeItem]  # from the franchise's side
+    received: list[TradeItem]
+
+
+class TradeCenter(BaseModel):
+    season: SeasonOut
+    closed_reason: str | None  # why trades are closed, if they are
+    deadline_week: int
+    draft_year: int  # picks in this draft can be traded
+    partners: list[TeamSummary]
+    partner: TeamSummary | None
+    mine: TradeAssets
+    theirs: TradeAssets
+    history: list[TradeOut]  # latest first
+
+
+class TradeProposal(BaseModel):
+    partner_id: int
+    send_players: list[int] = []
+    send_picks: list[int] = []
+    receive_players: list[int] = []
+    receive_picks: list[int] = []
+
+
+class TradeEvaluation(BaseModel):
+    acceptable: bool
+    balance: float  # what the AI gets ÷ what it needs (1.0+ = yes), capped at 2
+    message: str
+    problems: list[str]  # cap, roster, or trade-window issues
+    value_in: float
+    value_needed: float
+
+
+class TradeResult(BaseModel):
+    accepted: bool
+    evaluation: TradeEvaluation
+    trade: TradeOut | None
