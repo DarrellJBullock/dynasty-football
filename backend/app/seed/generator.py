@@ -11,7 +11,7 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.domain.contracts import MIN_SALARY, market_salary
+from app.domain.contracts import MIN_SALARY, market_salary, signing_bonus
 from app.domain.positions import JERSEY_RANGES, ROSTER_TEMPLATE, SPECIAL_TEAMS, Position
 from app.domain.ratings import ATTRIBUTES, POSITION_WEIGHTS, calculate_overall, clamp_rating
 from app.models import (
@@ -304,6 +304,8 @@ def _populate_roster(session: Session, rng: random.Random, league: League, team:
             session.add(player)
             contracts.append(_sign(rng, player, team, year))
     _fit_under_cap(contracts, league.salary_cap)
+    for contract in contracts:  # (no random draws: the league is otherwise unchanged)
+        contract.signing_bonus = signing_bonus(contract.salary, contract.years)
 
 
 def _schedule(session: Session, season: Season, team_ids: Iterable[int], rng: random.Random,

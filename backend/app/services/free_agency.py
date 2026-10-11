@@ -32,6 +32,7 @@ from app.schemas import (
     FreeAgentRow,
     MarketSigning,
 )
+from app.services import cap
 from app.services.errors import RosterError
 from app.services.offseason import (
     FREE_AGENT_FLOOR,
@@ -89,8 +90,10 @@ class _Market:
         self.pool: list[Player] = []
         for player in players:
             (self.rosters[player.team_id] if player.team_id else self.pool).append(player)
+        dead = cap.dead_money_totals(db, [t.id for t in self.teams], season.year)
         self.payrolls = {t.id: sum(c.salary for p in self.rosters[t.id]
-                                   if (c := p.active_contract)) for t in self.teams}
+                                   if (c := p.active_contract)) + dead[t.id]
+                         for t in self.teams}
         self.user_team = franchise_team_id(db, self.league.id)
         self.departed_from = {e["player"]: e["team"] for e in self.log.get("departed", [])}
 

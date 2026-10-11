@@ -40,6 +40,7 @@ from app.domain.ratings import clamp_rating
 from app.models import Contract, DraftPick, Game, League, Player, Season, Team
 from app.schemas import DraftOut, DraftPickOut, ProspectRow
 from app.seed.generator import SPECIALIST_OFFSET, _development_trait, make_player
+from app.services import cap as cap_rules
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.free_agency import franchise_team_id
@@ -232,8 +233,7 @@ def _join(season: Season, player: Player, team_id: int, salary: int, years: int,
     taken.add(player.jersey_number)
     player.team_id = team_id
     player.is_prospect = False
-    player.contracts.append(Contract(team_id=team_id, start_year=season.year, years=years,
-                                     salary=salary))
+    player.contracts.append(Contract.signed(team_id, season.year, years, salary))
     lost = _lost(season, team_id)
     if player.position in lost:
         lost.remove(player.position)
@@ -379,7 +379,7 @@ def _finish(db: Session, season: Season) -> None:
         roster = _roster(db, team.id)
         for player in sorted(roster, key=lambda p: (p.overall, -p.age, p.id))[
                 :max(0, len(roster) - ROSTER_MAX)]:
-            _release(db, player)
+            _release(db, player, season)
             cuts.append({"player": player.id, "team": team.id})
         _fit_under_cap(db, season, team, cap, veterans, cuts)
     season.phase = "preseason"
@@ -393,17 +393,22 @@ def _fit_under_cap(db: Session, season: Season, team: Team, cap: int,
     (salary furthest above market value; never this year's picks), each replaced by a
     free agent on a one-year minimum deal, until it fits."""
     roster = _roster(db, team.id)
-    payroll = sum(c.salary for p in roster if (c := p.active_contract))
+    payroll = (sum(c.salary for p in roster if (c := p.active_contract))
+               + cap_rules.dead_money_for(db, team.id, season.year))
+    # Releasing saves his salary but leaves the rest of his bonus as dead money.
+    def saving(p: Player) -> int:
+        return p.active_contract.salary - cap_rules.release_cost(p.active_contract, season.year)
+
     candidates = sorted(
         (p for p in roster if p.draft_year != season.year and p.active_contract
-         and p.active_contract.salary > MIN_SALARY),
+         and saving(p) > MIN_SALARY),
         key=lambda p: (-(p.active_contract.salary
                          - market_salary(Position(p.position), p.overall)), p.id))
     for player in candidates:
         if payroll <= cap:
             break
-        payroll -= player.active_contract.salary
-        _release(db, player)
+        payroll -= saving(player)
+        _release(db, player, season)
         cuts.append({"player": player.id, "team": team.id})
         roster.remove(player)
         if veterans:
@@ -414,7 +419,8 @@ def _fit_under_cap(db: Session, season: Season, team: Team, cap: int,
             payroll += MIN_SALARY
 
 
-def _release(db: Session, player: Player) -> None:
+def _release(db: Session, player: Player, season: Season) -> None:
+    cap_rules.charge(db, player, player.active_contract, cap_rules.cap_year(season), "released")
     for contract in player.contracts:
         contract.is_active = False
     remove_player(db, player)
@@ -422,12 +428,15 @@ def _release(db: Session, player: Player) -> None:
 
 
 def cut_down(db: Session, team: Team) -> list[Player]:
-    """Release the lowest-rated players until the roster is at 53."""
+    """Release the lowest-rated players (the cheapest to cut among equals) until the
+    roster is at 53."""
+    season = current_season(db, team.league_id)
+    year = cap_rules.cap_year(season)
     roster = _roster(db, team.id)
-    excess = sorted(roster, key=lambda p: (p.overall, -p.age, p.id))[
-        :max(0, len(roster) - ROSTER_MAX)]
+    excess = sorted(roster, key=lambda p: (p.overall, cap_rules.release_cost(
+        p.active_contract, year), -p.age, p.id))[:max(0, len(roster) - ROSTER_MAX)]
     for player in excess:
-        _release(db, player)
+        _release(db, player, season)
     db.flush()
     return excess
 

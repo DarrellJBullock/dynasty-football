@@ -76,7 +76,8 @@ describe("RosterManager", () => {
   });
 
   it("opens the player card and releases the player", async () => {
-    mocked.player.mockResolvedValue(makePlayerDetail({ ...qb }));
+    mocked.player.mockResolvedValue(makePlayerDetail({ ...qb, contract: { start_year: 2026, years: 4,
+      end_year: 2029, salary: 20_000_000, signing_bonus: 24_000_000 } }));
     mocked.releasePlayer.mockResolvedValue({ ...makePlayerDetail({ ...qb }), team_id: null, contract: null });
     renderManager();
 
@@ -85,6 +86,8 @@ describe("RosterManager", () => {
     expect(await within(panel).findByText("Quarles")).toBeInTheDocument();
 
     await userEvent.click(within(panel).getByRole("button", { name: "Release" }));
+    // The whole $24M bonus is still owed: four seasons left from 2026.
+    expect(within(panel).getByText(/leaves \$24\.0M of dead money/)).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole("button", { name: "Confirm release" }));
 
     expect(mocked.releasePlayer).toHaveBeenCalledWith(qb.id);

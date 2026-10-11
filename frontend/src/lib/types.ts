@@ -48,6 +48,7 @@ export interface TeamDetail extends TeamSummary {
   roster_max: number;
   payroll: number;
   cap_space: number;
+  dead_money?: number; // included in payroll
 }
 
 export interface Contract {
@@ -486,6 +487,7 @@ export interface TeamContracts {
   salary_cap: number;
   payroll: number;
   next_year_payroll: number;
+  dead_money?: DeadMoneyOut[]; // charges for this season and later
   expiring: ExpiringContract[];
   players: PlayerSummary[]; // everyone under contract, highest salary first
 }
@@ -645,4 +647,13 @@ export interface TradeResult {
   accepted: boolean;
   evaluation: TradeEvaluation;
   trade: TradeOut | null;
+}
+
+export interface DeadMoneyOut {
+  player_id: number;
+  name: string;
+  position: Position;
+  year: number;
+  amount: number;
+  reason: "released" | "traded" | "retired";
 }

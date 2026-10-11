@@ -30,7 +30,8 @@ export function DashboardView({ data }: { data: Dashboard }) {
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <NextGameCard game={nextGame} teamId={team.id} />
-        <CapCard payroll={team.payroll} capSpace={team.cap_space} cap={franchise.league.salary_cap} />
+        <CapCard payroll={team.payroll} capSpace={team.cap_space} cap={franchise.league.salary_cap}
+          dead={team.dead_money ?? 0} />
         <RosterCard
           count={team.roster_count}
           max={team.roster_max}
@@ -234,10 +235,14 @@ function NextGameCard({ game, teamId }: { game?: Game; teamId: number }) {
   );
 }
 
-function CapCard({ payroll, capSpace, cap }: { payroll: number; capSpace: number; cap: number }) {
+function CapCard({ payroll, capSpace, cap, dead }: {
+  payroll: number; capSpace: number; cap: number; dead: number;
+}) {
   const used = Math.min(100, (payroll / cap) * 100);
+  const footer = `${formatMoney(payroll)} of ${formatMoney(cap)} committed` +
+    (dead > 0 ? ` · incl. ${formatMoney(dead)} dead money` : "");
   return (
-    <StatCard label="Salary cap" footer={`${formatMoney(payroll)} of ${formatMoney(cap)} committed`}>
+    <StatCard label="Salary cap" footer={footer}>
       <div className={`stat-number text-4xl ${capSpace < 0 ? "text-rose-300" : ""}`}>
         {formatMoney(capSpace)}
         <span className="ml-2 font-sans text-xs font-normal text-mist">space</span>

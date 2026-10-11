@@ -23,7 +23,7 @@ from app.domain.trades import (
     pick_value,
     player_value,
 )
-from app.models import DraftPick, League, Player, Season, Team, Trade
+from app.models import Contract, DraftPick, League, Player, Season, Team, Trade
 from app.schemas import (
     TradeAssetOut,
     TradeAssets,
@@ -33,7 +33,7 @@ from app.schemas import (
     TradeProposal,
     TradeResult,
 )
-from app.services import draft
+from app.services import cap, draft
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.free_agency import franchise_team_id
@@ -188,7 +188,8 @@ class _Deal:
 
     def problems(self) -> list[str]:
         desk, problems = self.desk, []
-        cap = desk.league.salary_cap
+        salary_cap = desk.league.salary_cap
+        year = cap.cap_year(desk.season)
         sides = ((desk.user_team, self.send, self.receive, "Your"),
                  (self.partner.id, self.receive, self.send, f"The {self.partner.nickname}'"))
         for team_id, out, into, whose in sides:
@@ -198,8 +199,11 @@ class _Deal:
             size = len(roster) - len(out_players) + len(in_players)
             if size > max(ROSTER_MAX, len(roster)):
                 problems.append(f"{whose} roster would have {size} players (max {ROSTER_MAX}).")
-            new_payroll = payroll(roster) - payroll(out_players) + payroll(in_players)
-            if new_payroll > cap and new_payroll > payroll(roster):
+            # Trading a player away leaves the rest of his bonus behind as dead money.
+            current = payroll(roster) + cap.dead_money_for(desk.db, team_id, year)
+            new_payroll = (current - payroll(out_players) + payroll(in_players)
+                           + sum(cap.release_cost(p.active_contract, year) for p in out_players))
+            if new_payroll > salary_cap and new_payroll > current:
                 problems.append(f"{whose} payroll would be over the cap.")
         return problems
 
@@ -252,6 +256,20 @@ def propose(db: Session, league: League, proposal: TradeProposal) -> TradeResult
     return TradeResult(accepted=True, evaluation=evaluation, trade=_trade_out(trade))
 
 
+def _move_contract(db: Session, player: Player, to_team: int, year: int) -> None:
+    """His old team keeps the rest of his signing bonus as dead money; the new team takes
+    his salary for the seasons left, with no bonus."""
+    old = player.active_contract
+    if old is None:
+        return
+    cap.charge(db, player, old, year, "traded")
+    old.is_active = False
+    remaining = old.end_year - year + 1
+    if remaining > 0:
+        player.contracts.append(Contract(team_id=to_team, start_year=year, years=remaining,
+                                         salary=old.salary, signing_bonus=0))
+
+
 def _execute(db: Session, deal: _Deal) -> Trade:
     desk = deal.desk
     user, partner = desk.user_team, deal.partner.id
@@ -274,8 +292,7 @@ def _execute(db: Session, deal: _Deal) -> Trade:
                 item.jersey_number = available_jersey(item.position, taken)
             taken.add(item.jersey_number)
             item.team_id = to_team
-            if item.active_contract is not None:
-                item.active_contract.team_id = to_team  # the contract comes with him
+            _move_contract(db, item, to_team, cap.cap_year(desk.season))
     trade = Trade(league_id=desk.league.id, season_id=desk.season.id, team_id=user,
                   partner_id=partner, phase=desk.season.phase, week=desk.season.current_week,
                   sent=sent, received=received)

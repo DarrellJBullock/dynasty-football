@@ -30,7 +30,7 @@ from app.seed.generator import (
     _schedule,
     make_player,
 )
-from app.services import playoffs
+from app.services import cap, playoffs
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.injuries import heal
@@ -101,6 +101,8 @@ def advance(db: Session, season: Season) -> Season:
             log["retired"].append({"player": player.id, "team": player.team_id})
             if signed:
                 lost[player.team_id].append(player.position)
+                # Retiring mid-deal leaves the rest of his bonus on next season's cap.
+                cap.charge(db, player, player.active_contract, year, "retired")
                 _leave_team(db, player)
             player.retired_year = season.year
     # Nobody signs a crowded pool's tail: past FREE_AGENT_POOL_MAX, the least valuable
@@ -120,15 +122,17 @@ def advance(db: Session, season: Season) -> Season:
             rosters[player.team_id].append(player)
     payrolls: dict[int, int] = {}
     departed_from: dict[int, int] = {}  # a team doesn't sign back who it just let go
-    cap = league.salary_cap
+    salary_cap = league.salary_cap
     # The franchise decides its own re-signings (services/contracts.py); whoever it
     # didn't re-sign leaves.
     user_team = db.scalar(select(Franchise.team_id).where(Franchise.league_id == league.id))
+    db.flush()
+    dead = cap.dead_money_totals(db, [t.id for t in teams], year)
     for team in teams:
         roster = rosters[team.id]
         expiring = [p for p in roster if p.active_contract.end_year <= season.year]
         staying = [p for p in roster if p not in expiring]
-        payroll = sum(p.active_contract.salary for p in staying)
+        payroll = sum(p.active_contract.salary for p in staying) + dead[team.id]
         committed = len(staying)
         for player in sorted(expiring, key=lambda p: (-p.overall, p.id)):
             salary = market_salary(Position(player.position), player.overall)
@@ -136,7 +140,7 @@ def advance(db: Session, season: Season) -> Season:
             reserve = max(0, ROSTER_MAX - committed - 1) * ROSTER_SPOT_RESERVE
             worth_keeping = team.id != user_team and (
                 player.age < VETERAN_KEEP[0] or player.overall >= VETERAN_KEEP[1])
-            if worth_keeping and payroll + salary + reserve <= cap:
+            if worth_keeping and payroll + salary + reserve <= salary_cap:
                 years = contract_years(rng, player.age)
                 _sign(player, team, year, salary, years)
                 payroll += salary
@@ -178,8 +182,7 @@ def advance(db: Session, season: Season) -> Season:
 def _sign(player: Player, team: Team, year: int, salary: int, years: int) -> None:
     if player.active_contract is not None:
         player.active_contract.is_active = False
-    player.contracts.append(Contract(team_id=team.id, start_year=year, years=years,
-                                     salary=salary))
+    player.contracts.append(Contract.signed(team.id, year, years, salary))
 
 
 def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":

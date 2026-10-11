@@ -130,6 +130,22 @@ Team ratings come from that lineup:
 - Payroll = sum of active contract salaries. Signings that exceed the cap are rejected.
 - Contracts signed in the offseason start the next season.
 
+### Signing bonuses and dead money
+
+- Every deal above the minimum includes a **signing bonus** of 30% of its total value
+  (rookie, re-signed, free-agent, and generated contracts alike). The cap hit each season
+  is still the salary — the bonus is spread across the deal — but it's guaranteed.
+- Letting a player go before his deal ends puts the rest of his bonus (its share for
+  every season left) on the cap as **dead money**, all in the current cap year — or next
+  season's, once this one is over. That happens when he's **released**, **traded** (the
+  new team takes on his salary for the seasons left, without a bonus), or **retires**
+  mid-deal. His remaining salary simply goes away.
+- Payroll = active cap hits + dead money, everywhere it matters: signings, re-signing,
+  free agency, trades, the dashboard, and AI cap management. AI teams weigh it when
+  deciding who to cut; the roster's release button warns you what a cut will cost, and
+  the Contracts page lists your dead money. Replacing a roster by import doesn't create
+  any.
+
 ### Re-signing
 
 Once the champion is crowned, the **Contracts** page opens re-signing for the
@@ -312,7 +328,8 @@ draft (this year's during free agency, next year's otherwise).
   valuing players at positions it needs (or who'd start for it) 15% more. The **trade
   meter** shows where a deal stands as you build it.
 - **Rules:** both rosters must stay within 53 (or not grow if already over) and both
-  payrolls under the cap. Contracts move with their players. Traded picks keep their
+  payrolls under the cap (counting dead money from the trade). Contracts move with their
+  players (the old team keeps the rest of the signing bonus as dead money). Traded picks keep their
   original team's slot when the draft order is set, and show "via" on draft day.
 - **Window:** open in the offseason, free agency, the preseason, and the regular season
   through **week 10**; closed during the draft and the playoffs.

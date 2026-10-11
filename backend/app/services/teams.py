@@ -63,7 +63,10 @@ def payroll(players: list[Player]) -> int:
 
 
 def team_detail(team: Team, players: list[Player], overrides: Overrides) -> TeamDetail:
-    total = payroll(players)
+    """Identity, ratings, roster count, and cap: payroll is active cap hits plus dead money
+    for the current cap year."""
+    dead = _dead_money_now(team)
+    total = payroll(players) + dead
     return TeamDetail(
         **team_summary(team).model_dump(),
         stadium=team.stadium,
@@ -71,5 +74,16 @@ def team_detail(team: Team, players: list[Player], overrides: Overrides) -> Team
         roster_count=len(players),
         roster_max=ROSTER_MAX,
         payroll=total,
+        dead_money=dead,
         cap_space=team.league.salary_cap - total,
     )
+
+
+def _dead_money_now(team: Team) -> int:
+    from sqlalchemy.orm import object_session
+
+    from app.services import cap
+
+    db = object_session(team)
+    season = current_season(db, team.league_id) if db else None
+    return cap.dead_money_for(db, team.id, cap.cap_year(season)) if season else 0

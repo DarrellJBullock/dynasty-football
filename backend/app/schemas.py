@@ -53,7 +53,8 @@ class TeamDetail(TeamSummary):
     ratings: TeamRatings
     roster_count: int
     roster_max: int
-    payroll: int
+    payroll: int  # active cap hits + dead money, this cap year
+    dead_money: int = 0
     cap_space: int
 
 
@@ -610,8 +611,18 @@ class TeamContracts(BaseModel):
     salary_cap: int
     payroll: int  # active contracts now
     next_year_payroll: int  # already committed to next season
+    dead_money: list["DeadMoneyOut"] = []  # charges for this season and later
     expiring: list[ExpiringContract]
     players: list[PlayerSummary]  # everyone under contract, highest salary first
+
+
+class DeadMoneyOut(BaseModel):
+    player_id: int
+    name: str
+    position: str
+    year: int
+    amount: int
+    reason: str  # released | traded | retired
 
 
 class ReSignOffer(BaseModel):

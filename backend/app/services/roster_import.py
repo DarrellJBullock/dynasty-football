@@ -128,7 +128,7 @@ def commit(db: Session, team: Team, plan: ImportPlan, skip_invalid: bool) -> tup
     released = 0
     if plan.mode == "replace":
         for player in plan.current:
-            release_player(db, player)
+            release_player(db, player, dead_money=False)  # replacing the roster wholesale
             released += 1
 
     year = contract_start_year(db, team)

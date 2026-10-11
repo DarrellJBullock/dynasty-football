@@ -22,6 +22,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.domain.contracts import signing_bonus
 
 
 def _now() -> datetime:
@@ -226,9 +227,33 @@ class Contract(Base):
 
     player: Mapped[Player] = relationship(back_populates="contracts")
 
+    @classmethod
+    def signed(cls, team_id: int, start_year: int, years: int, salary: int) -> "Contract":
+        """A new deal: `salary` is its yearly cap hit; part of the money is a signing bonus
+        (domain/contracts.signing_bonus) that becomes dead money if he's let go early."""
+        return cls(team_id=team_id, start_year=start_year, years=years, salary=salary,
+                   signing_bonus=signing_bonus(salary, years))
+
     @property
     def end_year(self) -> int:
         return self.start_year + self.years - 1
+
+
+class DeadMoney(Base):
+    """A cap charge for a player no longer on the team: the rest of his signing bonus,
+    accelerated when he was released, traded, or retired mid-deal."""
+
+    __tablename__ = "dead_money"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"),
+                                         index=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    year: Mapped[int] = mapped_column(Integer)  # the cap year it counts against
+    amount: Mapped[int] = mapped_column(Integer)
+    reason: Mapped[str] = mapped_column(String(12))  # released | traded | retired
+
+    player: Mapped[Player] = relationship()
 
 
 class Season(Base):

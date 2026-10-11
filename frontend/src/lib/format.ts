@@ -83,3 +83,14 @@ export function injuryDetail(player: { injury_status: string; injury?: string | 
 export function yearsRemaining(endYear: number, currentYear: number): number {
   return Math.max(0, endYear - currentYear + 1);
 }
+
+/** Dead money from letting a player go now: his signing bonus for every season left on
+ * his deal, from `capYear` (this season, or next once it's over). */
+export function releaseCost(
+  contract: { signing_bonus: number; years: number; end_year: number } | null | undefined,
+  capYear: number,
+): number {
+  if (!contract || !contract.years) return 0;
+  const remaining = Math.max(0, Math.min(contract.years, contract.end_year - capYear + 1));
+  return Math.round((contract.signing_bonus * remaining) / contract.years);
+}
