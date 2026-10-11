@@ -59,10 +59,10 @@ players.team_id NULL  = free agent
 | `leagues` | name, abbreviation, salary_cap |
 | `conferences`, `divisions` | name (+ abbreviation) |
 | `teams` | city, nickname, abbreviation (unique per league), primary/secondary colour, stadium |
-| `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status |
+| `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status, retired_year? |
 | `player_ratings` | player_id PK + 24 attribute columns (0–99) |
 | `contracts` | player_id, team_id, start_year, years, salary, signing_bonus, is_active |
-| `seasons` | league_id, year (unique per league), phase (regular_season → playoffs → offseason), current_week, champion_team_id? |
+| `seasons` | league_id, year (unique per league), phase (preseason → regular_season → playoffs → offseason), current_week, champion_team_id?, offseason_log (what the rollover into this season did; JSON) |
 | `playoff_seeds` | season_id, conference_id, team_id, seed, division_winner; fixed when the regular season ends |
 | `games` | season_id, week, stage (regular \| playoff), playoff_round?, neutral_site, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB) |
 | `player_game_stats` | game_id, player_id, team_id + one column per `sim.stats.PlayerLine` field |
@@ -92,6 +92,7 @@ Design notes:
 | `DELETE /api/leagues/{id}` | Delete a league and its contents (not the active one) |
 | `PATCH /api/teams/{id}` | Edit team identity (city, nickname, abbreviation, colors, stadium) |
 | `POST /api/seasons/{id}/simulate` `{until: next_week \| end_of_regular_season \| end_of_playoffs}` | Play a week (or playoff round) or the rest of a phase; persist scores, stats, play logs; seeds and schedules playoff rounds |
+| `POST /api/seasons/{id}/advance` | After the champion: run the offseason (aging, development, retirements, contracts, rookies) and create the next season |
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
 | `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play |
@@ -168,6 +169,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Season | pytest | week/season simulation, persisted stats match scores, standings and dashboard follow results, reproducible seeds, injured QB benched, schedule/game endpoints, deleting played leagues |
 | Season stats | pytest | leaders equal summed box scores (and "long" columns are maxima), released players keep their last team, player totals equal the game log, team totals reconcile with standings and league-wide (yards gained = allowed, turnovers = takeaways) |
 | Playoffs | pytest | seed counts, pairing and reseeding, round names, each tiebreaker, division winners seeded first; full bracket to a neutral-site champion, offseason 409s, playoff games excluded from standings and stats, projected bracket, small one-conference leagues |
+| Offseason | pytest | growth/decline/retirement curves, contract lengths; rollover creates the next season and schedule, ages players, retires and refills (full rosters, under the cap, one active contract each), determinism, retired players leave free agency, dashboard recap, a full season → next season through the API, multi-year stability |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

@@ -120,6 +120,7 @@ class Player(Base):
     potential: Mapped[int] = mapped_column(Integer)
     development_trait: Mapped[str] = mapped_column(String(12), default="normal")
     injury_status: Mapped[str] = mapped_column(String(20), default="healthy")
+    retired_year: Mapped[int | None] = mapped_column(Integer)  # last season played
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     league: Mapped[League] = relationship()
@@ -232,6 +233,9 @@ class Season(Base):
     current_week: Mapped[int] = mapped_column(Integer, default=1)
     champion_team_id: Mapped[int | None] = mapped_column(
         ForeignKey("teams.id", ondelete="SET NULL"))
+    # What happened in the offseason before this season (see services/offseason.py).
+    offseason_log: Mapped[dict | None] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"))
 
     league: Mapped[League] = relationship(back_populates="seasons")
     champion: Mapped["Team | None"] = relationship(foreign_keys=[champion_team_id])

@@ -131,6 +131,8 @@ def sign_player(db: Session, team: Team, request: SigningRequest) -> Player:
         raise RosterError("player not found", 404)
     if player.team_id is not None:
         raise RosterError("player is under contract with another team")
+    if player.retired_year is not None:
+        raise RosterError("player has retired")
     roster = load_roster(db, team.id)
     _check_roster_space(roster)
     salary = request.salary if request.salary is not None else market_salary(

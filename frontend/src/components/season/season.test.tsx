@@ -12,7 +12,7 @@ const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, api: { simulate: vi.fn() } };
+  return { ...actual, api: { simulate: vi.fn(), advance: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -80,11 +80,17 @@ describe("SimControls", () => {
     expect(mocked.simulate).toHaveBeenLastCalledWith(5, "end_of_playoffs");
   });
 
-  it("shows the champion once the season is over", () => {
+  it("shows the champion and starts the next season after confirmation", async () => {
+    mocked.advance.mockResolvedValue({ ...season, id: 6, year: 2027, phase: "preseason", current_week: 1 });
     render(<SimControls season={{ ...season, phase: "offseason", current_week: 21,
       regular_season_complete: true, champion: opponent }} teamId={team.id} />);
     expect(screen.getByText(/2026 champion: Albuquerque Roadrunners/)).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Start 2027 season" }));
+    expect(mocked.advance).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: run the offseason" }));
+    expect(mocked.advance).toHaveBeenCalledWith(5);
+    await waitFor(() => expect(router.refresh).toHaveBeenCalled());
   });
 });
 

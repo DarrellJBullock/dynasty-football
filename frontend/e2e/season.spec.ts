@@ -41,7 +41,7 @@ test("sims a week, then follows the result to the box score and other pages", as
   await expect(week1.getByText(/^Final/)).toHaveCount(16); // "Final" or "Final/OT"
 });
 
-test("sims the regular season, then the playoffs to a champion", async ({ page }) => {
+test("sims a season and playoffs to a champion, then starts the next season", async ({ page }) => {
   await page.goto("/playoffs");
   await expect(page.getByText(/if the season ended today/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Bracket" })).toHaveCount(0);
@@ -79,4 +79,18 @@ test("sims the regular season, then the playoffs to a champion", async ({ page }
   await final.click();
   await expect(page.getByText(/Championship · Neutral site/)).toBeVisible();
   await expect(page.getByRole("link", { name: "← Playoff bracket" })).toBeVisible();
+
+  // The offseason rolls the league into next year.
+  await navigate(page, "Dashboard");
+  const overview = page.getByRole("region", { name: "Franchise overview" });
+  await overview.getByRole("button", { name: /^Start \d{4} season$/ }).click();
+  await overview.getByRole("button", { name: "Confirm: run the offseason" }).click();
+  const recap = page.getByRole("region", { name: "Offseason recap" });
+  await expect(recap).toContainText(/\d{4} offseason/, { timeout: 30_000 });
+  await expect(recap.getByRole("group", { name: "Re-signed" })).toBeVisible();
+  await expect(overview.getByText("0-0", { exact: true })).toBeVisible();
+
+  await overview.getByRole("button", { name: "Sim week 1" }).click();
+  await expect(overview.getByRole("status")).toHaveText(/^Week 1: /);
+  await expect(recap).toHaveCount(0);
 });

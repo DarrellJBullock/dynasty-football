@@ -10,7 +10,8 @@ import type { Game, Season, SimulateUntil } from "@/lib/types";
 
 /**
  * Season controls: sim the next week (or playoff round) or the rest of the regular season /
- * playoffs; shows the franchise's latest result, and the champion once crowned.
+ * playoffs; shows the franchise's latest result. Once a champion is crowned, starts the next
+ * season (aging, development, retirements, contracts, rookies happen in between).
  */
 export function SimControls({ season, teamId }: { season: Season; teamId: number }) {
   const router = useRouter();
@@ -18,6 +19,7 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
   const [confirming, setConfirming] = useState(false);
   const [latest, setLatest] = useState<{ game: Game; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
 
   async function simulate(until: SimulateUntil) {
     setBusy(until);
@@ -44,16 +46,47 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
     }
   }
 
+  async function advance() {
+    setAdvancing(true);
+    setConfirming(false);
+    setError(null);
+    try {
+      await api.advance(season.id);
+      setLatest(null);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAdvancing(false);
+    }
+  }
+
   if (season.champion) {
+    const next = season.year + 1;
     return (
       <div className="flex flex-wrap items-center gap-3 text-sm" aria-label="Season status">
         <span className="flex items-center gap-2 rounded-md bg-gold/10 px-2.5 py-1 font-display font-semibold uppercase tracking-wide text-gold">
           <TeamCrest team={season.champion} size={20} />
           {season.year} champion: {season.champion.full_name}
         </span>
+        {confirming ? (
+          <>
+            <button type="button" className="btn btn-primary" disabled={advancing} onClick={advance}>
+              Confirm: run the offseason
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn btn-primary" disabled={advancing}
+            onClick={() => setConfirming(true)}>
+            {advancing ? "Running offseason…" : `Start ${next} season`}
+          </button>
+        )}
         <Link href="/playoffs" className="text-gold hover:underline">Bracket →</Link>
-        <span className="text-mist">Next season arrives in a future update.</span>
         {latest && <ResultLink game={latest.game} label={latest.label} />}
+        {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
       </div>
     );
   }

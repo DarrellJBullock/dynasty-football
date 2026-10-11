@@ -76,6 +76,7 @@ export interface PlayerSummary {
   potential: number;
   development_trait: DevelopmentTrait;
   injury_status: InjuryStatus;
+  retired_year?: number | null; // last season played
   contract: Contract | null;
   key_ratings: Record<string, number>;
 }
@@ -178,6 +179,32 @@ export interface Dashboard {
   position_groups: PositionGroupSummary[];
   expiring_contracts: number;
   alerts: Alert[];
+  offseason?: OffseasonRecap | null; // shown until the first game of the season
+}
+
+export interface RecapSigning {
+  player: PlayerSummary;
+  salary: number;
+  years: number;
+}
+
+export interface RecapMove {
+  player: PlayerSummary;
+  before: number;
+  after: number;
+}
+
+export interface OffseasonRecap {
+  from_year: number;
+  year: number;
+  retired: PlayerSummary[];
+  departed: PlayerSummary[];
+  re_signed: RecapSigning[];
+  signed: RecapSigning[];
+  rookies: PlayerSummary[];
+  risers: RecapMove[];
+  decliners: RecapMove[];
+  league_retirements: { player: PlayerSummary; team: TeamSummary | null }[];
 }
 
 export type ImportMode = "append" | "replace";

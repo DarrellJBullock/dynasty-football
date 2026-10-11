@@ -93,7 +93,8 @@ def free_agents(position: Position | None = None, league: League = Depends(get_l
                 db: Session = Depends(get_db)):
     stmt = (
         select(Player)
-        .where(Player.league_id == league.id, Player.team_id.is_(None))
+        .where(Player.league_id == league.id, Player.team_id.is_(None),
+               Player.retired_year.is_(None))
         .options(selectinload(Player.ratings), selectinload(Player.contracts))
         .order_by(Player.overall.desc(), Player.id)
     )

@@ -9,10 +9,12 @@ from app.schemas import (
     GameDetail,
     PlayoffsOut,
     ScheduleWeek,
+    SeasonOut,
     SimulateRequest,
     SimulationResult,
 )
 from app.services import games as game_service
+from app.services import offseason as offseason_service
 from app.services import playoffs as playoff_service
 from app.services import season as season_service
 from app.services.dashboard import current_franchise
@@ -37,6 +39,18 @@ def simulate(season_id: int, request: SimulateRequest, db: Session = Depends(get
         weeks_simulated=weeks, games_simulated=len(played),
         season=season_service.season_view(db, season),
         franchise_games=mine)
+
+
+@router.post("/seasons/{season_id}/advance", response_model=SeasonOut, status_code=201)
+def advance(season_id: int, db: Session = Depends(get_db)):
+    """Run the offseason (aging, development, retirements, contracts, rookies) and start
+    the next season."""
+    season = db.get(Season, season_id)
+    if season is None:
+        raise HTTPException(404, "season not found")
+    with roster_errors(db):
+        new_season = offseason_service.advance(db, season)
+    return season_service.season_view(db, new_season)
 
 
 @router.get("/leagues/{league_id}/schedule", response_model=ScheduleWeek)
