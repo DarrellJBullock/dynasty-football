@@ -2,23 +2,10 @@
 
 import { useMemo } from "react";
 import { WIDTH } from "../layout";
-import { defenseSpots, offenseSpots, spotOnField, type Package, type Spot } from "./formations";
+import { defenseSpots, NUMBERS, offenseSpots, spotOnField, TYPICAL, type Package, type Spot } from "./formations";
 import { kit, skinTone } from "./kit";
 import { Football, PlayerFigure, type PlayerFrame } from "./PlayerFigure";
 import { blend, build, pose } from "./poses";
-
-/** Typical size by position (inches, pounds) and a typical number by role, for lineups
- * that aren't real rosters (the dashboard's stadium). */
-const TYPICAL: Record<string, [number, number]> = {
-  QB: [75, 225], RB: [70, 215], WR: [73, 200], TE: [77, 250], OT: [78, 315], OG: [76, 315],
-  C: [75, 305], DE: [76, 270], DT: [75, 310], OLB: [75, 245], MLB: [74, 240], CB: [71, 195],
-  FS: [72, 205], SS: [72, 210],
-};
-const NUMBERS: Record<string, number> = {
-  QB: 12, RB: 28, X: 11, Z: 84, SLOT: 17, TE: 87, LT: 74, RT: 71, LG: 66, RG: 63, C: 55,
-  LDE: 91, RDE: 97, LDT: 93, RDT: 99, SAM: 52, WILL: 54, MIKE: 50, CB1: 24, CB2: 21, NB: 31,
-  DB: 37, FS: 29, SS: 33,
-};
 
 interface TeamColors { primary_color: string; secondary_color: string }
 

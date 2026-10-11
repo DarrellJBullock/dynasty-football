@@ -98,7 +98,8 @@ def _players(db: Session, team_of: dict[int, int]) -> list[PlaybackPlayer]:
             out.append(PlaybackPlayer(id=pid, name=p.full_name,
                                       short_name=short_name(p.first_name, p.last_name),
                                       number=p.jersey_number, position=p.position,
-                                      team_id=team_id, speed=p.ratings.speed))
+                                      team_id=team_id, speed=p.ratings.speed,
+                                      height_in=p.height_in, weight_lb=p.weight_lb))
         elif pid < 0:
             position = replacement_position(pid).value
             out.append(PlaybackPlayer(id=pid, name=f"Reserve {position}",

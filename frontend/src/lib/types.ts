@@ -779,6 +779,8 @@ export interface PlaybackPlayer {
   position: Position;
   team_id: number;
   speed: number;
+  height_in: number;
+  weight_lb: number;
 }
 
 export interface GamePlayback {

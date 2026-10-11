@@ -76,8 +76,8 @@ export function cameraShot(preset: CameraPreset, focus = LENGTH / 2, direction: 
   const x = Math.min(Math.max(focus, END_ZONE), LENGTH - END_ZONE);
   const [sx] = toScene(x, WIDTH / 2);
   switch (preset) {
-    case "sideline": // the press box: high on the near sideline, square to the line
-      return { position: [sx, 24, WIDTH / 2 + 42], target: [sx + direction * 4, 0, 0], fov: 38 };
+    case "sideline": // the broadcast camera: high on the near sideline, square to the line, zoomed in
+      return { position: [sx, 20, WIDTH / 2 + 36], target: [sx + direction * 4, 0, 0], fov: 26 };
     case "endzone": // behind the offense, looking downfield
       return { position: [sx - direction * 34, 15, 0], target: [sx + direction * 12, 0, 0],
                fov: 45 };

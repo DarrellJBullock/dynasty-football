@@ -89,8 +89,12 @@ export function GameView({ detail }: { detail: GameDetail }) {
               </ul>
             </Panel>
           )}
-          <Panel title="Play-by-play">
-            <PlayByPlay plays={detail.plays} teams={teams} />
+          <Panel title="Play-by-play" action={
+            <Link href={`/games/${game.id}/watch`} className="btn btn-primary px-3 py-1 text-xs">
+              Watch in 3D
+            </Link>
+          }>
+            <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} />
           </Panel>
         </>
       )}
@@ -253,7 +257,9 @@ function PlayList({ plays, teams }: { plays: PlayOut[]; teams: Record<Side, Team
   );
 }
 
-function PlayByPlay({ plays, teams }: { plays: PlayOut[]; teams: Record<Side, TeamSummary> }) {
+function PlayByPlay({ gameId, plays, teams }: {
+  gameId: number; plays: PlayOut[]; teams: Record<Side, TeamSummary>;
+}) {
   const quarters = [...new Set(plays.map((p) => p.quarter))];
   return (
     <div className="space-y-3">
@@ -264,13 +270,17 @@ function PlayByPlay({ plays, teams }: { plays: PlayOut[]; teams: Record<Side, Te
           </summary>
           <ol className="divide-y divide-white/[0.04]" aria-label={quarterName(q)}>
             {plays.filter((p) => p.quarter === q).map((play) => (
-              <li key={play.n} className={`grid grid-cols-[3.5rem_7rem_minmax(0,1fr)] gap-3 px-4 py-2 text-sm ${play.scoring ? "bg-gold/[0.05]" : ""}`}>
+              <li key={play.n} className={`grid grid-cols-[3.5rem_7rem_minmax(0,1fr)_auto] gap-3 px-4 py-2 text-sm ${play.scoring ? "bg-gold/[0.05]" : ""}`}>
                 <span className="text-xs tabular-nums text-mist">{play.clock}</span>
                 <span className="text-xs text-mist">
                   {play.down ? `${play.offense} ${ordinal(play.down)}&${play.distance}` : play.offense}
                   {play.spot && <span className="block">at {play.spot}</span>}
                 </span>
                 <span>{play.text}</span>
+                <Link href={`/games/${gameId}/watch?play=${play.n}`} aria-label={`Watch play ${play.n}`}
+                  className="self-start text-xs font-semibold text-gold hover:underline">
+                  Watch
+                </Link>
               </li>
             ))}
           </ol>

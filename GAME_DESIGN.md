@@ -401,8 +401,11 @@ resolved, the AI, overtime and playoff rules, and calibration targets. Remaining
 - One deterministic play engine (seeded) resolves each play from the two play calls,
   the 22 players' ratings, and fatigue. It outputs an **event timeline** (snap, routes,
   blocks, throw, catch, tackle) with positions over time.
-- Quick Sim uses the engine headless; the 3D client plays the same timeline back with
-  animations, so a watched game and a simulated game agree.
+- Quick Sim uses the engine headless; the 3D client plays the same record back with
+  animations, so a watched game and a simulated game agree. Built in Milestone 4: any
+  played game can be watched a play at a time from its box score (**Watch in 3D**, or
+  **Watch** on a single play), with play/pause, scrubbing, speed, previous/next, "play the
+  drive", and sideline, end-zone and all-22 cameras that follow the ball.
 - Plays: run, pass, blocking schemes, tackling, field goals, punts, kickoffs.
 - AI: situational play calling (down, distance, clock, score) for both sides.
 - Presentation: broadcast cameras, all-22 view, instant replay from the timeline.

@@ -1047,6 +1047,8 @@ class PlaybackPlayer(BaseModel):
     position: str
     team_id: int
     speed: int
+    height_in: int = 74
+    weight_lb: int = 230
 
 
 class GamePlayback(BaseModel):

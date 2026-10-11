@@ -8,17 +8,19 @@ import { cameraShot, type CameraPreset } from "./layout";
 const EASE = 3.5; // higher is snappier
 
 /** Moves the camera toward a preset's shot, easing between presets. */
-export function CameraRig({ preset, focus, direction = 1 }: {
+export function CameraRig({ preset, focus, direction = 1, follow }: {
   preset: CameraPreset;
   focus?: number; // field x to frame
   direction?: 1 | -1;
+  /** Called every frame for the field x to frame instead (following the ball). */
+  follow?: () => number;
 }) {
   const target = useRef<Vector3 | null>(null);
   const goal = useRef(new Vector3());
 
   useFrame((state, delta) => {
     const camera = state.camera;
-    const shot = cameraShot(preset, focus, direction, state.clock.elapsedTime);
+    const shot = cameraShot(preset, follow ? follow() : focus, direction, state.clock.elapsedTime);
     const k = 1 - Math.exp(-EASE * delta);
     goal.current.set(...shot.position);
     camera.position.lerp(goal.current, k);

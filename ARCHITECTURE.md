@@ -187,6 +187,17 @@ Interactive docs: `http://localhost:8000/docs`.
   readable numbers), `PlayerFigure.tsx` (the jointed low-poly figure and the football, each
   posed every frame by a *driver* function, so 22 players animate without React
   re-renders), and `Lineup.tsx` (both teams in stance, used on the dashboard).
+  `components/field/playback/` plays a game back: `choreograph.ts` turns each play record
+  into a **timeline** (`timeline.ts`: every player's path and pose keys, the ball held / in
+  flight / at rest, the play's moments, any flag) with a script per play type, so the
+  recorded carrier reaches the recorded spot where the recorded tacklers meet him; it's
+  pure, seeded by game and play number, and chains each snap to where the last play ended.
+  Kick units and conversions, which the play log doesn't list, are filled from the team's
+  players in the game. `PlayScene.tsx` renders a timeline, sampling it every frame from a
+  shared `PlayClock` (`clock.ts`) that the scene advances and the controls seek, so playing
+  re-renders nothing. `components/watch/WatchView.tsx` is the Watch page: one request loads
+  the game (`/api/games/{id}/playback`) and every play is choreographed in the browser
+  (~20 ms a game), so stepping and scrubbing are instant.
 
 ## Testing
 
@@ -211,6 +222,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | History | pytest | award scoring and winners (MVP win bonus, rookies, minimum games), summaries; awards decided with the champion, once, and backfilled; season archive (champion and runner-up from the final, franchise record and result); records match the season leaders; career totals match season stats; careers and rookies across seasons |
 | Playback | pytest | every scrimmage play records 11 + 11 players from the right rosters (and everyone its events name), kicks name a returner, stand-in ids map to positions; the playback API types every event, resolves every player to the right team, rebuilds approximate lineups for old logs, handles unplayed and missing games |
 | 3D field | Vitest | field geometry (lines, numbers, pro hashes, direction), camera presets (framing, both directions, clamping, orbit), the field painter against a recording canvas, camera buttons; Playwright switches cameras on the dashboard |
+| 3D playback | Vitest + Testing Library + Playwright | choreographer invariants for every play type (22 players on the field and in bounds, ordered paths and moments, the ball accounted for throughout, the recorded spot reached, tacklers meeting the carrier, touchdowns crossing the goal line, kicks returned to the recorded spot, field goals through or wide of the uprights, stand-ins filling kick units, determinism, hash spotting, ends switching by quarter); timeline sampling and the play clock; the Watch view's controls (play/pause, scrubbing, replay, speed, cameras, auto-advance, keyboard) with the scene mocked; Playwright watches a play from the play-by-play, scrubs, and steps through the game |
 | 3D players | Vitest | every pose valid, the run cycle (period, opposed legs and arms), carry and throw, leaning arms reach forward, blending, builds and hip heights, formations (order, packages, sides, both directions), uniforms (home/away, readable numbers), skin tones |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
@@ -241,7 +253,7 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
   (`resolve.py`). Probabilities are `sigmoid(base + k · rating_difference)`.
 - **Events are the contract:** every play records semantic events (handoff, rush, pass,
   sack, tackle, penalty, kicks…). Play-by-play text (`text.py`) and box scores
-  (`stats.py`) are derived from events only, and the 3D client will animate from them —
+  (`stats.py`) are derived from events only, and the 3D client animates from them —
   the engine never computes player positions.
 - **Calibration:** all constants live in `tuning.py`; `calibration.py` measures league
   output against targets, and `tests/test_sim_calibration.py` enforces them plus rating
@@ -251,10 +263,12 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
 
 - R3F scene graph: stadium, 22 player figures (procedural low-poly, per the playback
   design), ball, cameras.
-- Animation driven by the engine timeline (playback, not client-side physics), so
-  replays and Watch Mode are exact.
-- State machines per player (stance → route/block/rush → tackle/celebrate).
-- Camera rigs: broadcast sideline, all-22, end zone, follow-ball; replay scrubbing.
+- Animation driven by a timeline choreographed from the engine's play record (playback,
+  not client-side physics), so a play always looks the same and ends where the record says.
+- Built (M4): the stadium, players, choreographer for every play type, and the Watch page
+  with broadcast sideline, end zone and all-22 cameras, follow-ball, and scrubbing.
+- Later: per-player state machines from playbook assignments (M5), richer camera rigs and
+  instant replay (M6).
 
 ### Later concerns
 

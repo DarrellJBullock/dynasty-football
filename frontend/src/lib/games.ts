@@ -45,3 +45,10 @@ export const OUTCOME_STYLES: Record<Outcome, string> = {
 export function formatPossession(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
+
+/** A yard line in broadcast style from the offense's `ballOn` (yards from its own goal):
+ * "HFD 34" in its own half, "ABQ 20" in the opponent's, "50" at midfield. */
+export function formatSpot(ballOn: number, offense: string, defense: string): string {
+  if (ballOn === 50) return "50";
+  return ballOn < 50 ? `${offense} ${ballOn}` : `${defense} ${100 - ballOn}`;
+}
