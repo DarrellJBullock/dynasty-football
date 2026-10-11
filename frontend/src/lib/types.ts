@@ -657,3 +657,64 @@ export interface DeadMoneyOut {
   amount: number;
   reason: "released" | "traded" | "retired";
 }
+
+export interface AwardOut {
+  award: "mvp" | "opoy" | "dpoy" | "oroy" | "droy";
+  label: string;
+  year: number;
+  player_id: number;
+  name: string;
+  position: Position;
+  team: TeamSummary | null;
+  summary: string;
+}
+
+export interface SeasonHistory {
+  season_id: number;
+  year: number;
+  phase: string;
+  complete: boolean;
+  champion: TeamSummary | null;
+  runner_up: TeamSummary | null;
+  awards: AwardOut[];
+  franchise_record: { wins: number; losses: number; ties: number } | null;
+  franchise_result: string;
+}
+
+export interface RecordRow {
+  player_id: number;
+  name: string;
+  position: Position;
+  team: string | null;
+  year: number | null;
+  value: number;
+  games: number;
+  retired: boolean;
+}
+
+export interface RecordCategory {
+  key: string;
+  label: string;
+  single_season: RecordRow[];
+  career: RecordRow[];
+}
+
+export interface HistoryOut {
+  seasons: SeasonHistory[];
+  records: RecordCategory[];
+}
+
+export interface CareerSeason {
+  year: number;
+  team: TeamSummary;
+  games: number;
+  stats: Record<string, number>;
+}
+
+export interface CareerOut {
+  player_id: number;
+  seasons: CareerSeason[];
+  games: number;
+  totals: Record<string, number>;
+  awards: AwardOut[];
+}

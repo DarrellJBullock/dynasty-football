@@ -239,6 +239,25 @@ class Contract(Base):
         return self.start_year + self.years - 1
 
 
+class Award(Base):
+    """A season award (MVP, player and rookie of the year), decided when the season's
+    champion is crowned (services/history.py)."""
+
+    __tablename__ = "awards"
+    __table_args__ = (UniqueConstraint("season_id", "award"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"),
+                                           index=True)
+    award: Mapped[str] = mapped_column(String(8))  # mvp | opoy | dpoy | oroy | droy
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"))
+    summary: Mapped[str] = mapped_column(String(120))  # "4,512 pass yds · 33 TD"
+
+    player: Mapped[Player] = relationship()
+    team: Mapped["Team | None"] = relationship()
+
+
 class DeadMoney(Base):
     """A cap charge for a player no longer on the team: the rest of his signing bonus,
     accelerated when he was released, traded, or retired mid-deal."""

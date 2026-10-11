@@ -82,6 +82,13 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   await expect(page.getByText(/Championship · Neutral site/)).toBeVisible();
   await expect(page.getByRole("link", { name: "← Playoff bracket" })).toBeVisible();
 
+  // The season goes into the history books, with its awards.
+  await navigate(page, "History");
+  const archived = page.getByRole("article", { name: /^\d{4} season$/ }).first();
+  await expect(archived).toContainText("Champion");
+  await expect(archived.getByRole("list", { name: /awards$/ }).getByRole("listitem")).toHaveCount(5);
+  await expect(page.getByRole("group", { name: "Passing yards" }).getByRole("listitem")).toHaveCount(5);
+
   // Re-sign an expiring player before the rollover.
   await navigate(page, "Contracts");
   await expect(page.getByText(/Re-signing is open/)).toBeVisible();

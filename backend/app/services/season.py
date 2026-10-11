@@ -165,6 +165,10 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
         played += games
         playoffs.finish_round(db, season)
         steps += 1
+        if season.champion_team_id:
+            from app.services.history import award_season  # (it builds on this module)
+
+            award_season(db, season)
         if request.until == "next_week":
             break
     return steps, played

@@ -21,6 +21,7 @@ test("sidebar reaches every page", async ({ page }) => {
     ["Free Agency", "Free Agency"],
     ["Draft", /^\d{4} Draft$/],
     ["Trades", "Trades"],
+    ["History", "History"],
     ["League", "Dynasty Football League"],
     ["My Leagues", "Leagues & franchises"],
     ["Dashboard", "Ironclads"],

@@ -312,6 +312,26 @@ Players get hurt in simulated games:
 - Injuries draw from their own random stream, so a game plays out exactly as it would
   without them until someone actually gets hurt (still deterministic per seed).
 
+## History and awards
+
+- **Awards** are decided when the champion is crowned, from regular-season stats (players
+  need half the season's games): **Most Valuable Player** (the best offensive season —
+  quarterbacks' weighted ×1.2 — plus 4 points per team win, so it leans to quarterbacks on
+  winners), **Offensive** and
+  **Defensive Player of the Year**, and **Offensive** and **Defensive Rookie of the
+  Year** (first-year pros). Offense scores yards and touchdowns, fantasy-style (25 passing
+  or 10 rushing/receiving yards a point, 4 per passing TD and 6 per other TD, minus
+  turnovers); defense scores tackles, sacks ×4, interceptions ×5, passes defended ×1.5,
+  and forced fumbles ×3.
+- The **History** page lists every season: the champion and runner-up, the award winners
+  with their headline numbers, and your record and how your season ended ("Won the
+  championship", "Lost in the Divisional", "Missed the playoffs").
+- **Records:** the top five single seasons and careers in ten categories (passing,
+  rushing, and receiving yards and TDs, receptions, tackles, sacks, interceptions),
+  regular season, across every season in the league.
+- **Player pages** add a career table — season by season, with career totals — and the
+  awards he's won.
+
 ## Trades
 
 On the **Trades** page, build a deal with any AI team: players, and picks in the next

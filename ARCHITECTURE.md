@@ -63,6 +63,7 @@ players.team_id NULL  = free agent
 | `player_ratings` | player_id PK + 24 attribute columns (0–99) |
 | `contracts` | player_id, team_id, start_year, years, salary (yearly cap hit), signing_bonus (30% of total value above the minimum; `Contract.signed`), is_active |
 | `dead_money` | team_id, player_id, year (cap year), amount, reason (released / traded / retired) |
+| `awards` | season_id, award (mvp / opoy / dpoy / oroy / droy; unique per season), player_id, team_id?, summary |
 | `seasons` | league_id, year (unique per league), phase (free_agency → draft → preseason → regular_season → playoffs → offseason), free_agency_day, current_week, champion_team_id?, offseason_log (what the rollover into this season did; JSON) |
 | `playoff_seeds` | season_id, conference_id, team_id, seed, division_winner; fixed when the regular season ends |
 | `draft_picks` | league_id, year, round, original_team_id, team_id (current owner), season_id? + number? (set when that draft opens, from the original team's finish), player_id? (set once made) |
@@ -108,6 +109,8 @@ Design notes:
 | `GET /api/leagues/{id}/trades?partner_id=` | Trade center: both sides' players and tradeable picks with values, partners, window, history |
 | `POST /api/leagues/{id}/trades/evaluate` | How the other team would react to a proposal (no trade) |
 | `POST /api/leagues/{id}/trades` | Propose a trade; it happens if they accept |
+| `GET /api/leagues/{id}/history` | Every season (champion, runner-up, awards, the franchise's record and result) and single-season / career records; backfills awards |
+| `GET /api/players/{id}/career` | Season-by-season regular-season stats, career totals, awards |
 | `GET /api/teams/{id}/contracts` | Payroll now and committed to next season, expiring deals with asking prices (and new deals once re-signed), every contract |
 | `POST /api/players/{id}/re-sign` `{salary, years}` | Offseason only: offer an expiring player a new deal; returns accepted, or his price for that length |
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
@@ -142,7 +145,7 @@ Interactive docs: `http://localhost:8000/docs`.
 
 - **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
   `/leagues` (saved franchises), `/leagues/new` (league builder), `/schedule?week=`,
-  `/games/[id]`, `/playoffs`, `/contracts`, `/free-agency`, `/draft`, `/trades`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
+  `/games/[id]`, `/playoffs`, `/contracts`, `/free-agency`, `/draft`, `/trades`, `/history`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
   active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
@@ -193,6 +196,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Draft | pytest | class quality by rank, rookie scale, potential grades, draft order (worst first, champion last, deterministic ties), stable scouting error; class generated once and hidden from free agency and signings; scouting budget and reveals; draft opens after free agency with a 7-round order; franchise picks only on the clock with slotted rookie deals; finishing (AI rosters at 53 and under the cap, undrafted become free agents, early picks better than late, franchise must cut to 53 before week 1, the finished draft stays visible); determinism; prospects skip aging; dashboard alert; recap rookies |
 | Trades | pytest | value curves (stars, age, upside, position, contracts), pick decay, AI margin and need bonus; trade center (partners, assets by value, next year's picks); lopsided offers refused; accepted trades move players, contracts, depth charts, jerseys, and log history; traded picks follow their original team into the draft order ("via"); proposal validation; roster and cap limits for both sides; window (deadline, playoffs, draft) |
 | Dead money | pytest | bonus share and remaining proration; generated deals carry bonuses; releases charge the right cap year (next season's in the offseason) and show in payroll, cap space, and the Contracts page; minimum deals cost nothing; dead money blocks signings over the cap; new deals include bonuses; traded players leave their bonus behind and move on a bonus-free deal; mid-deal retirements; roster import replacement creates none |
+| History | pytest | award scoring and winners (MVP win bonus, rookies, minimum games), summaries; awards decided with the champion, once, and backfilled; season archive (champion and runner-up from the final, franchise record and result); records match the season leaders; career totals match season stats; careers and rookies across seasons |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

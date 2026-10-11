@@ -2,6 +2,7 @@ import type {
   Dashboard,
   PlayoffsOut,
   LeadersOut,
+  CareerOut,
   ContractTerms,
   DraftOut,
   DraftResult,
@@ -9,6 +10,7 @@ import type {
   FreeAgencyOut,
   FreeAgencyResult,
   FreeAgencyUntil,
+  HistoryOut,
   NegotiationResult,
   PlayerSeasonStats,
   ProspectRow,
@@ -167,6 +169,8 @@ export const api = {
     post<TradeEvaluation>(`/leagues/${leagueId}/trades/evaluate`, proposal),
   proposeTrade: (leagueId: number, proposal: TradeProposal) =>
     post<TradeResult>(`/leagues/${leagueId}/trades`, proposal),
+  history: (leagueId: number) => request<HistoryOut>(`/leagues/${leagueId}/history`),
+  career: (playerId: number) => request<CareerOut>(`/players/${playerId}/career`),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {
