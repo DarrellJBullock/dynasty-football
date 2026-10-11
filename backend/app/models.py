@@ -301,22 +301,53 @@ class PlayoffSeed(Base):
 
 
 class DraftPick(Base):
-    """One slot in a season's draft order; `player_id` is set once the pick is made."""
+    """A team's pick in a year's draft. It exists (and can be traded) before the order is
+    known: `season_id` and `number` are set when that draft opens, from where the
+    *original* team finished. `team_id` is the current owner; `player_id` is set once the
+    pick is made."""
 
     __tablename__ = "draft_picks"
-    __table_args__ = (UniqueConstraint("season_id", "number"),)
+    __table_args__ = (UniqueConstraint("season_id", "number"),
+                      UniqueConstraint("league_id", "year", "round", "original_team_id"))
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"),
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
                                            index=True)
+    year: Mapped[int] = mapped_column(Integer)  # the draft's year
     round: Mapped[int] = mapped_column(Integer)
-    number: Mapped[int] = mapped_column(Integer)  # overall pick, 1-based
+    original_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    season_id: Mapped[int | None] = mapped_column(
+        ForeignKey("seasons.id", ondelete="CASCADE"), index=True)
+    number: Mapped[int | None] = mapped_column(Integer)  # overall pick, 1-based
     player_id: Mapped[int | None] = mapped_column(
         ForeignKey("players.id", ondelete="SET NULL"))
 
-    team: Mapped["Team"] = relationship()
+    team: Mapped["Team"] = relationship(foreign_keys=[team_id])
+    original_team: Mapped["Team"] = relationship(foreign_keys=[original_team_id])
     player: Mapped["Player | None"] = relationship()
+
+
+class Trade(Base):
+    """A completed trade between the franchise and another team. `sent` / `received` list
+    what moved, from the franchise's side: [{"kind": "player" | "pick", "id", "label"}]."""
+
+    __tablename__ = "trades"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"))
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    partner_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    phase: Mapped[str] = mapped_column(String(20))
+    week: Mapped[int] = mapped_column(Integer)
+    sent: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    received: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    team: Mapped["Team"] = relationship(foreign_keys=[team_id])
+    partner: Mapped["Team"] = relationship(foreign_keys=[partner_id])
 
 
 class FreeAgentOffer(Base):

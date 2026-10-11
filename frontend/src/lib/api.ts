@@ -13,6 +13,10 @@ import type {
   PlayerSeasonStats,
   ProspectRow,
   TeamContracts,
+  TradeCenter,
+  TradeEvaluation,
+  TradeProposal,
+  TradeResult,
   Season,
   TeamSeasonRow,
   GameDetail,
@@ -157,6 +161,12 @@ export const api = {
   playDraft: (seasonId: number, until: DraftUntil) =>
     post<DraftResult>(`/seasons/${seasonId}/draft`, { until }),
   cutDown: (teamId: number) => post<PlayerSummary[]>(`/teams/${teamId}/cut-down`),
+  tradeCenter: (leagueId: number, partnerId?: number) =>
+    request<TradeCenter>(`/leagues/${leagueId}/trades${partnerId ? `?partner_id=${partnerId}` : ""}`),
+  evaluateTrade: (leagueId: number, proposal: TradeProposal) =>
+    post<TradeEvaluation>(`/leagues/${leagueId}/trades/evaluate`, proposal),
+  proposeTrade: (leagueId: number, proposal: TradeProposal) =>
+    post<TradeResult>(`/leagues/${leagueId}/trades`, proposal),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {

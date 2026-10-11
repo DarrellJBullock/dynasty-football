@@ -20,6 +20,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Contracts", href: "/contracts", icon: <IconContract /> },
       { label: "Free Agency", href: "/free-agency", icon: <IconSign /> },
       { label: "Draft", href: "/draft", icon: <IconDraft /> },
+      { label: "Trades", href: "/trades", icon: <IconSwap /> },
       { label: "Schedule", href: "/schedule", icon: <IconCalendar /> },
       { label: "Playoffs", href: "/playoffs", icon: <IconBracket /> },
       { label: "Stats", href: "/stats", icon: <IconChart /> },
@@ -30,7 +31,6 @@ const NAV: { heading: string; items: NavItem[] }[] = [
   {
     heading: "Coming soon",
     items: [
-      { label: "Trades", icon: <IconSwap /> },
       { label: "Play Game", icon: <IconPlay /> },
     ],
   },

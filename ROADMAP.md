@@ -52,7 +52,7 @@ Each milestone ends with working software, green tests, and updated docs.
       players hold out early and lean toward contenders)
 - [x] Draft: generated classes, scouting fog and reports, draft order, draft day with AI
       picks, rookie scale, undrafted free agents, cut-downs
-- [ ] Trades with AI valuation
+- [x] Trades with AI valuation (players and next year's picks, trade meter, deadline)
 - [x] Player development, aging, retirement
 - [x] Injuries from simulated games (injury report, recovery countdown, game-page list)
 - [ ] Records and history (season archives, awards)

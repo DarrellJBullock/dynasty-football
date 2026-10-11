@@ -555,7 +555,8 @@ export interface DraftPickOut {
   round: number;
   number: number;
   pick_in_round: number;
-  team: TeamSummary;
+  team: TeamSummary; // who picks
+  original_team?: TeamSummary | null; // set if the pick was traded ("via")
   player: PlayerSummary | null;
 }
 
@@ -579,3 +580,69 @@ export interface DraftResult {
 }
 
 export type DraftUntil = "my_pick" | "end";
+
+export interface TradeAssetOut {
+  kind: "player" | "pick";
+  id: number;
+  label: string;
+  value: number; // trade value, as the AI sees it
+  player?: PlayerSummary | null;
+  round?: number | null;
+  year?: number | null;
+  projected_number?: number | null;
+}
+
+export interface TradeAssets {
+  players: TradeAssetOut[];
+  picks: TradeAssetOut[];
+}
+
+export interface TradeItem {
+  kind: "player" | "pick";
+  id: number;
+  label: string;
+}
+
+export interface TradeOut {
+  id: number;
+  partner: TeamSummary;
+  season_phase: string;
+  week: number;
+  sent: TradeItem[];
+  received: TradeItem[];
+}
+
+export interface TradeCenter {
+  season: Season;
+  closed_reason: string | null;
+  deadline_week: number;
+  draft_year: number;
+  partners: TeamSummary[];
+  partner: TeamSummary | null;
+  mine: TradeAssets;
+  theirs: TradeAssets;
+  history: TradeOut[];
+}
+
+export interface TradeProposal {
+  partner_id: number;
+  send_players: number[];
+  send_picks: number[];
+  receive_players: number[];
+  receive_picks: number[];
+}
+
+export interface TradeEvaluation {
+  acceptable: boolean;
+  balance: number; // what they get ÷ what they need; 1+ means yes
+  message: string;
+  problems: string[];
+  value_in: number;
+  value_needed: number;
+}
+
+export interface TradeResult {
+  accepted: boolean;
+  evaluation: TradeEvaluation;
+  trade: TradeOut | null;
+}

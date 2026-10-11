@@ -23,6 +23,7 @@ from app.models import (
     Season,
     Team,
     TeamGameStats,
+    Trade,
 )
 from app.schemas import FranchiseListItem, LeagueCreate, TeamUpdate
 from app.seed.generator import build_league
@@ -87,7 +88,8 @@ def delete_league(db: Session, league: League) -> None:
         delete(PlayerRatings).where(PlayerRatings.player_id.in_(player_ids)),
         delete(PlayoffSeed).where(PlayoffSeed.season_id.in_(season_ids)),
         delete(FreeAgentOffer).where(FreeAgentOffer.season_id.in_(season_ids)),
-        delete(DraftPick).where(DraftPick.season_id.in_(season_ids)),
+        delete(DraftPick).where(DraftPick.league_id == league.id),
+        delete(Trade).where(Trade.league_id == league.id),
         delete(PlayerGameStats).where(PlayerGameStats.player_id.in_(player_ids)),
         delete(TeamGameStats).where(TeamGameStats.team_id.in_(team_ids)),
         delete(Game).where(Game.season_id.in_(season_ids)),

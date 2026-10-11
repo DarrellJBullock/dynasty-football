@@ -186,6 +186,9 @@ function PickLine({ pick, showTeam = false }: { pick: DraftPickOut; showTeam?: b
     <li className="flex items-center gap-2 text-sm">
       <span className="w-14 shrink-0 text-xs tabular-nums text-mist">R{pick.round} #{pick.number}</span>
       {showTeam && <TeamCrest team={pick.team} size={18} />}
+      {pick.original_team && (
+        <span className="shrink-0 text-[10px] uppercase text-mist">via {pick.original_team.abbreviation}</span>
+      )}
       {pick.player ? (
         <Link href={`/players/${pick.player.id}`} className="min-w-0 flex-1 truncate hover:text-gold">
           <span className="mr-1.5 text-xs text-mist">{pick.player.position}</span>

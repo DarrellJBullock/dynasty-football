@@ -159,13 +159,29 @@ def open_draft(db: Session, season: Season) -> None:
     finishes = _finishes(db, previous, teams) if previous else [
         Finish(t.id, 0, 0.0, 0) for t in teams]
     order = draft_order(finishes, salt=f"draft:{league.id}:{season.year}")
-    for round_number in range(1, ROUNDS + 1):
-        for index, team_id in enumerate(order):
-            db.add(DraftPick(season_id=season.id, round=round_number,
-                             number=(round_number - 1) * len(order) + index + 1,
-                             team_id=team_id))
+    slot = {team_id: index for index, team_id in enumerate(order)}
+    for pick in ensure_picks(db, league, season.year):
+        # Picks follow the team they came from, wherever they've been traded since.
+        pick.season_id = season.id
+        pick.number = (pick.round - 1) * len(order) + slot[pick.original_team_id] + 1
     season.phase = "draft"
     db.flush()
+
+
+def ensure_picks(db: Session, league: League, year: int) -> list[DraftPick]:
+    """Every team's picks in the `year` draft (created once, owned by the team at first)."""
+    picks = list(db.scalars(select(DraftPick).where(DraftPick.league_id == league.id,
+                                                    DraftPick.year == year)))
+    if not picks:
+        for team_id in db.scalars(select(Team.id).where(Team.league_id == league.id)
+                                  .order_by(Team.id)):
+            for round_number in range(1, ROUNDS + 1):
+                pick = DraftPick(league_id=league.id, year=year, round=round_number,
+                                 original_team_id=team_id, team_id=team_id)
+                db.add(pick)
+                picks.append(pick)
+        db.flush()
+    return picks
 
 
 def _finishes(db: Session, season: Season, teams: list[Team]) -> list[Finish]:
@@ -423,6 +439,8 @@ def pick_out(pick: DraftPick, teams: int) -> DraftPickOut:
     return DraftPickOut(round=pick.round, number=pick.number,
                         pick_in_round=pick.number - (pick.round - 1) * teams,
                         team=team_summary(pick.team),
+                        original_team=team_summary(pick.original_team)
+                        if pick.original_team_id != pick.team_id else None,
                         player=player_summary(pick.player) if pick.player else None)
 
 

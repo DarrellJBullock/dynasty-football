@@ -296,9 +296,26 @@ Players get hurt in simulated games:
 - Injuries draw from their own random stream, so a game plays out exactly as it would
   without them until someone actually gets hurt (still deterministic per seed).
 
-Still planned:
+## Trades
 
-- **Trades:** AI evaluates value from OVR, age, contract, and positional need.
+On the **Trades** page, build a deal with any AI team: players, and picks in the next
+draft (this year's during free agency, next year's otherwise).
+
+- **Trade value:** a player's value grows steeply with OVR (one 90 is worth far more than
+  two 70s), adds a young player's upside, fades after 30, scales by position (QB ×1.5
+  down to kickers ×0.35), and counts the surplus of his contract — market value minus
+  salary — over up to three seasons, so a cheap good player is worth more than an
+  overpaid one. A pick is worth 100 at #1 and loses about a third of its value every 35
+  picks; until the order is set, it's valued at the slot its original team is projected
+  for (last season's finish, or this season's standings).
+- **Their answer:** the AI team says yes when what it gets beats what it gives by 5%,
+  valuing players at positions it needs (or who'd start for it) 15% more. The **trade
+  meter** shows where a deal stands as you build it.
+- **Rules:** both rosters must stay within 53 (or not grow if already over) and both
+  payrolls under the cap. Contracts move with their players. Traded picks keep their
+  original team's slot when the draft order is set, and show "via" on draft day.
+- **Window:** open in the offseason, free agency, the preseason, and the regular season
+  through **week 10**; closed during the draft and the playoffs.
 
 ## Custom data: roster import & export
 
