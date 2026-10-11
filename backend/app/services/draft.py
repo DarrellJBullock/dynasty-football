@@ -38,7 +38,7 @@ from app.domain.positions import (
 )
 from app.domain.ratings import clamp_rating
 from app.models import Contract, DraftPick, Game, League, Player, Season, Team
-from app.schemas import DraftOut, DraftPickOut, ProspectRow
+from app.schemas import DraftOut, DraftPickOut, DraftResult, ProspectRow
 from app.seed.generator import SPECIALIST_OFFSET, _development_trait, make_player
 from app.services import cap as cap_rules
 from app.services.depth_chart import remove_player
@@ -480,3 +480,11 @@ def draft_view(db: Session, league: League) -> DraftOut:
                            if p.player_id is None and p.team_id == user_team), None),
         prospects=prospects, scouting_left=scouting_left(db, league.id, year),
         roster_count=roster_count, roster_max=ROSTER_MAX)
+
+
+def play_result(db: Session, season: Season, picks: list[DraftPick]) -> DraftResult:
+    """What a run of picks did."""
+    from app.services.season import season_view
+
+    teams = team_count(db, season.league_id)
+    return DraftResult(season=season_view(db, season), picks=[pick_out(p, teams) for p in picks])

@@ -226,6 +226,7 @@ class ImportResult(BaseModel):
 
 class SeasonOut(BaseModel):
     id: int
+    league_id: int
     year: int
     phase: str
     current_week: int  # next week to be played; weeks + 1 once the regular season is done
@@ -234,6 +235,32 @@ class SeasonOut(BaseModel):
     next_round: str | None = None  # name of the next playoff round to play, if any
     free_agency_day: int | None = None  # market day to play next, during free agency
     champion: "TeamSummary | None" = None
+    active_job: "JobOut | None" = None  # a background sim running in this league
+
+
+JobKind = Literal["sim_regular_season", "sim_playoffs", "advance_offseason",
+                  "finish_free_agency", "finish_draft"]
+
+
+class JobRequest(BaseModel):
+    kind: JobKind
+
+
+class JobOut(BaseModel):
+    """A background sim: how far it's got, and once it's over, what it did (`result` has
+    the same shape as the matching synchronous endpoint's response)."""
+
+    id: int
+    league_id: int
+    kind: JobKind
+    status: Literal["queued", "running", "done", "failed", "cancelled"]
+    progress: int
+    total: int
+    label: str
+    cancellable: bool  # stops between weeks, rounds or days
+    cancel_requested: bool
+    result: dict | None = None
+    error: str | None = None
 
 
 class GameOut(BaseModel):

@@ -115,6 +115,8 @@ Each milestone ends with working software, green tests, and updated docs.
 ## M7 — Platform
 
 - [ ] Accounts and multiple franchise saves
-- [ ] Background workers for long sims
+- [x] Background workers for long sims (the rest of the season, the playoffs, the offseason,
+      finishing free agency and the draft run as jobs with a progress bar and Stop; one per
+      league, which waits meanwhile) — design: `docs/design/platform.md`
 - [ ] Deployment pipeline, monitoring
 - [ ] Performance & accessibility pass

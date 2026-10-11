@@ -23,7 +23,7 @@ const vet = makePlayer({ id: 6, full_name: "Old Guard", position: "OG", age: 33,
 const locked = makePlayer({ id: 7, full_name: "Locked Up", contract: contract(20_000_000, 2029) });
 
 const data: TeamContracts = {
-  season: { id: 5, year: 2026, phase: "offseason", current_week: 21, weeks: 17,
+  season: { id: 5, league_id: 1, year: 2026, phase: "offseason", current_week: 21, weeks: 17,
     regular_season_complete: true, next_round: null, champion: null },
   window_open: true,
   salary_cap: 255_000_000,

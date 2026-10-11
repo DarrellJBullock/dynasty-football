@@ -6,7 +6,7 @@ import { BracketView } from "./BracketView";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
-const season: Season = { id: 5, year: 2026, phase: "playoffs", current_week: 19, weeks: 17,
+const season: Season = { id: 5, league_id: 1, year: 2026, phase: "playoffs", current_week: 19, weeks: 17,
   regular_season_complete: true, next_round: "Championship", champion: null };
 
 function club(id: number, nickname: string): TeamSummary {

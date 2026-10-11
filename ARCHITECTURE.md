@@ -73,6 +73,7 @@ players.team_id NULL  = free agent
 | `player_game_stats` | game_id, player_id, team_id + one column per `sim.stats.PlayerLine` field |
 | `team_game_stats` | game_id, team_id + one column per `sim.stats.TeamLine` field |
 | `franchises` | name, league_id (unique — one career per league), team_id, activated_at (latest = active) |
+| `jobs` | league_id, kind, status (queued / running / done / failed / cancelled; one queued or running per league, a partial unique index), progress / total, label, cancel_requested, result (the synchronous endpoint's response, JSON), error, started/finished/heartbeat times |
 | `depth_chart_entries` | team_id, slot (position), depth (1 = first string), player_id; unique per (team, slot, depth) and (team, slot, player) |
 
 Design notes:
@@ -98,6 +99,9 @@ Design notes:
 | `PATCH /api/teams/{id}` | Edit team identity (city, nickname, abbreviation, colors, stadium) |
 | `POST /api/seasons/{id}/simulate` `{until: next_week \| end_of_regular_season \| end_of_playoffs}` | Play a week (or playoff round) or the rest of a phase; persist scores, stats, play logs; seeds and schedules playoff rounds |
 | `POST /api/seasons/{id}/advance` | After the champion: run the offseason (aging, development, retirements, contracts) and create the next season, in free agency |
+| `POST /api/leagues/{id}/jobs` `{kind}` | Start a background sim (202): `sim_regular_season`, `sim_playoffs`, `advance_offseason`, `finish_free_agency`, `finish_draft`; 409 if one is already running in the league |
+| `GET /api/jobs/{id}` | A job's status, progress (`n of m`, label) and, once done, its result (the matching synchronous endpoint's body) or error |
+| `DELETE /api/jobs/{id}` | Stop a job: a queued one at once, a running one after its current week, round or market day |
 | `GET /api/leagues/{id}/free-agency` | The market: free agents with asking prices and offer counts, your offers (leading/outbid), this offseason's signings |
 | `POST /api/players/{id}/offer` `{salary, years}` / `DELETE` | Make (or replace) / withdraw the franchise's offer to a free agent |
 | `POST /api/seasons/{id}/free-agency` `{until: next_day \| end}` | Play market days; after the last, the draft opens |
@@ -168,10 +172,16 @@ Interactive docs: `http://localhost:8000/docs`.
 - **Season stats** are aggregated on read from `player_game_stats` / `team_game_stats`
   (`services/league_stats.py`) — no denormalized season tables to keep in sync. Box-score
   column groups are shared between the game and player pages (`lib/stats.ts`).
-- **Season simulation** runs synchronously (a week ≈ 0.5 s, a season ≈ 8 s including
-  writes). `services/season.py` snapshots every roster + depth chart once per run, seeds
-  each game from (league, year, week, game id), and stores the box score rows and play
-  log. Sim controls call `router.refresh()` afterwards so the current page re-renders.
+- **Season simulation:** a week ≈ 0.5 s, a season ≈ 8 s including writes.
+  `services/season.py` snapshots every roster + depth chart once per run, seeds each game
+  from (league, year, week, game id), and stores the box score rows and play log. A week,
+  a market day and a draft pick are plain requests; the rest of the season, the playoffs,
+  the offseason and finishing free agency or the draft are **background jobs**
+  (`services/jobs.py`, run by `app/worker.py`): the controls start one, poll its progress
+  (`useJob`, a progress bar with Stop), and every season carries its league's
+  `active_job`, so any page's controls pick a running job up again. While a job runs, the
+  league's changes are refused (`api/locks.py`). Sim controls call `router.refresh()`
+  afterwards so the current page re-renders.
 - **Dialogs** render through a portal to `<body>`: a `.panel`'s `backdrop-filter` traps
   `position: fixed` descendants, which hid dialogs opened from inside panels.
 - **Pure logic** (`lib/format.ts`, `lib/roster.ts`) is framework-free and unit-tested.
@@ -254,6 +264,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Instant replay | Vitest + Testing Library | which plays get a replay (big runs from the reverse angle, passes from the skycam, ordinary plays none, kicks from the kick) and its stretch; on the Watch page the replay rolls after the play (angle, half speed, badge, the result held), straight-through play waits for it, then carries on; Skip replay and the setting; Coach Mode's reel replays in multi-play reels only |
 | Broadcast director | Vitest + Testing Library | shot lists for runs, short and deep passes, touchdowns, field goals and kicks; every shot held long enough (touchdowns cut at once); the shot at any moment; the new shots' framing (tight low and on the ball, wide high, reverse on the far side, skycam behind the offense either way); the Watch page defaults to Broadcast with the play's cues |
 | Broadcast graphics | pytest + Vitest + Testing Library | play logs record timeouts at the snap and each play's seconds; the running game clock (snap to whistle, old logs, never below zero), the pre-snap play clock, the score going up at the touchdown, down text, banners for every kind of moment and one at a time; the score bug's contents and timeouts, the clock running and the banner and points at the touchdown; the Watch page and Coach Mode reel carry it |
+| Background jobs | pytest + Vitest + Testing Library + Playwright | every kind as a job (progress, labels, the same result as the synchronous endpoint), the season through the draft as jobs, a job that can't run fails with the reason, one job per league and the league lock (changes 409, reads fine, other leagues free), stopping between weeks and carrying on, one-step jobs finish once started, the worker's claim-and-run loop, dead workers' jobs failed, league deletion; the controls start jobs, show progress and Stop, report results and failures, and pick up a running job; Playwright sims the season in the background, leaves for the Dashboard and finds it running there |
 | Watch Mode | Vitest + Testing Library + Playwright | the highlight rule (scores, turnovers, 20-yard plays, missed kicks; not plays called back), stepping through just the highlights with the URL in step, opening straight into highlights playing through; Schedule cards with Watch (played) and Coach (the franchise's game this week) links; the box score's Highlights link; Playwright watches a game from the Schedule and steps through its highlights |
 | 3D playback | Vitest + Testing Library + Playwright | choreographer invariants for every play type (22 players on the field and in bounds, ordered paths and moments, the ball accounted for throughout, the recorded spot reached, tacklers meeting the carrier, touchdowns crossing the goal line, kicks returned to the recorded spot, field goals through or wide of the uprights, stand-ins filling kick units, determinism, hash spotting, ends switching by quarter); timeline sampling and the play clock; the Watch view's controls (play/pause, scrubbing, replay, speed, cameras, auto-advance, keyboard) with the scene mocked; Playwright watches a play from the play-by-play, scrubs, and steps through the game |
 | 3D assignments | Vitest | every named play and call has a plan with known routes; every pass play completes soundly against every call and every run gains the recorded yards against every call; formations and shotgun snaps; the target's route stretched to the air yards; Smash's corner and hitches; blockers stay in; Power and Counter pullers; Toss pitches; outside runs bounce wide; play-action fakes and the boot; screens; Cover 3 / Cover 2 landmarks; man trails; blitzers and Fire Zone's dropping end; prevent; old logs |
@@ -307,5 +318,5 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
 ### Later concerns
 
 Auth & multiple saves (franchise per user), league-wide export,
-stats tables (game_player_stats), records, background jobs, deployment (containerised
+stats tables (game_player_stats), records, deployment (containerised
 API + Postgres; Next.js on a Node host).

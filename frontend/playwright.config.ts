@@ -31,6 +31,7 @@ export default defineConfig({
       env: {
         DATABASE_URL: E2E_DATABASE_URL,
         CORS_ORIGINS: JSON.stringify([`http://localhost:${WEB_PORT}`]),
+        WORKER_EMBEDDED: "1", // background jobs run in a thread of the API
       },
     },
     {

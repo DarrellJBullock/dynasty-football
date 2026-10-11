@@ -45,13 +45,23 @@ def conference_ids(db: Session, league_id: int) -> list[int]:
                            .order_by(Conference.id)))
 
 
-def round_name(db: Session, season: Season, playoff_round: int) -> str:
+def _round_names(db: Session, season: Season) -> list[str]:
     conferences = conference_ids(db, season.league_id)
     teams = db.scalar(select(func.count(Team.id)).join(Team.division)
                       .where(Team.league_id == season.league_id)) or 0
-    names = round_names(seeds_per_conference(teams // max(1, len(conferences))),
-                        len(conferences))
+    return round_names(seeds_per_conference(teams // max(1, len(conferences))),
+                       len(conferences))
+
+
+def round_name(db: Session, season: Season, playoff_round: int) -> str:
+    names = _round_names(db, season)
     return names[playoff_round - 1] if playoff_round <= len(names) else f"Round {playoff_round}"
+
+
+def rounds_left(db: Session, season: Season) -> int:
+    """Playoff rounds still to play (all of them before the playoffs start)."""
+    played = {g.playoff_round for g in _playoff_games(db, season) if g.status == "final"}
+    return max(0, len(_round_names(db, season)) - len(played))
 
 
 def start(db: Session, season: Season) -> None:

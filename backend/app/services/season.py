@@ -3,16 +3,27 @@
 import dataclasses
 import hashlib
 from collections import defaultdict
+from collections.abc import Callable
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.depth_chart import UNAVAILABLE
-from app.models import CoachedGame, Game, Player, PlayerGameStats, Season, Team, TeamGameStats
-from app.schemas import SeasonOut, SimulateRequest
+from app.models import (
+    ACTIVE_JOB_STATUSES,
+    CoachedGame,
+    Game,
+    Job,
+    Player,
+    PlayerGameStats,
+    Season,
+    Team,
+    TeamGameStats,
+)
+from app.schemas import SeasonOut, SimulateRequest, SimulationResult
 from app.services import injuries, playoffs
 from app.services.errors import RosterError
-from app.services.serializers import season_out, team_summary
+from app.services.serializers import game_out, job_out, season_out, team_summary
 from app.services.teams import load_overrides
 from app.sim.engine import SIM_VERSION, GameResult, simulate_game
 from app.sim.stats import box_score
@@ -33,7 +44,16 @@ def season_view(db: Session, season: Season) -> SeasonOut:
             out.next_round = playoffs.round_name(db, season, upcoming[0].playoff_round)
     if season.champion_team_id:
         out.champion = team_summary(db.get(Team, season.champion_team_id))
+    job = active_job(db, season.league_id)
+    if job is not None:
+        out.active_job = job_out(job)
     return out
+
+
+def active_job(db: Session, league_id: int) -> Job | None:
+    """The league's queued or running background job, if any."""
+    return db.scalar(select(Job).where(Job.league_id == league_id,
+                                     Job.status.in_(ACTIVE_JOB_STATUSES)))
 
 
 def game_seed(league_id: int, year: int, week: int, game_id: int) -> int:
@@ -139,7 +159,13 @@ def _check_franchise_roster(db: Session, season: Season) -> None:
                           "season starts.")
 
 
-def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int, list[Game]]:
+# Called after each week or round with its label and whether more are to come (a background
+# job records its progress there, and may stop the run between weeks).
+OnStep = Callable[[str, bool], None]
+
+
+def simulate(db: Session, season: Season, request: SimulateRequest,
+             on_step: OnStep | None = None) -> tuple[int, list[Game]]:
     """Play the next week (or playoff round), the rest of the regular season, or the rest of
     the playoffs. Returns (weeks/rounds simulated, games played)."""
     weeks = season_weeks(db, season.id)
@@ -172,6 +198,8 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
             played += games
             season.current_week = week + 1
             steps += 1
+            if on_step:
+                on_step(f"Week {week} of {weeks}", week < last_week)
         db.flush()
         if season.current_week > weeks:
             playoffs.start(db, season)
@@ -179,6 +207,7 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
 
     while season.phase == "playoffs":
         games = playoffs.next_round_games(db, season)
+        name = playoffs.round_name(db, season, games[0].playoff_round) if games else "Playoffs"
         _play_week(db, season, games, sim_teams, "playoff")
         played += games
         playoffs.finish_round(db, season)
@@ -189,4 +218,19 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
             award_season(db, season)
         if request.until == "next_week":
             break
+        if on_step:
+            on_step(name, season.phase == "playoffs")
     return steps, played
+
+
+def simulation_result(db: Session, season: Season, steps: int,
+                      played: list[Game]) -> SimulationResult:
+    """What a sim did, with the franchise's games among those played."""
+    from app.services.dashboard import current_franchise  # (it builds on this module)
+
+    franchise = current_franchise(db)
+    team_id = franchise.team_id if franchise and franchise.league_id == season.league_id else None
+    return SimulationResult(
+        weeks_simulated=steps, games_simulated=len(played), season=season_view(db, season),
+        franchise_games=[game_out(g) for g in played
+                         if team_id in (g.home_team_id, g.away_team_id)])

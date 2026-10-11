@@ -17,6 +17,7 @@ Deterministic per league, year, and day.
 import hashlib
 import random
 from collections import defaultdict
+from collections.abc import Callable
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
@@ -29,6 +30,7 @@ from app.models import Franchise, FreeAgentOffer, League, Player, Season, Team
 from app.schemas import (
     ContractTerms,
     FreeAgencyOut,
+    FreeAgencyResult,
     FreeAgentRow,
     MarketSigning,
 )
@@ -257,14 +259,17 @@ def _close(db: Session, market: _Market) -> None:
     draft.open_draft(db, season)
 
 
-def play_days(db: Session, season: Season, until: str) -> list[dict]:
+def play_days(db: Session, season: Season, until: str,
+              on_step: Callable[[str, bool], None] | None = None) -> list[dict]:
     """Play the next market day, or every remaining day (`until="end"`); the market closes
-    after the last one. Returns the signings."""
+    after the last one. Returns the signings. `on_step` is called after each day with its
+    label and whether more are to come (a background job's progress)."""
     _require_market(season)
     signings: list[dict] = []
     while season.phase == "free_agency":
         market = _Market(db, season)
         signings += _resolve_day(db, market)
+        day = season.free_agency_day
         season.free_agency_day += 1
         if season.free_agency_day > MARKET_DAYS:
             _close(db, _Market(db, season))
@@ -272,7 +277,17 @@ def play_days(db: Session, season: Season, until: str) -> list[dict]:
             _ai_offers(db, _Market(db, season))
         if until == "next_day":
             break
+        if on_step:
+            on_step(f"Day {day} of {MARKET_DAYS}", season.phase == "free_agency")
     return signings
+
+
+def play_result(db: Session, season: Season, entries: list[dict]) -> FreeAgencyResult:
+    """What a run of market days did: every signing, and the franchise's."""
+    signings = signings_out(db, entries)
+    team_id = franchise_team_id(db, season.league_id)
+    return FreeAgencyResult(season=season_view(db, season), signings=signings,
+                            mine=[s for s in signings if s.team.id == team_id])
 
 
 def make_offer(db: Session, player: Player, terms: ContractTerms) -> None:

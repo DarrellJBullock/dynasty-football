@@ -28,8 +28,6 @@ from app.services import offseason as offseason_service
 from app.services import playback as playback_service
 from app.services import playoffs as playoff_service
 from app.services import season as season_service
-from app.services.dashboard import current_franchise
-from app.services.serializers import game_out
 from app.services.teams import current_season
 
 router = APIRouter(tags=["season"])
@@ -43,13 +41,7 @@ def simulate(season_id: int, request: SimulateRequest, db: Session = Depends(get
         raise HTTPException(404, "season not found")
     with roster_errors(db):
         weeks, played = season_service.simulate(db, season, request)
-    franchise = current_franchise(db)
-    team_id = franchise.team_id if franchise and franchise.league_id == season.league_id else None
-    mine = [game_out(g) for g in played if team_id in (g.home_team_id, g.away_team_id)]
-    return SimulationResult(
-        weeks_simulated=weeks, games_simulated=len(played),
-        season=season_service.season_view(db, season),
-        franchise_games=mine)
+    return season_service.simulation_result(db, season, weeks, played)
 
 
 @router.post("/seasons/{season_id}/advance", response_model=SeasonOut, status_code=201)
@@ -74,10 +66,7 @@ def play_free_agency(request: FreeAgencyRequest, season_id: int,
         raise HTTPException(404, "season not found")
     with roster_errors(db):
         entries = free_agency_service.play_days(db, season, request.until)
-    signings = free_agency_service.signings_out(db, entries)
-    team_id = free_agency_service.franchise_team_id(db, season.league_id)
-    return FreeAgencyResult(season=season_service.season_view(db, season), signings=signings,
-                            mine=[s for s in signings if s.team.id == team_id])
+    return free_agency_service.play_result(db, season, entries)
 
 
 @router.get("/leagues/{league_id}/free-agency", response_model=FreeAgencyOut)
@@ -117,9 +106,7 @@ def play_draft(request: DraftRequest, season_id: int, db: Session = Depends(get_
         raise HTTPException(404, "season not found")
     with roster_errors(db):
         picks = draft_service.play(db, season, request.until)
-    return DraftResult(season=season_service.season_view(db, season),
-                       picks=[draft_service.pick_out(
-                           p, draft_service.team_count(db, season.league_id)) for p in picks])
+    return draft_service.play_result(db, season, picks)
 
 
 @router.get("/leagues/{league_id}/schedule", response_model=ScheduleWeek)

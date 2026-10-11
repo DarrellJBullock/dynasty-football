@@ -4,16 +4,27 @@ from sqlalchemy.orm import object_session
 
 from app.domain.positions import group_of
 from app.domain.ratings import key_attributes
-from app.models import Contract, Game, League, Player, Season, Team
+from app.models import Contract, Game, Job, League, Player, Season, Team
 from app.schemas import (
     ContractOut,
     GameOut,
+    JobOut,
     LeagueOut,
     PlayerDetail,
     PlayerSummary,
     SeasonOut,
     TeamSummary,
 )
+
+# Jobs that stop between steps when asked (the others run as one step).
+CANCELLABLE_JOBS = {"sim_regular_season", "sim_playoffs", "finish_free_agency"}
+
+
+def job_out(job: Job) -> JobOut:
+    return JobOut(id=job.id, league_id=job.league_id, kind=job.kind, status=job.status,
+                  progress=job.progress, total=job.total, label=job.label,
+                  cancellable=job.kind in CANCELLABLE_JOBS,
+                  cancel_requested=job.cancel_requested, result=job.result, error=job.error)
 
 
 def league_out(league: League) -> LeagueOut:
@@ -22,7 +33,8 @@ def league_out(league: League) -> LeagueOut:
 
 
 def season_out(season: Season, weeks: int) -> SeasonOut:
-    return SeasonOut(id=season.id, year=season.year, phase=season.phase,
+    return SeasonOut(id=season.id, league_id=season.league_id, year=season.year,
+                     phase=season.phase,
                      current_week=season.current_week, weeks=weeks,
                      regular_season_complete=season.current_week > weeks,
                      free_agency_day=season.free_agency_day

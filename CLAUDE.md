@@ -23,6 +23,7 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   app/seed/       deterministic fictional league generator (`python -m app.seed`)
   app/roster_import/  CSV/XLSX/JSON readers, row validation, templates (no DB)
   app/sim/        play-level game simulation engine (pure, deterministic)
+  app/worker.py   background job worker (`python -m app.worker`; long sims, services/jobs.py)
   alembic/        migrations
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
@@ -38,7 +39,8 @@ frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 +
 
 ```
 make setup            # first time: venv, npm install, DBs, migrate, seed
-make dev-backend      # API on :8000 (OpenAPI docs at /docs)
+make dev-backend      # API on :8000 (OpenAPI docs at /docs), with a job worker thread
+make worker           # a background job worker on its own
 make dev-frontend     # web on :3000
 make test             # backend (PostgreSQL) + frontend tests
 make test-backend-fast  # backend on in-memory SQLite, no services needed
@@ -122,5 +124,11 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **Coached games replay from the user's calls** (`app/sim/coaching.py`): an engine change
   that alters the order of random draws changes how an in-progress coached game replays.
   Bump `SIM_VERSION` with such changes.
+- **Long sims are background jobs** (`services/jobs.py`): while one is queued or running,
+  every non-GET route under a league is refused with 409 by `api/locks.py`, which finds
+  the league from the path's `league_id`/`season_id`/`team_id`/`player_id`/`game_id`/
+  `franchise_id`. A new mutating route keyed by another id needs a case there. Job runners
+  commit after each step, so a sim service they call must leave the league consistent
+  between steps (see `season.simulate`'s `on_step`).
 - **Generator RNG order is load-bearing:** `build_league` must keep the default league
   byte-identical for a given seed. Append new random draws after existing ones.

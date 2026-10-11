@@ -101,7 +101,7 @@ export const dashboard: Dashboard = {
     name: "Ironclads Dynasty",
     league: { id: 1, name: "Dynasty Football League", abbreviation: "DFL", salary_cap: 255_000_000 },
     team,
-    season: { id: 1, year: 2026, phase: "preseason", current_week: 1, weeks: 17, regular_season_complete: false,
+    season: { id: 1, league_id: 1, year: 2026, phase: "preseason", current_week: 1, weeks: 17, regular_season_complete: false,
       next_round: null, champion: null },
   },
   team: teamDetail,

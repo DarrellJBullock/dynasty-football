@@ -19,7 +19,7 @@ const ace = makePlayer({ id: 10, full_name: "Ace Corner", position: "CB", age: 2
 const vet = makePlayer({ id: 11, full_name: "Vet Guard", position: "OG", age: 31, overall: 70 });
 
 const market: FreeAgencyOut = {
-  season: { id: 6, year: 2027, phase: "free_agency", current_week: 1, weeks: 17,
+  season: { id: 6, league_id: 1, year: 2027, phase: "free_agency", current_week: 1, weeks: 17,
     regular_season_complete: false, next_round: null, champion: null, free_agency_day: 1 },
   open: true, day: 1, days: 5, demand: 1.15, open_spots: 6, cap_space: 30_000_000,
   players: [

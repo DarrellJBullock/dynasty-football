@@ -11,6 +11,8 @@ import type {
   FreeAgencyResult,
   FreeAgencyUntil,
   GamePlayback,
+  Job,
+  JobKind,
   Playbook,
   CoachCallIn,
   CoachState,
@@ -185,6 +187,9 @@ export const api = {
   coachAuto: (gameId: number, scope: "play" | "drive" | "game") =>
     post<CoachState>(`/games/${gameId}/coach/auto`, { scope }),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
+  startJob: (leagueId: number, kind: JobKind) => post<Job>(`/leagues/${leagueId}/jobs`, { kind }),
+  job: (jobId: number) => request<Job>(`/jobs/${jobId}`),
+  cancelJob: (jobId: number) => request<Job>(`/jobs/${jobId}`, { method: "DELETE" }),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {
     const params = new URLSearchParams();
