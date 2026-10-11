@@ -3,32 +3,52 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
-import { cameraShot, type CameraPreset } from "./layout";
+import { cameraShot, type CameraPreset, type ShotName } from "./layout";
 
 const EASE = 3.5; // higher is snappier
 
-/** Moves the camera toward a preset's shot, easing between presets. */
-export function CameraRig({ preset, focus, direction = 1, follow }: {
+/** A directed shot for this frame: which camera, framing what (field coordinates). */
+export interface Direction { shot: ShotName; x: number; y: number }
+
+/**
+ * Moves the camera toward a preset's shot, easing between presets. With `direct`, the
+ * director picks the shot every frame instead: a new shot is a cut (no easing), and the
+ * camera eases only as it follows within a shot.
+ */
+export function CameraRig({ preset, focus, direction = 1, follow, direct }: {
   preset: CameraPreset;
   focus?: number; // field x to frame
   direction?: 1 | -1;
   /** Called every frame for the field x to frame instead (following the ball). */
   follow?: () => number;
+  /** Called every frame for the director's shot (overrides `preset`). */
+  direct?: () => Direction;
 }) {
   const target = useRef<Vector3 | null>(null);
   const goal = useRef(new Vector3());
+  const lastShot = useRef<ShotName | null>(null);
 
   useFrame((state, delta) => {
     const camera = state.camera;
-    const shot = cameraShot(preset, follow ? follow() : focus, direction, state.clock.elapsedTime);
-    const k = 1 - Math.exp(-EASE * delta);
-    goal.current.set(...shot.position);
-    camera.position.lerp(goal.current, k);
+    const directed = direct?.();
+    const shot = directed
+      ? cameraShot(directed.shot, directed.x, direction, state.clock.elapsedTime, directed.y)
+      : cameraShot(preset, follow ? follow() : focus, direction, state.clock.elapsedTime);
     const aim = new Vector3(...shot.target);
-    target.current = target.current ? target.current.lerp(aim, k) : aim;
+    goal.current.set(...shot.position);
+    const cut = directed !== undefined && directed.shot !== lastShot.current;
+    lastShot.current = directed?.shot ?? null;
+    if (cut) {
+      camera.position.copy(goal.current);
+      target.current = aim;
+    } else {
+      const k = 1 - Math.exp(-EASE * delta);
+      camera.position.lerp(goal.current, k);
+      target.current = target.current ? target.current.lerp(aim, k) : aim;
+    }
     camera.lookAt(target.current);
     if (camera instanceof PerspectiveCamera) {
-      camera.fov += (shot.fov - camera.fov) * k;
+      camera.fov = cut ? shot.fov : camera.fov + (shot.fov - camera.fov) * (1 - Math.exp(-EASE * delta));
       camera.updateProjectionMatrix();
     }
   });

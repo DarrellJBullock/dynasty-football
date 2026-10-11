@@ -6,6 +6,7 @@ import type { Group } from "three";
 import type { GamePlayback } from "@/lib/types";
 import { CameraRig } from "../CameraRig";
 import { cameraShot, toScene, WIDTH, type CameraPreset } from "../layout";
+import { shotAt, type Cue } from "./director";
 import { kit, skinTone, type Kit } from "../players/kit";
 import { Football, PlayerFigure, type PlayerFrame } from "../players/PlayerFigure";
 import { build } from "../players/poses";
@@ -18,16 +19,19 @@ export interface PlaySceneProps {
   playback: GamePlayback;
   timeline: PlayTimeline;
   clock: PlayClock;
-  camera: CameraPreset;
+  /** A preset, or "broadcast": the director cuts between shots by `cues`. */
+  camera: CameraPreset | "broadcast";
+  cues?: Cue[];
   follow: boolean;
   /** Every frame: the playhead, and whether it just reached the end. */
   onTick: (time: number, ended: boolean) => void;
 }
 
 /** One play in 3D: the stadium, all 22 players and the ball, posed from the timeline. */
-export default function PlayScene({ playback, timeline, clock, camera, follow, onTick }: PlaySceneProps) {
+export default function PlayScene({ playback, timeline, clock, camera, cues, follow, onTick }: PlaySceneProps) {
   const { home, away } = playback.game;
-  const start = cameraShot(camera, timeline.los ?? 60, timeline.direction);
+  const broadcast = camera === "broadcast";
+  const start = cameraShot(broadcast ? "wide" : camera, timeline.los ?? 60, timeline.direction);
   const kits = useMemo(() => new Map<number, Kit>([[home.id, kit(home, true)], [away.id, kit(away, false)]]),
                        [home, away]);
   const ball = useMemo(() => {
@@ -43,8 +47,13 @@ export default function PlayScene({ playback, timeline, clock, camera, follow, o
       aria-label="3D play"
     >
       <Ticker clock={clock} duration={timeline.duration} onTick={onTick} />
-      <CameraRig preset={camera} focus={timeline.los ?? ball(0)[0]} direction={timeline.direction}
-        follow={follow ? () => ball(clock.time)[0] : undefined} />
+      <CameraRig preset={broadcast ? "sideline" : camera} focus={timeline.los ?? ball(0)[0]}
+        direction={timeline.direction}
+        follow={follow ? () => ball(clock.time)[0] : undefined}
+        direct={broadcast ? () => {
+          const [x, y] = ball(clock.time);
+          return { shot: shotAt(cues ?? [], clock.time), x, y };
+        } : undefined} />
       <Stadium field={{ primary: home.primary_color, secondary: home.secondary_color,
                         nickname: home.nickname, abbreviation: home.abbreviation }}
         lineOfScrimmage={timeline.los} firstDownLine={timeline.firstDownLine} />
