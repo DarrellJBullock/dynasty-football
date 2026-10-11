@@ -42,6 +42,8 @@ test("sims a week, then follows the result to the box score and other pages", as
 });
 
 test("sims a season and playoffs to a champion, then starts the next season", async ({ page }) => {
+  // A whole season, the playoffs, re-signing, and free agency: ~45 s on CI runners.
+  test.slow();
   await page.goto("/playoffs");
   await expect(page.getByText(/if the season ended today/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Bracket" })).toHaveCount(0);
