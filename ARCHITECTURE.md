@@ -219,6 +219,9 @@ Interactive docs: `http://localhost:8000/docs`.
   while following the ball within one. `playback/replay.ts` picks which plays get an
   instant replay (the highlight rule) and its angle; `useInstantReplay` runs it on the
   shared `PlayClock` (back to the snap at half speed, then on to the play's end).
+  `lib/gameStats.ts` folds running player and team stats from the play events (the same
+  rules as the backend's `stats.py`) for the stat lower thirds, drive summaries and the
+  halftime and final cards.
 
 ## Testing
 
@@ -247,6 +250,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | History | pytest | award scoring and winners (MVP win bonus, rookies, minimum games), summaries; awards decided with the champion, once, and backfilled; season archive (champion and runner-up from the final, franchise record and result); records match the season leaders; career totals match season stats; careers and rookies across seasons |
 | Playback | pytest | every scrimmage play records 11 + 11 players from the right rosters (and everyone its events name), kicks name a returner, stand-in ids map to positions; the playback API types every event, resolves every player to the right team, rebuilds approximate lineups for old logs, handles unplayed and missing games |
 | 3D field | Vitest | field geometry (lines, numbers, pro hashes, direction), camera presets (framing, both directions, clamping, orbit), the field painter against a recording canvas, camera buttons; Playwright switches cameras on the dashboard |
+| Stat overlays | Vitest + Testing Library + Playwright | running player and team stats from events (penalty-wiped plays don't count, stand-ins never credited), matching the box score; whose stat line a play puts up and its wording; drive summaries (still going, touchdown, interception, end of half; kicks aren't drives); halftime and final; the overlay shows the lower third and final card after the whistle, not before and not during a replay, and drive summaries; Playwright sees the score bug on the Watch page |
 | Instant replay | Vitest + Testing Library | which plays get a replay (big runs from the reverse angle, passes from the skycam, ordinary plays none, kicks from the kick) and its stretch; on the Watch page the replay rolls after the play (angle, half speed, badge, the result held), straight-through play waits for it, then carries on; Skip replay and the setting; Coach Mode's reel replays in multi-play reels only |
 | Broadcast director | Vitest + Testing Library | shot lists for runs, short and deep passes, touchdowns, field goals and kicks; every shot held long enough (touchdowns cut at once); the shot at any moment; the new shots' framing (tight low and on the ball, wide high, reverse on the far side, skycam behind the offense either way); the Watch page defaults to Broadcast with the play's cues |
 | Broadcast graphics | pytest + Vitest + Testing Library | play logs record timeouts at the snap and each play's seconds; the running game clock (snap to whistle, old logs, never below zero), the pre-snap play clock, the score going up at the touchdown, down text, banners for every kind of moment and one at a time; the score bug's contents and timeouts, the clock running and the banner and points at the touchdown; the Watch page and Coach Mode reel carry it |

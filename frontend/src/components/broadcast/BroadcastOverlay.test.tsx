@@ -72,3 +72,42 @@ describe("BroadcastOverlay", () => {
     expect(screen.queryByLabelText(/timeouts$/)).not.toBeInTheDocument();
   });
 });
+
+describe("stat overlays", () => {
+  const whistleOf = (t: typeof second.timeline) => t.moments.find((m) => m.kind === "whistle")!.t;
+
+  it("after a touchdown pass: the passer's line, and on the last play the final stats", () => {
+    const done = whistleOf(second.timeline) + 0.5;
+    const { rerender } = show(2, whistleOf(second.timeline) - 0.5);
+    expect(screen.queryByTestId("lower-third")).not.toBeInTheDocument();
+    rerender(<BroadcastOverlay playback={playback} index={2} timeline={second.timeline} time={done} />);
+    const lower = screen.getByRole("note", { name: "Player stats" });
+    expect(lower).toHaveTextContent(/^#\d+H\. QB0QB1\/1, 15 yds, 1 TD$/);
+    const final = screen.getByRole("note", { name: "Final stats" });
+    expect(final).toHaveTextContent("HFD 23");
+    expect(within(final).getByRole("row", { name: /Total yards/ })).toHaveTextContent("0Total yards27");
+    expect(screen.queryByTestId("drive-summary")).not.toBeInTheDocument(); // the final card says it
+    // Not during a replay.
+    rerender(<BroadcastOverlay playback={playback} index={2} timeline={second.timeline} time={done} replay />);
+    expect(screen.queryByTestId("lower-third")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("break-card")).not.toBeInTheDocument();
+  });
+
+  it("sums up a drive when it ends", () => {
+    const drive = makePlayback([
+      makePlay({ ball_on: 25, elapsed: 34, result: { type: "run", yards: 6 },
+        events: [{ t: "rush", player: pid(H, "RB"), yards: 6 }] }),
+      makePlay({ down: 4, distance: 4, ball_on: 31, elapsed: 12, personnel: null, defense: null,
+        result: { type: "punt" },
+        events: [{ t: "punt", punter: pid(H, "P"), yards: 44, touchback: false, fair_catch: true, return: 0 }] }),
+      makePlay({ side: "away", offense: "ABQ", ball_on: 25, result: { type: "run", yards: 2 },
+        events: [{ t: "rush", player: pid(2, "RB"), yards: 2 }] }),
+    ]);
+    const [, punt] = choreographGame(drive);
+    render(<BroadcastOverlay playback={drive} index={1} timeline={punt.timeline}
+      time={whistleOf(punt.timeline) + 0.5} />);
+    expect(screen.getByRole("note", { name: "Drive summary" }))
+      .toHaveTextContent("HFD drive2 plays · 6 yds · 0:46 · Punt");
+    expect(screen.queryByTestId("break-card")).not.toBeInTheDocument();
+  });
+});

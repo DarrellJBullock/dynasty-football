@@ -501,6 +501,13 @@ resolved, the AI, overtime and playoff rules, and calibration targets. Remaining
   replays setting turns them off; playing straight through waits for them. In Coach
   Mode, replays run only when the AI has called several plays (a drive or the rest of
   the game), never after your own call.
+- **Stat overlays:** after a notable play, a lower third puts up the key player's game
+  so far (the passer on a touchdown pass, the receiver on a big catch, the runner on a big
+  run, the defender on a pick or a sack: "K. Quarles · 18/24, 231 yds, 2 TD"). When a
+  drive ends, a card sums it up ("8 plays · 75 yds · 4:12 · Touchdown"). At halftime and
+  the final whistle, a card compares the teams: total yards, passing, rushing, first
+  downs, 3rd downs, turnovers and time of possession. They're worked out in the browser
+  from the play events, by the same rules as the box score, and match it exactly.
 - Plays: run, pass, blocking schemes, tackling, field goals, punts, kickoffs.
 - AI: situational play calling (down, distance, clock, score) for both sides.
 - Presentation: broadcast cameras, all-22 view, instant replay from the timeline.
