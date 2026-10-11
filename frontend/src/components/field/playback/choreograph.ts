@@ -14,6 +14,8 @@ import { HASH_INSET, LENGTH, WIDTH, fieldX, type Vec3 } from "../layout";
 import { defenseSpots, NUMBERS, offenseSpots, spotOnField, TYPICAL, type Package,
          type Spot } from "../players/formations";
 import type { Pose } from "../players/poses";
+import { blitzers, DEFENSE_PLANS, jobOf, OFFENSE_PLANS, ROUTES, type DefensePlan, type DefenseRole,
+         type OffensePlan, type Receiver, type RouteName, type RunScheme } from "./assignments";
 import { handsAt, type BallSegment, type Moment, type MomentKind, type PathKey, type PlayTimeline,
          type PoseKey, type TimelinePlayer } from "./timeline";
 
@@ -237,7 +239,7 @@ function lineUp(stage: Stage, side: Side, team: TeamSummary, spots: Spot[], ids:
   spots.forEach((spot, i) => {
     const place = spotOnField(spot, side, stage.los, stage.ballY, stage.d);
     const actor = addPlayer(stage, ids[i], side, team, spot.role, spot.position, place, place.facing);
-    actor.pose(0, spot.stance);
+    actor.pose(0, spot.stance).hold(SNAP); // set until the snap
     unit.actors.push(actor);
     unit.role[spot.role] = actor;
   });
@@ -378,19 +380,27 @@ function finishCarry(stage: Stage, play: PlaybackPlay, carrier: Actor, tEnd: num
 
 const LINEMEN = ["LT", "LG", "C", "RG", "RT"];
 const FRONT = ["LDE", "LDT", "RDT", "RDE"];
+const RECEIVERS: Receiver[] = ["X", "Z", "SLOT", "TE", "RB"];
 
-/** The lines engage at the snap: run blocking drives forward, pass protection gives ground. */
-function blockUp(stage: Stage, offense: Unit, defense: Unit, mode: "run" | "pass", until: number,
-                 extra: Actor[] = []) {
-  const blockers = [...LINEMEN.map((r) => offense.role[r]), ...extra]
+/** How a line blocks: drive forward (`run`, stepping `lateral` yards toward the play), set
+ * and give ground (`pass`), or show pass and then drive (`draw`). */
+type BlockMode = "run" | "pass" | "draw";
+
+/** The lines engage at the snap. */
+function blockUp(stage: Stage, offense: Unit, defense: Unit, mode: BlockMode, until: number,
+                 options: { extra?: Actor[]; lateral?: number } = {}) {
+  const blockers = [...LINEMEN.map((r) => offense.role[r]), ...(options.extra ?? [])]
     .filter((a) => a && !stage.busy.has(a));
-  const [first, second] = mode === "run" ? [-0.3, 0.9] : [-1.6, -2.4];
+  const lateral = options.lateral ?? 0;
+  const [first, second] = mode === "pass" ? [-1.6, -2.4] : mode === "draw" ? [-1.4, 0.6] : [-0.3, 0.9];
+  const ends = new Map<Actor, number>();
   for (const actor of blockers) {
     const v = stage.v(actor.end);
     actor.pose(SNAP, "block", { face: stage.face(1) });
-    actor.run(SNAP, stage.P(first, v), 0.6);
-    actor.to(until, stage.P(second, v + stage.range(-0.4, 0.4)));
+    actor.run(SNAP, stage.P(first, v + lateral * 0.6), mode === "draw" ? 0.35 : 0.6);
+    actor.to(until, stage.P(second, v + lateral + stage.range(-0.4, 0.4)));
     actor.pose(until + 0.3, "stand", { face: stage.face(1) });
+    ends.set(actor, v + lateral * 0.6);
     stage.busy.add(actor);
   }
   for (const role of FRONT) {
@@ -398,8 +408,8 @@ function blockUp(stage: Stage, offense: Unit, defense: Unit, mode: "run" | "pass
     if (!actor || stage.busy.has(actor)) continue;
     const v = stage.v(actor.end);
     const opposite = blockers.reduce<Actor | null>((best, b) =>
-      !best || Math.abs(stage.v(b.end) - v) < Math.abs(stage.v(best.end) - v) ? b : best, null);
-    const ov = opposite ? stage.v(opposite.path[0]) + (v > 0 ? 0.3 : -0.3) : v;
+      !best || Math.abs(ends.get(b)! - v) < Math.abs(ends.get(best)! - v) ? b : best, null);
+    const ov = opposite ? ends.get(opposite)! + (v > 0 ? 0.3 : -0.3) : v;
     actor.pose(SNAP, "block", { face: stage.face(-1) });
     actor.run(SNAP, stage.P(first + 0.85, ov), 0.6);
     actor.to(until, stage.P(second + 0.85, ov + stage.range(-0.4, 0.4)));
@@ -425,16 +435,42 @@ interface Scrimmage {
   defense: Unit;
   ballOn: number;
   side: 1 | -1; // which way the play goes: toward the offense's right (+1) or left
+  plan?: OffensePlan; // the named play's assignments (SIM_VERSION 1.3+)
+  defensePlan?: DefensePlan;
+  rushers: DefenseRole[]; // who blitzes on this call
+}
+
+function scrimmageContext(stage: Stage, play: PlaybackPlay, offense: Unit, defense: Unit,
+                          ballOn: number): Scrimmage {
+  const plan = OFFENSE_PLANS[String(play.call?.play ?? "")];
+  const defensePlan = DEFENSE_PLANS[play.defense?.play ?? ""];
+  const onField = new Set(Object.keys(defense.role));
+  // Old logs only say whether the defense blitzed: send the middle (or weak) linebacker.
+  const legacy = play.defense?.blitz ? (["MIKE", "WILL"] as DefenseRole[]).filter((r) => onField.has(r)).slice(0, 1) : [];
+  return {
+    stage, play, offense, defense, ballOn, side: stage.rng() < 0.5 ? -1 : 1, plan, defensePlan,
+    rushers: defensePlan ? blitzers(defensePlan, onField) : legacy,
+  };
 }
 
 const DROP: Record<string, number> = { screen: -3.5, short: -5, medium: -7, deep: -8 };
 const THROW: Record<string, number> = { screen: 1.2, short: 1.8, medium: 2.4, deep: 2.9 };
+const SHOTGUN = new Set(["shotgun", "pistol"]);
 
-function snapBall(c: Scrimmage) {
+/** The snap: handed back under center, or a short flight to a quarterback in the gun.
+ * Returns when he has it. */
+function snapBall(c: Scrimmage): number {
   const { stage } = c;
+  const qb = c.offense.role.QB;
   stage.rest(0, [stage.los, stage.ballY, BALL_REST]);
-  stage.hold(SNAP, c.offense.role.QB);
   stage.moment(SNAP, "snap", "Snap");
+  if (!SHOTGUN.has(c.plan?.formation ?? "")) {
+    stage.hold(SNAP, qb);
+    return SNAP;
+  }
+  stage.fly(SNAP, SNAP + 0.3, [stage.los, stage.ballY, 0.35], qb, 0.15);
+  stage.hold(SNAP + 0.3, qb);
+  return SNAP + 0.3;
 }
 
 function touchdown(play: PlaybackPlay): boolean {
@@ -451,42 +487,95 @@ function endV(c: Scrimmage, v: number, yards: number): number {
   return c.stage.inside(v + (c.stage.rng() - 0.5) * Math.min(14, 2 + Math.abs(yards) * 0.5));
 }
 
+/** A lineman pulls: back off the line, along behind it, and up through the hole at `holeV`. */
+function pull(c: Scrimmage, actor: Actor, holeV: number, until: number) {
+  const { stage } = c;
+  stage.busy.add(actor);
+  const v0 = stage.v(actor.end);
+  actor.pose(SNAP, "run");
+  actor.to(SNAP + 0.3, stage.P(-1.8, v0));
+  actor.to(SNAP + 0.95, stage.P(-1.6, holeV - c.side * 1.2));
+  actor.to(SNAP + 1.35, stage.P(0.8, holeV));
+  actor.pose(SNAP + 1.35, "block", { face: stage.face(1) });
+  actor.to(Math.max(until, SNAP + 1.6), stage.P(2.2, holeV + stage.range(-0.5, 0.5)));
+}
+
 function runPlay(c: Scrimmage): number {
   const { stage, play, offense, defense } = c;
   const rush = find(play.events, "rush")!;
   const handoff = find(play.events, "handoff");
   const qb = offense.role.QB;
   const carrier = stage.byId(rush.player) ?? offense.role.RB;
-  const outside = handoff?.direction === "outside";
-  const gapV = c.side * (outside ? stage.range(6, 9) : stage.range(0.9, 3.2));
+  const scheme: RunScheme = c.plan?.scheme ?? (handoff?.direction === "outside" ? "outside_zone" : "zone");
   const scored = touchdown(play);
+  const side = c.side;
   stage.busy.add(qb).add(carrier);
   // Tacklers shed their blocks and pursue rather than block.
   for (const actor of tacklersOf(stage, play, carrier)) stage.busy.add(actor);
-  snapBall(c);
+  const hasBall = snapBall(c);
+  const qbU = stage.u(qb.end);
 
-  let tH = SNAP + 0.3;
+  // Where the back gets the ball, and the hole he aims for.
+  const gapV = side * ({ zone: stage.range(0.9, 3.2), outside_zone: stage.range(6.5, 9),
+                         toss: stage.range(7.5, 9.5), power: 3.8, counter: 3.4,
+                         draw: stage.range(0, 1.6) } as Record<RunScheme, number>)[scheme];
+  let tH = hasBall + 0.3;
   if (carrier !== qb) {
-    tH = SNAP + 0.75;
-    qb.pose(SNAP, "run").run(SNAP, stage.P(-2, c.side * 0.7), 0.45);
-    qb.hold(tH);
-    carrier.pose(SNAP, "run").hold(SNAP + 0.05).to(tH, stage.P(-2.6, c.side * 1.4));
-    stage.hold(tH, carrier);
-    stage.moment(tH, "handoff", `Handoff to ${carrier.info.name}`);
-    qb.pose(tH + 0.05, "run");
-    qb.pose(qb.run(tH + 0.05, stage.P(-4, -c.side * 4), 0.6), "stand");
+    if (scheme === "toss") {
+      // A pitch to the back, already sprinting for the corner.
+      const tPitch = hasBall + 0.35;
+      tH = tPitch + 0.4;
+      qb.pose(SNAP, "run").run(SNAP, stage.P(qbU - 0.8, side * 0.8), 0.4);
+      qb.pose(tPitch - 0.15, "throw", { span: 0.3, face: side * stage.d > 0 ? Math.PI / 2 : -Math.PI / 2 });
+      qb.pose(tPitch + 0.3, "stand");
+      carrier.pose(SNAP, "run").hold(SNAP).to(tH, stage.P(-4.2, side * 4.5));
+      stage.fly(tPitch, tH, qb, carrier, 0.6);
+      stage.hold(tH, carrier);
+      stage.moment(tPitch, "handoff", `Pitch to ${carrier.info.name}`);
+    } else {
+      // The mesh: under center the QB turns and steps back; in the gun he stays put.
+      const draw = scheme === "draw";
+      tH = hasBall + (draw ? 1.1 : SHOTGUN.has(c.plan?.formation ?? "") ? 0.45 : 0.75);
+      const mesh = qbU > -2.5 ? stage.P(-2, side * 0.7) : stage.P(qbU - (draw ? 1.2 : 0), side * 0.2);
+      qb.pose(SNAP, draw ? "stand" : "run", draw ? { face: stage.face(1) } : {});
+      qb.run(SNAP, mesh, 0.45);
+      qb.hold(tH);
+      carrier.pose(SNAP, "run");
+      if (scheme === "counter") carrier.to(SNAP + 0.35, { x: carrier.end.x, y: carrier.end.y - stage.d * side * 1 });
+      carrier.hold(draw ? tH - 0.5 : SNAP + 0.05)
+        .to(tH, { x: mesh.x + stage.d * 0.5, y: mesh.y + stage.d * side * 0.7 });
+      stage.hold(tH, carrier);
+      stage.moment(tH, "handoff", `Handoff to ${carrier.info.name}`);
+      qb.pose(tH + 0.05, "run");
+      qb.pose(qb.run(tH + 0.05, stage.P(qbU - 2, -side * 4), 0.6), "stand");
+    }
   }
   carrier.pose(tH, "carry");
   const u = endU(c, rush.yards, scored);
   if (u >= 1) {
-    if (outside) carrier.run(tH, stage.P(-1.2, gapV * 0.85), 0.85);
-    carrier.run(tH, stage.P(0.5, gapV), 0.85);
+    if (scheme === "outside_zone" || scheme === "toss") carrier.run(tH, stage.P(-1.2, gapV * 0.85), 0.85);
+    // Power and counter wait a beat for the pulling guard to lead through the hole.
+    carrier.run(scheme === "power" || scheme === "counter" ? Math.max(tH, SNAP + 0.9) : tH,
+                stage.P(0.5, gapV), 0.85);
     carrier.run(tH, stage.P(u, endV(c, gapV, u)), 0.95);
   } else {
     carrier.run(tH, stage.P(u, gapV * 0.7), 0.7);
   }
   const tEnd = carrier.end.t;
-  blockUp(stage, offense, defense, "run", tEnd, offense.role.TE ? [offense.role.TE] : []);
+
+  // The line: pullers lead, everyone else blocks the scheme.
+  const backside = (role: string) => offense.role[role] && stage.v(offense.role[role].path[0]) * side < 0;
+  const guard = ["LG", "RG"].find(backside);
+  const tackle = ["LT", "RT"].find(backside);
+  if (scheme === "power" && guard) pull(c, offense.role[guard], gapV, tEnd);
+  if (scheme === "counter") {
+    if (guard) pull(c, offense.role[guard], gapV, tEnd);
+    if (tackle) pull(c, offense.role[tackle], gapV + side * 1.2, tEnd);
+  }
+  const lateral = side * ({ zone: 1.2, outside_zone: 2.5, toss: 2.5, power: -0.8, counter: -0.8,
+                            draw: 0 } as Record<RunScheme, number>)[scheme];
+  blockUp(stage, offense, defense, scheme === "draw" ? "draw" : "run", tEnd,
+          { extra: offense.role.TE ? [offense.role.TE] : [], lateral });
   finishCarry(stage, play, carrier, tEnd, scored, defense);
   // Receivers block downfield; the defense flows to the ball.
   for (const role of ["X", "Z", "SLOT"]) {
@@ -501,8 +590,33 @@ function runPlay(c: Scrimmage): number {
   return tEnd;
 }
 
-/** Waypoints of a route to a catch point `depth` yards downfield. */
-function route(c: Scrimmage, actor: Actor, depth: number): Point[] {
+/** The route a receiver runs on this play, or null if he blocks. */
+function routeOf(c: Scrimmage, actor: Actor): RouteName | null {
+  const name = c.plan?.routes?.[actor.info.role as Receiver];
+  return name && name !== "block" ? name : null;
+}
+
+/**
+ * Waypoints of a named route from the receiver's alignment. For the target, `catchU` (the
+ * recorded air yards) stretches the route so the last point is where the ball arrives.
+ */
+function drawRoute(c: Scrimmage, actor: Actor, name: RouteName, catchU?: number): Point[] {
+  const { stage } = c;
+  const u0 = stage.u(actor.end);
+  const v0 = stage.v(actor.end);
+  // Toward the middle; the back's "inside" is away from the side the play goes.
+  const inward = actor.info.role === "RB" ? -c.side : v0 > 0 ? -1 : 1;
+  const points = ROUTES[name];
+  const last = points[points.length - 1][0];
+  const stretch = catchU !== undefined && last > 0.5 && catchU > u0 + 0.5 ? (catchU - u0) / last : 1;
+  return points.map(([du, din], i) => {
+    const deep = i === points.length - 1 && catchU !== undefined && stretch === 1 ? catchU : u0 + du * stretch;
+    return stage.P(deep, stage.inside(v0 + inward * din));
+  });
+}
+
+/** The old improvised route (play logs without a named play): something fitting the depth. */
+function improvisedRoute(c: Scrimmage, actor: Actor, depth: number): Point[] {
   const { stage } = c;
   const u0 = stage.u(actor.end);
   const v0 = stage.v(actor.end);
@@ -519,6 +633,15 @@ function route(c: Scrimmage, actor: Actor, depth: number): Point[] {
   return [stage.P(depth - 0.5, v0), stage.P(depth, v)];
 }
 
+/** The target's route to the catch point `catchU` yards downfield. */
+function targetRoute(c: Scrimmage, actor: Actor, catchU: number): Point[] {
+  const name = routeOf(c, actor);
+  if (name) return drawRoute(c, actor, name, catchU);
+  // Thrown to a man the play had blocking: he leaks out late into the flat.
+  if (c.plan) return drawRoute(c, actor, catchU >= 4 ? "sit" : "flat", catchU);
+  return improvisedRoute(c, actor, catchU);
+}
+
 function pathLength(from: Point, points: Point[]): number {
   let total = 0;
   let at = from;
@@ -529,65 +652,116 @@ function pathLength(from: Point, points: Point[]): number {
   return total;
 }
 
-const MAN: Record<string, string[]> = {
+// Coverage for play logs without a named defensive call.
+const LEGACY_MAN: Record<string, Receiver[]> = {
   CB1: ["X"], CB2: ["Z"], NB: ["SLOT"], DB: ["TE"], SAM: ["TE"], WILL: ["RB"], MIKE: ["RB", "TE"],
 };
-const ZONE: Record<string, [number, number]> = {
+const LEGACY_ZONE: Record<string, [number, number]> = {
   CB1: [13, -15], CB2: [13, 15], NB: [5, -11], DB: [5, 11], SAM: [7, 6], WILL: [7, -6],
   MIKE: [8, 0], FS: [18, -7], SS: [16, 7],
 };
 
-/** Everyone not yet scripted on a pass play: routes, protection and coverage until `until`.
- * The defensive front is left to `blockUp`. */
-function passFlow(c: Scrimmage, until: number) {
+/** Trail `mark` a step behind, shading inside and deep, until `until`. */
+function trail(c: Scrimmage, actor: Actor, mark: Actor, until: number) {
+  const { stage } = c;
+  const v = stage.v(mark.path[0]) > 0 ? -0.7 : 0.7;
+  for (let t = SNAP + 0.4; t < until; t += 0.35) {
+    const p = mark.at(t - 0.25);
+    actor.to(t, { x: p.x + stage.d * 0.9, y: p.y + stage.d * v });
+  }
+}
+
+/**
+ * Everyone not yet scripted on a pass play: receivers run the play's routes (or block),
+ * blitzers rush, and the coverage plays the call until `until`. The rest of the defensive
+ * front is left to `blockUp`.
+ */
+function passFlow(c: Scrimmage, until: number, qbAt: Point) {
   const { stage, play, offense, defense } = c;
-  const man = play.defense?.coverage === "man";
   const running = new Set<Actor>();
-  for (const role of ["X", "Z", "SLOT", "TE", "RB"]) {
+  for (const role of RECEIVERS) {
     const actor = offense.role[role];
     if (!actor || stage.busy.has(actor)) continue;
     stage.busy.add(actor);
-    if ((role === "RB" || role === "TE") && stage.rng() < 0.5) { // stays in to protect
-      const at = role === "RB" ? stage.P(DROP.medium + 2, c.side * 1.6) : stage.P(-1.5, stage.v(actor.end));
+    const name = routeOf(c, actor);
+    const blocks = c.plan ? !name : (role === "RB" || role === "TE") && stage.rng() < 0.5;
+    if (blocks) {
+      if (c.plan?.screen || c.plan?.routes?.SLOT === "bubble") { // stalk the nearest defender
+        actor.pose(SNAP, "run").pose(actor.run(SNAP, stage.P(stage.range(2, 4), stage.v(actor.end) * 0.9), 0.7),
+                                     "block", { face: stage.face(1) });
+        continue;
+      }
+      const at = role === "RB" ? stage.P(Math.min(stage.u(qbAt) + 2, -3), c.side * 1.6)
+        : stage.P(-1.5, stage.v(actor.end));
       actor.pose(SNAP, "run").pose(actor.run(SNAP, at, 0.6), "block", { face: stage.face(1) });
       continue;
     }
     actor.pose(SNAP, "run");
     let t = SNAP + 0.1;
-    for (const p of route(c, actor, role === "RB" ? stage.range(1, 4) : stage.range(5, 22))) {
-      t = actor.run(t, p);
-    }
+    const points = name ? drawRoute(c, actor, name)
+      : improvisedRoute(c, actor, role === "RB" ? stage.range(1, 4) : stage.range(5, 22));
+    for (const p of points) t = actor.run(t, p);
     actor.pose(t, "stand");
     running.add(actor);
   }
   for (const actor of defense.actors) {
     const role = actor.info.role;
-    if (stage.busy.has(actor) || FRONT.includes(role)) continue;
+    if (stage.busy.has(actor)) continue;
+    const job = c.defensePlan ? jobOf(c.defensePlan, role, c.rushers) : null;
+    if (c.rushers.includes(role as DefenseRole)) {
+      rush(c, actor, qbAt, Math.min(until, SNAP + 2.6), 2.2);
+      continue;
+    }
+    if (FRONT.includes(role) && !(job && "zone" in job)) continue; // rushes: blockUp
     stage.busy.add(actor);
     actor.pose(SNAP, "run");
-    const mark = man ? (MAN[role] ?? []).map((r) => offense.role[r]).find((r) => r && running.has(r)) : undefined;
-    if (mark) { // trail a step behind, shading inside and deep
-      running.delete(mark);
-      const v = stage.v(mark.path[0]) > 0 ? -0.7 : 0.7;
-      for (let t = SNAP + 0.4; t < until; t += 0.35) {
-        const p = mark.at(t - 0.25);
-        actor.to(t, { x: p.x + stage.d * 0.9, y: p.y + stage.d * v });
-      }
-    } else {
-      const [u, v] = ZONE[role] ?? [6, stage.v(actor.end)];
-      actor.pose(actor.run(SNAP + 0.1, stage.P(u, v), 0.7), "stand", { face: stage.face(-1) });
+    const legacyMark = !c.defensePlan && play.defense?.coverage === "man"
+      ? (LEGACY_MAN[role] ?? []).map((r) => offense.role[r]).find((r) => r && running.has(r)) : undefined;
+    const mark = job && "man" in job ? offense.role[job.man] : legacyMark;
+    if (mark && running.has(mark)) {
+      if (!c.defensePlan) running.delete(mark);
+      trail(c, actor, mark, until);
+      continue;
     }
+    // A zone, or a man defender whose man stayed in to block: sit underneath him.
+    const spot: [number, number] = job && "zone" in job ? job.zone
+      : mark ? [5, stage.v(mark.path[0])] : LEGACY_ZONE[role] ?? [6, stage.v(actor.end)];
+    actor.pose(actor.run(SNAP + 0.1, stage.P(spot[0], stage.inside(spot[1])), 0.7), "stand",
+               { face: stage.face(-1) });
   }
 }
 
-function dropBack(c: Scrimmage, depth: string): number {
+/** The quarterback's drop, with any play-action fake first. Returns when he's set, and
+ * where. */
+function dropBack(c: Scrimmage, depth: string, hasBall: number): { set: number; at: Point } {
   const { stage, offense } = c;
   const qb = offense.role.QB;
+  const rb = offense.role.RB;
   stage.busy.add(qb);
+  const u0 = stage.u(qb.end);
+  const deep = Math.min(DROP[depth] ?? DROP.short, u0 - 1);
+  const action = c.plan?.playAction;
+  if (action && rb && !stage.busy.has(rb)) {
+    // The fake: meet the back as if handing off, then turn and set up (or roll out).
+    const tFake = hasBall + 0.7;
+    const mesh = stage.P(Math.min(u0, -2.2), c.side * 0.7);
+    qb.pose(SNAP, "run").run(SNAP, mesh, 0.45);
+    qb.hold(tFake);
+    rb.pose(SNAP, "run").to(tFake, { x: mesh.x + stage.d * 0.5, y: mesh.y + stage.d * c.side * 0.7 });
+    rb.run(tFake, stage.P(0.5, c.side * 2.5), 0.8);
+    rb.pose(rb.end.t, "block", { face: stage.face(1) });
+    stage.busy.add(rb);
+    stage.moment(tFake, "handoff", "Play-action fake");
+    const at = action === "boot" ? stage.P(DROP.short - 1, stage.inside(-c.side * 7, 4)) : stage.P(deep, 0);
+    qb.pose(tFake + 0.05, "run", action === "boot" ? {} : { face: stage.face(1) });
+    const set = qb.run(tFake + 0.05, at, action === "boot" ? 0.8 : 0.6);
+    qb.pose(set, "stand", { face: stage.face(1) });
+    return { set, at: qb.end };
+  }
   qb.pose(SNAP, "run", { face: stage.face(1) });
-  const set = qb.run(SNAP, stage.P(DROP[depth] ?? DROP.short, 0), 0.62);
+  const set = qb.run(hasBall, stage.P(c.plan?.screen ? Math.min(deep, -7) : deep, 0), 0.62);
   qb.pose(set, "stand", { face: stage.face(1) });
-  return set;
+  return { set, at: qb.end };
 }
 
 /** A defender who comes free, around the edge or up the middle, closing on the QB by `t`. */
@@ -600,6 +774,27 @@ function rush(c: Scrimmage, actor: Actor, qbAt: Point, t: number, short: number)
   actor.to(t, stage.toward(qbAt, actor.end, short));
 }
 
+/** On a screen the line sets, lets the rush through, then releases downfield to lead the
+ * catch; the rushers chase the quarterback. */
+function screenBlocks(c: Scrimmage, qbAt: Point, tThrow: number) {
+  const { stage, offense, defense } = c;
+  for (const role of FRONT) {
+    const actor = defense.role[role];
+    if (actor && !stage.busy.has(actor)) rush(c, actor, qbAt, tThrow + 0.1, stage.range(1.5, 3));
+  }
+  LINEMEN.forEach((role, i) => {
+    const actor = offense.role[role];
+    if (!actor || stage.busy.has(actor)) return;
+    stage.busy.add(actor);
+    const v = stage.v(actor.end);
+    actor.pose(SNAP, "block", { face: stage.face(1) });
+    actor.run(SNAP, stage.P(-1.2, v), 0.5);
+    actor.hold(tThrow - 0.6).pose(tThrow - 0.6, "run");
+    actor.to(tThrow + 0.6, stage.P(stage.range(1, 3), stage.inside(c.side * (5 + i * 1.5))));
+    actor.pose(tThrow + 0.6, "block", { face: stage.face(1) });
+  });
+}
+
 function passPlay(c: Scrimmage): number {
   const { stage, play, offense, defense } = c;
   const pass = find(play.events, "pass")!;
@@ -609,9 +804,8 @@ function passPlay(c: Scrimmage): number {
   const picked = pass.result === "interception" ? find(play.events, "interception") : undefined;
   const defended = find(play.events, "pass_defended");
   const scored = touchdown(play);
-  snapBall(c);
-  const set = dropBack(c, depth);
-  const qbAt = qb.end;
+  const hasBall = snapBall(c);
+  const { set, at: qbAt } = dropBack(c, depth, hasBall);
 
   // Where the ball goes, and when.
   const air = Math.min(pass.air, 100 - c.ballOn + 8);
@@ -619,7 +813,7 @@ function passPlay(c: Scrimmage): number {
   let routeTime = 0;
   if (target) {
     stage.busy.add(target);
-    const points = route(c, target, pass.result === "complete" ? Math.min(air, pass.yards) : air);
+    const points = targetRoute(c, target, pass.result === "complete" ? Math.min(air, pass.yards) : air);
     catchAt = points[points.length - 1];
     routeTime = pathLength(target.end, points) / target.speed + 0.15;
     target.pose(SNAP, "run");
@@ -641,12 +835,12 @@ function passPlay(c: Scrimmage): number {
     : `${qb.info.name} throws it away`);
 
   if (pressure) {
-    const rusher = stage.pick([defense.role.LDE, defense.role.RDE].filter(Boolean));
+    const rusher = stage.pick([defense.role.LDE, defense.role.RDE].filter((a) => a && !stage.busy.has(a)));
     if (rusher) rush(c, rusher, qbAt, tThrow + 0.05, 1.2);
   }
-  if (play.defense?.blitz) {
-    const blitzer = [defense.role.MIKE, defense.role.WILL].find((a) => a && !stage.busy.has(a));
-    if (blitzer) rush(c, blitzer, qbAt, tThrow, 2.2);
+  for (const role of c.rushers) {
+    const blitzer = defense.role[role];
+    if (blitzer && !stage.busy.has(blitzer)) rush(c, blitzer, qbAt, tThrow, 2.2);
   }
   const thief = picked ? stage.byId(picked.by) ?? defense.role.FS : undefined;
   const breakup = defended && !thief ? stage.byId(defended.by) : undefined;
@@ -659,7 +853,8 @@ function passPlay(c: Scrimmage): number {
   // Front-seven tacklers on a short pass shed their blocks; the rest cover until the catch.
   const tacklers = target ? tacklersOf(stage, play, target) : [];
   for (const actor of tacklers) if (FRONT.includes(actor.info.role)) stage.busy.add(actor);
-  passFlow(c, tCatch);
+  if (c.plan?.screen) screenBlocks(c, qbAt, tThrow);
+  passFlow(c, tCatch, qbAt);
   blockUp(stage, offense, defense, "pass", Math.max(tThrow, set));
 
   let tEnd = tCatch + 0.4;
@@ -719,13 +914,13 @@ function sackPlay(c: Scrimmage): number {
   const { stage, play, offense, defense } = c;
   const sack = find(play.events, "sack")!;
   const qb = offense.role.QB;
-  snapBall(c);
-  const set = dropBack(c, find(play.events, "dropback")?.depth ?? "medium");
+  const hasBall = snapBall(c);
+  const { set } = dropBack(c, find(play.events, "dropback")?.depth ?? "medium", hasBall);
   const tSack = Math.max(set + 0.4, SNAP + stage.range(2.2, 3));
   qb.to(tSack - 0.05, stage.P(sack.yards, stage.range(-1.2, 1.2)));
   const sacker = stage.byId(sack.by) ?? defense.role.RDE;
   rush(c, sacker, qb.end, tSack - 0.5, 2.2);
-  passFlow(c, tSack);
+  passFlow(c, tSack, qb.end);
   blockUp(stage, offense, defense, "pass", tSack);
   tackle(stage, qb, [sacker], tSack, `Sacked by ${sacker.info.name}`);
   const loose = find(play.events, "fumble");
@@ -739,15 +934,15 @@ function scramblePlay(c: Scrimmage): number {
   const scramble = find(play.events, "scramble")!;
   const qb = offense.role.QB;
   const scored = touchdown(play);
-  snapBall(c);
-  const set = dropBack(c, find(play.events, "dropback")?.depth ?? "medium");
+  const hasBall = snapBall(c);
+  const { set, at } = dropBack(c, find(play.events, "dropback")?.depth ?? "medium", hasBall);
   const tRun = Math.max(set + 0.5, SNAP + stage.range(2, 2.6));
   qb.hold(tRun).pose(tRun, "carry");
-  qb.run(tRun, stage.P(DROP.medium + 1, stage.inside(c.side * 4)), 0.8);
+  qb.run(tRun, stage.P(stage.u(at) + 1, stage.inside(stage.v(at) + c.side * 4)), 0.8);
   const u = endU(c, scramble.yards, scored);
   const tEnd = qb.run(tRun, stage.P(u, endV(c, c.side * stage.range(5, 10), u)), 0.95);
   stage.moment(tRun, "contact", `${qb.info.name} scrambles`);
-  passFlow(c, tRun + 0.4);
+  passFlow(c, tRun + 0.4, at);
   blockUp(stage, offense, defense, "pass", tRun + 0.4);
   finishCarry(stage, play, qb, tEnd, scored, defense);
   flowTo(stage, defense.actors, tRun + 0.4, qb.end, tEnd + 0.4);
@@ -786,13 +981,13 @@ function scrimmage(play: PlaybackPlay, stage: Stage, offenseTeam: TeamSummary,
   const pkg = (personnel?.package ?? play.defense?.package ?? "base") as Package;
   const ours = new Picker(stage, offenseTeam.id);
   const theirs = new Picker(stage, defenseTeam.id);
-  const c: Scrimmage = {
-    stage, play, ballOn: play.ball_on ?? 25, side: stage.rng() < 0.5 ? -1 : 1,
-    offense: lineUp(stage, "offense", offenseTeam, offenseSpots(),
-                    personnel?.offense ?? offenseSpots().map((s) => ours.pick([s.position]))),
-    defense: lineUp(stage, "defense", defenseTeam, defenseSpots(pkg),
-                    personnel?.defense ?? defenseSpots(pkg).map((s) => theirs.pick([s.position]))),
-  };
+  const formation = OFFENSE_PLANS[String(play.call?.play ?? "")]?.formation;
+  const spots = offenseSpots(formation);
+  const offense = lineUp(stage, "offense", offenseTeam, spots,
+                         personnel?.offense ?? spots.map((s) => ours.pick([s.position])));
+  const defense = lineUp(stage, "defense", defenseTeam, defenseSpots(pkg),
+                         personnel?.defense ?? defenseSpots(pkg).map((s) => theirs.pick([s.position])));
+  const c = scrimmageContext(stage, play, offense, defense, play.ball_on ?? 25);
   const events = play.events;
   const penalty = find(events, "penalty");
   if (find(events, "kneel")) return kneelPlay(c);
@@ -1015,7 +1210,7 @@ function twoPoint(play: PlaybackPlay, stage: Stage, offenseTeam: TeamSummary,
     ],
     result: { type: "conversion", touchdown: good },
   };
-  const tEnd = passPlay({ stage, play: tryPlay, offense, defense, ballOn: 98, side: 1 });
+  const tEnd = passPlay(scrimmageContext(stage, tryPlay, offense, defense, 98));
   for (const m of stage.moments) if (m.kind === "touchdown") m.text = "The two-point try is good!";
   if (!good) stage.moment(tEnd, "whistle", "The two-point try fails");
   return tEnd;

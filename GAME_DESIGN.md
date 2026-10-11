@@ -414,6 +414,14 @@ defense you expect. The AI calls these plays for both teams, and every snap in t
 score's play-by-play and on the Watch page shows the two calls ("Smash vs Cover 2").
 Coach Mode (Milestone 5) will let you make the calls yourself.
 
+In 3D (the Watch page) every snap shows its calls being run: the offense lines up in the
+play's formation (under center, I-form, shotgun, pistol), receivers run the play's routes
+(the target's stretched to where the ball was caught), linemen block the scheme (zone
+steps, a pulling guard on Power, two pullers on Counter, a pitch on Toss), play action
+fakes the handoff (the boot rolls the quarterback out the other way), and screens let the
+rush in before the line releases to block. Defenders drop to their call's zones, trail
+their men in man coverage, and the call's blitzer comes after the quarterback.
+
 ## Simulation & 3D gameplay
 
 The play-level engine is built (Milestone 2); see

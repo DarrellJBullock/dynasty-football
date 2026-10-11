@@ -194,7 +194,10 @@ Interactive docs: `http://localhost:8000/docs`.
   recorded carrier reaches the recorded spot where the recorded tacklers meet him; it's
   pure, seeded by game and play number, and chains each snap to where the last play ended.
   Kick units and conversions, which the play log doesn't list, are filled from the team's
-  players in the game. `PlayScene.tsx` renders a timeline, sampling it every frame from a
+  players in the game. `assignments.ts` holds what every player does on each named play
+  (formation, routes, run scheme, play action, screens) and defensive call (zones, man
+  matchups, blitzers), keyed by the backend playbook's keys; plays from before named
+  calls fall back to generic motions. `PlayScene.tsx` renders a timeline, sampling it every frame from a
   shared `PlayClock` (`clock.ts`) that the scene advances and the controls seek, so playing
   re-renders nothing. `components/watch/WatchView.tsx` is the Watch page: one request loads
   the game (`/api/games/{id}/playback`) and every play is choreographed in the browser
@@ -225,6 +228,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Playback | pytest | every scrimmage play records 11 + 11 players from the right rosters (and everyone its events name), kicks name a returner, stand-in ids map to positions; the playback API types every event, resolves every player to the right team, rebuilds approximate lineups for old logs, handles unplayed and missing games |
 | 3D field | Vitest | field geometry (lines, numbers, pro hashes, direction), camera presets (framing, both directions, clamping, orbit), the field painter against a recording canvas, camera buttons; Playwright switches cameras on the dashboard |
 | 3D playback | Vitest + Testing Library + Playwright | choreographer invariants for every play type (22 players on the field and in bounds, ordered paths and moments, the ball accounted for throughout, the recorded spot reached, tacklers meeting the carrier, touchdowns crossing the goal line, kicks returned to the recorded spot, field goals through or wide of the uprights, stand-ins filling kick units, determinism, hash spotting, ends switching by quarter); timeline sampling and the play clock; the Watch view's controls (play/pause, scrubbing, replay, speed, cameras, auto-advance, keyboard) with the scene mocked; Playwright watches a play from the play-by-play, scrubs, and steps through the game |
+| 3D assignments | Vitest | every named play and call has a plan with known routes; every pass play completes soundly against every call and every run gains the recorded yards against every call; formations and shotgun snaps; the target's route stretched to the air yards; Smash's corner and hitches; blockers stay in; Power and Counter pullers; Toss pitches; outside runs bounce wide; play-action fakes and the boot; screens; Cover 3 / Cover 2 landmarks; man trails; blitzers and Fire Zone's dropping end; prevent; old logs |
 | 3D players | Vitest | every pose valid, the run cycle (period, opposed legs and arms), carry and throw, leaning arms reach forward, blending, builds and hip heights, formations (order, packages, sides, both directions), uniforms (home/away, readable numbers), skin tones |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
