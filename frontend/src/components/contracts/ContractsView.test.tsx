@@ -53,6 +53,19 @@ describe("ContractsView", () => {
     expect(within(screen.getByRole("region", { name: "All contracts" })).getAllByRole("row")).toHaveLength(4);
   });
 
+  it("lists dead money and signing bonuses", () => {
+    const withBonus = { ...locked, contract: { ...contract(20_000_000, 2029), signing_bonus: 24_000_000 } };
+    render(<ContractsView data={{ ...data, players: [withBonus, star, vet], dead_money: [
+      { player_id: 8, name: "Cut Guy", position: "WR", year: 2027, amount: 4_500_000, reason: "released" },
+    ] }} team={team} />);
+    const dead = screen.getByRole("region", { name: "Dead money" });
+    expect(dead).toHaveTextContent("2027");
+    expect(dead).toHaveTextContent("Cut Guy");
+    expect(dead).toHaveTextContent("$4.5M");
+    expect(within(screen.getByRole("region", { name: "All contracts" })).getAllByRole("row")[1])
+      .toHaveTextContent("$24.0M");
+  });
+
   it("waits for the season to end before negotiating", () => {
     render(<ContractsView data={{ ...data, window_open: false,
       season: { ...data.season, phase: "regular_season" } }} team={team} />);

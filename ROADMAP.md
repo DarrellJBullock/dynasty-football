@@ -47,7 +47,8 @@ Each milestone ends with working software, green tests, and updated docs.
       (then free agency and the draft)
 - [x] Re-signing with negotiation (Contracts page; asking price by rating, position, age,
       and preferred length; counter-offers; next season's cap)
-- [ ] Cuts with dead money (signing bonuses)
+- [x] Cuts with dead money (signing bonuses on every deal above the minimum; releases,
+      trades, and mid-deal retirements accelerate the rest onto the cap)
 - [x] Free agency period with AI bidding (five market days; offers, counts, leading/outbid;
       players hold out early and lean toward contenders)
 - [x] Draft: generated classes, scouting fog and reports, draft order, draft day with AI

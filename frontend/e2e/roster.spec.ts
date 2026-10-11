@@ -37,6 +37,7 @@ test("releases a player and signs him back from free agency", async ({ page }) =
   await page.getByRole("button", { name: "Keegan Quarles" }).click();
   const panel = page.getByRole("dialog", { name: "Player details" });
   await panel.getByRole("button", { name: "Release" }).click();
+  await expect(panel.getByRole("status")).toContainText("of dead money");
   await panel.getByRole("button", { name: "Confirm release" }).click();
   await expect(page.getByRole("status")).toHaveText(/Keegan Quarles was released/);
   await expect(page.getByTestId("roster-count")).toHaveText("52");

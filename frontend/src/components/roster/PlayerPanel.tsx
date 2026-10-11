@@ -14,6 +14,7 @@ import {
   formatMoney,
   injuryDetail,
   injuryLabel,
+  releaseCost,
   yearsRemaining,
 } from "@/lib/format";
 import {
@@ -32,12 +33,14 @@ type LoadState =
 export function PlayerPanel({
   playerId,
   seasonYear,
+  capYear = seasonYear,
   onClose,
   onUpdated,
   onReleased,
 }: {
   playerId: number;
   seasonYear: number;
+  capYear?: number;
   onClose: () => void;
   onUpdated: (player: PlayerDetail) => void;
   onReleased: (player: PlayerDetail) => void;
@@ -101,6 +104,7 @@ export function PlayerPanel({
               <PlayerCard
                 player={state.player}
                 seasonYear={seasonYear}
+                capYear={capYear}
                 onEdit={() => setEditing(true)}
                 onReleased={onReleased}
               />
@@ -115,11 +119,13 @@ export function PlayerPanel({
 function PlayerCard({
   player,
   seasonYear,
+  capYear,
   onEdit,
   onReleased,
 }: {
   player: PlayerDetail;
   seasonYear: number;
+  capYear: number;
   onEdit: () => void;
   onReleased: (player: PlayerDetail) => void;
 }) {
@@ -209,6 +215,14 @@ function PlayerCard({
       </div>
 
       {error && <p className="text-sm text-rose-300">{error}</p>}
+      {confirming && player.team_id !== null && (
+        <p role="status" className="text-sm text-amber-200">
+          {releaseCost(player.contract, capYear) > 0
+            ? `Releasing him leaves ${formatMoney(releaseCost(player.contract, capYear))} of dead ` +
+              `money (the rest of his signing bonus) on your ${capYear} cap.`
+            : "No dead money: he has no signing bonus left."}
+        </p>
+      )}
       {player.team_id !== null && (
         <div className="sticky bottom-0 -mx-5 flex gap-2 border-t border-white/5 bg-ink-900 px-5 py-4">
           <button type="button" className="btn btn-primary flex-1" onClick={onEdit}>

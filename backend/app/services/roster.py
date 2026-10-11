@@ -7,6 +7,7 @@ from app.domain.positions import ROSTER_MAX, Position, available_jersey
 from app.domain.ratings import ATTRIBUTES, calculate_overall
 from app.models import Contract, Player, PlayerRatings, Team
 from app.schemas import PlayerCreate, PlayerUpdate, SigningRequest
+from app.services import cap
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.injuries import heal
@@ -35,8 +36,10 @@ def _check_jersey(roster: list[Player], number: int, exclude_id: int | None = No
         raise RosterError(f"jersey #{number} is already worn by {holder.full_name}")
 
 
-def _check_cap(team: Team, roster: list[Player], salary: int) -> None:
-    if payroll(roster) + salary > team.league.salary_cap:
+def _check_cap(db: Session, team: Team, roster: list[Player], salary: int) -> None:
+    season = current_season(db, team.league_id)
+    dead = cap.dead_money_for(db, team.id, cap.cap_year(season)) if season else 0
+    if payroll(roster) + dead + salary > team.league.salary_cap:
         raise RosterError("signing would exceed the salary cap")
 
 
@@ -53,7 +56,7 @@ def create_player(db: Session, team: Team, payload: PlayerCreate) -> Player:
     overall = calculate_overall(payload.position, ratings)
     salary = payload.salary if payload.salary is not None else market_salary(
         Position(payload.position), overall)
-    _check_cap(team, roster, salary)
+    _check_cap(db, team, roster, salary)
 
     player = new_player(
         team,
@@ -92,8 +95,7 @@ def new_player(team: Team, *, season_year: int, ratings: dict[str, int], salary:
         potential=max(overall, potential or overall),
         ratings=PlayerRatings(**ratings),
     )
-    player.contracts.append(Contract(team_id=team.id, start_year=season_year,
-                                     years=contract_years, salary=salary))
+    player.contracts.append(Contract.signed(team.id, season_year, contract_years, salary))
     return player
 
 
@@ -119,9 +121,14 @@ def update_player(db: Session, player: Player, payload: PlayerUpdate) -> Player:
     return player
 
 
-def release_player(db: Session, player: Player) -> Player:
+def release_player(db: Session, player: Player, dead_money: bool = True) -> Player:
+    """Release a player; the rest of his signing bonus becomes dead money (not for roster
+    imports replacing a roster, `dead_money=False`)."""
     if player.team_id is None:
         raise RosterError("player is already a free agent")
+    season = current_season(db, player.league_id)
+    if dead_money and season is not None:
+        cap.charge(db, player, player.active_contract, cap.cap_year(season), "released")
     for contract in player.contracts:
         contract.is_active = False
     remove_player(db, player)
@@ -147,13 +154,13 @@ def sign_player(db: Session, team: Team, request: SigningRequest) -> Player:
     _check_roster_space(roster)
     salary = request.salary if request.salary is not None else market_salary(
         Position(player.position), player.overall)
-    _check_cap(team, roster, salary)
+    _check_cap(db, team, roster, salary)
 
     taken = {p.jersey_number for p in roster}
     if player.jersey_number in taken:
         player.jersey_number = available_jersey(player.position, taken)
     player.team_id = team.id
-    player.contracts.append(Contract(team_id=team.id, start_year=contract_start_year(db, team),
-                                     years=request.years, salary=salary))
+    player.contracts.append(Contract.signed(team.id, contract_start_year(db, team),
+                                            request.years, salary))
     db.flush()
     return player

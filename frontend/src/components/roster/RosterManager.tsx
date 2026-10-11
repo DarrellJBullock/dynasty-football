@@ -43,11 +43,13 @@ export function RosterManager({
   initialRoster,
   leagueId,
   seasonYear,
+  capYear = seasonYear,
 }: {
   initialTeam: TeamDetail;
   initialRoster: PlayerSummary[];
   leagueId: number;
   seasonYear: number;
+  capYear?: number; // the cap a release counts against
 }) {
   const [team, setTeam] = useState(initialTeam);
   const [roster, setRoster] = useState(initialRoster);
@@ -224,6 +226,7 @@ export function RosterManager({
         <PlayerPanel
           playerId={selectedId}
           seasonYear={seasonYear}
+          capYear={capYear}
           onClose={closePanel}
           onUpdated={handleUpdated}
           onReleased={handleReleased}

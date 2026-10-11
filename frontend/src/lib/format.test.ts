@@ -7,6 +7,7 @@ import {
   injuryDetail,
   injuryDuration,
   injuryLabel,
+  releaseCost,
   ratingTier,
   yearsRemaining,
 } from "./format";
@@ -80,5 +81,15 @@ describe("injuries", () => {
       .toBe("Knee sprain · Out 2 games");
     expect(injuryDetail({ injury_status: "injured_reserve", injury: null })).toBe("IR");
     expect(injuryDetail({ injury_status: "healthy" })).toBe("Healthy");
+  });
+});
+
+describe("releaseCost", () => {
+  const contract = { signing_bonus: 12_000_000, years: 4, end_year: 2029 };
+  it("is the bonus left from the cap year to the end of the deal", () => {
+    expect(releaseCost(contract, 2026)).toBe(12_000_000);
+    expect(releaseCost(contract, 2028)).toBe(6_000_000);
+    expect(releaseCost(contract, 2030)).toBe(0);
+    expect(releaseCost(null, 2026)).toBe(0);
   });
 });

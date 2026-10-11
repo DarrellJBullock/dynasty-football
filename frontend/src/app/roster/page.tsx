@@ -40,6 +40,7 @@ async function RosterContent() {
       initialRoster={roster}
       leagueId={franchise.league.id}
       seasonYear={franchise.season.year}
+      capYear={franchise.season.year + (franchise.season.phase === "offseason" ? 1 : 0)}
     />
   );
 }

@@ -5,18 +5,23 @@ next season starts; anyone not re-signed by then leaves in free agency (AI teams
 automatically, see services/offseason.py). A new deal starts next season.
 """
 
+from collections import defaultdict
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.contracts import preferred_years, required_salary
 from app.domain.positions import Position
-from app.models import Contract, Player, Season, Team
+from app.models import Contract, DeadMoney, Player, Season, Team
 from app.schemas import (
     ContractTerms,
+    DeadMoneyOut,
     ExpiringContract,
     NegotiationResult,
     ReSignOffer,
     TeamContracts,
 )
+from app.services import cap
 from app.services.errors import RosterError
 from app.services.season import season_view
 from app.services.serializers import contract_out, player_summary
@@ -60,12 +65,21 @@ def contracts_view(db: Session, team: Team) -> TeamContracts:
     expiring.sort(key=lambda p: (-p.overall, p.id))
     signed = sorted((p for p in roster if p.active_contract is not None),
                     key=lambda p: (-p.active_contract.salary, p.id))
+    dead = db.scalars(select(DeadMoney).where(DeadMoney.team_id == team.id,
+                                              DeadMoney.year >= season.year)
+                      .order_by(DeadMoney.year, DeadMoney.amount.desc())).all()
+    dead_by_year: dict[int, int] = defaultdict(int)
+    for charge in dead:
+        dead_by_year[charge.year] += charge.amount
     return TeamContracts(
         season=season_view(db, season),
         window_open=window_open(season),
         salary_cap=team.league.salary_cap,
-        payroll=payroll(roster),
-        next_year_payroll=next_year_payroll(roster, season),
+        payroll=payroll(roster) + dead_by_year[season.year],
+        next_year_payroll=next_year_payroll(roster, season) + dead_by_year[season.year + 1],
+        dead_money=[DeadMoneyOut(player_id=c.player_id, name=c.player.full_name,
+                                 position=c.player.position, year=c.year, amount=c.amount,
+                                 reason=c.reason) for c in dead],
         expiring=[ExpiringContract(
             player=player_summary(p), asking=asking(p),
             re_signed=contract_out(p.active_contract) if re_signed(p, season) else None)
@@ -98,11 +112,13 @@ def negotiate(db: Session, player: Player, offer: ReSignOffer) -> NegotiationRes
                     f"for {_years(offer.years)}.")
 
     roster = load_roster(db, team.id)
-    if next_year_payroll(roster, season) + offer.salary > team.league.salary_cap:
+    committed = next_year_payroll(roster, season) + cap.dead_money_for(db, team.id,
+                                                                       season.year + 1)
+    if committed + offer.salary > team.league.salary_cap:
         raise RosterError("That deal would put next season's payroll over the cap.")
     player.active_contract.is_active = False
-    player.contracts.append(Contract(team_id=team.id, start_year=season.year + 1,
-                                     years=offer.years, salary=offer.salary))
+    player.contracts.append(Contract.signed(team.id, season.year + 1, offer.years,
+                                            offer.salary))
     db.flush()
     return NegotiationResult(
         accepted=True, counter=None, player=player_summary(player),

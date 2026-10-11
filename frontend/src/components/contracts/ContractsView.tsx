@@ -102,6 +102,28 @@ export function ContractsView({ data, team }: { data: TeamContracts; team: TeamS
         )}
       </section>
 
+      {(data.dead_money ?? []).length > 0 && (
+        <section className="panel p-5" aria-label="Dead money">
+          <h2 className="eyebrow mb-3">Dead money</h2>
+          <p className="mb-3 text-sm text-mist">
+            Signing bonus left on the cap by players no longer on the team.
+          </p>
+          <ul className="space-y-1 text-sm">
+            {(data.dead_money ?? []).map((charge) => (
+              <li key={`${charge.player_id}-${charge.year}`} className="flex items-center gap-3">
+                <span className="w-12 tabular-nums text-mist">{charge.year}</span>
+                <span className="flex-1">
+                  <span className="mr-1.5 text-xs text-mist">{charge.position}</span>
+                  {charge.name}
+                  <span className="ml-2 text-xs text-mist">{charge.reason}</span>
+                </span>
+                <span className="tabular-nums text-rose-300">{formatMoney(charge.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="panel p-5" aria-label="All contracts">
         <h2 className="eyebrow mb-3">All contracts</h2>
         <div className="overflow-x-auto">
@@ -112,6 +134,7 @@ export function ContractsView({ data, team }: { data: TeamContracts; team: TeamS
                 <th className="px-2 font-medium">Age</th>
                 <th className="px-2 font-medium">OVR</th>
                 <th className="px-2 text-right font-medium">Salary</th>
+                <th className="px-2 text-right font-medium">Bonus</th>
                 <th className="py-2 pl-3 text-right font-medium">Through</th>
               </tr>
             </thead>
@@ -124,6 +147,9 @@ export function ContractsView({ data, team }: { data: TeamContracts; team: TeamS
                   <td className="px-2 tabular-nums text-mist">{player.age}</td>
                   <td className="px-2"><OvrBadge value={player.overall} /></td>
                   <td className="px-2 text-right tabular-nums">{player.contract && formatMoney(player.contract.salary)}</td>
+                  <td className="px-2 text-right tabular-nums text-mist">
+                    {player.contract?.signing_bonus ? formatMoney(player.contract.signing_bonus) : "—"}
+                  </td>
                   <td className="py-1.5 pl-3 text-right tabular-nums text-mist">{player.contract?.end_year}</td>
                 </tr>
               ))}
@@ -197,6 +223,11 @@ function NegotiationDialog({ row, capSpace, onClose }: {
         <p className="text-sm text-mist">
           {player.position} · Age {player.age} · {player.overall} OVR · asking {terms(asking)} ·{" "}
           {formatMoney(capSpace)} cap space next season
+        </p>
+        <p className="text-xs text-mist">
+          Deals above the minimum include a signing bonus of 30% of their total value: the cap
+          hit stays the salary, but the bonus is guaranteed — cut him early and the rest of it
+          stays on your cap as dead money.
         </p>
         {result?.accepted ? (
           <div className="space-y-4">

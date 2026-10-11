@@ -38,3 +38,21 @@ def required_salary(position: Position, overall: int, age: int, years: int) -> i
     gap = abs(years - preferred_years(age))
     raw = market_salary(position, overall) * (1 + LENGTH_PREMIUM * gap)
     return max(MIN_SALARY, int(round(raw, -4)))
+
+
+BONUS_SHARE = 0.3  # of a deal's total value, paid up front as a (guaranteed) signing bonus
+
+
+def signing_bonus(salary: int, years: int) -> int:
+    """The bonus in a deal paying `salary` a year (its cap hit) for `years`. Minimum deals
+    carry none."""
+    if salary <= MIN_SALARY or years <= 0:
+        return 0
+    return int(round(BONUS_SHARE * salary * years, -4))
+
+
+def dead_money(bonus: int, years: int, end_year: int, cap_year: int) -> int:
+    """What releasing (or trading) a player leaves on the cap in `cap_year`: the bonus
+    proration for every season from `cap_year` to the end of his deal."""
+    remaining = max(0, min(years, end_year - cap_year + 1))
+    return int(round(bonus * remaining / years)) if years else 0
