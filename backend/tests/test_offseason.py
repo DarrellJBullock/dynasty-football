@@ -1,3 +1,4 @@
+import contextlib
 import random
 from collections import Counter
 
@@ -15,6 +16,9 @@ from app.domain.development import (
 from app.domain.positions import ROSTER_MAX
 from app.domain.ratings import ATTRIBUTES
 from app.models import DepthChartEntry, Franchise, Game, League, Player, Season
+from app.schemas import ReSignOffer
+from app.services import contracts
+from app.services.errors import RosterError
 from app.services.offseason import advance
 
 # ---------- pure rules ----------
@@ -226,19 +230,29 @@ def test_full_season_then_next_year(client: TestClient, league: League, season: 
 
 
 def test_league_talent_is_stable_across_offseasons(client: TestClient, db: Session,
-                                                    season: Season, league: League):
+                                                    season: Season, league: League,
+                                                    franchise: Franchise):
     """Retirements are balanced by development, signings, and rookies: over several years
-    team strength, roster sizes, ages, and the cap stay in range."""
+    AI team strength, roster sizes, ages, and the cap stay in range. The franchise
+    re-signs its expiring players at their asking price each offseason."""
     def summary() -> tuple[float, float]:
-        teams = client.get(f"/api/leagues/{league.id}/teams").json()
+        teams = [t for t in client.get(f"/api/leagues/{league.id}/teams").json()
+                 if t["id"] != franchise.team_id]
         assert all(t["roster_count"] == ROSTER_MAX and t["cap_space"] >= 0 for t in teams)
-        rostered = [p for p in _players(db, league) if p.team_id is not None]
+        rostered = [p for p in _players(db, league)
+                    if p.team_id not in (None, franchise.team_id)]
         return (sum(t["ratings"]["overall"] for t in teams) / len(teams),
                 sum(p.age for p in rostered) / len(rostered))
 
     start_ovr, start_age = summary()
     for _ in range(4):
-        season = advance(db, _finish(season))
+        _finish(season)
+        for player in _players(db, league):
+            if player.team_id == franchise.team_id and contracts.is_expiring(player, season):
+                terms = contracts.asking(player)
+                with contextlib.suppress(RosterError):  # no cap room left
+                    contracts.negotiate(db, player, ReSignOffer(**terms.model_dump()))
+        season = advance(db, season)
         ovr, age = summary()
         assert abs(ovr - start_ovr) < 1.5
         assert abs(age - start_age) < 2

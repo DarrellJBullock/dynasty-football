@@ -2,7 +2,10 @@ import type {
   Dashboard,
   PlayoffsOut,
   LeadersOut,
+  ContractTerms,
+  NegotiationResult,
   PlayerSeasonStats,
+  TeamContracts,
   Season,
   TeamSeasonRow,
   GameDetail,
@@ -130,6 +133,9 @@ export const api = {
   schedule: (leagueId: number, week?: number) =>
     request<ScheduleWeek>(`/leagues/${leagueId}/schedule${week ? `?week=${week}` : ""}`),
   game: (gameId: number) => request<GameDetail>(`/games/${gameId}`),
+  contracts: (teamId: number) => request<TeamContracts>(`/teams/${teamId}/contracts`),
+  reSign: (playerId: number, offer: ContractTerms) =>
+    post<NegotiationResult>(`/players/${playerId}/re-sign`, offer),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {

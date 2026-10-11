@@ -17,6 +17,7 @@ test("sidebar reaches every page", async ({ page }) => {
   const pages: [string, RegExp | string][] = [
     ["Roster", "Hartford Ironclads"],
     ["Depth Chart", "Hartford Ironclads"],
+    ["Contracts", "Contracts"],
     ["League", "Dynasty Football League"],
     ["My Leagues", "Leagues & franchises"],
     ["Dashboard", "Ironclads"],

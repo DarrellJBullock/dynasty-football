@@ -128,6 +128,23 @@ Team ratings come from that lineup:
 - Market value grows steeply with OVR (`market_salary`, `domain/contracts.py`):
   minimum $750K; QB ×1.6, premium positions (WR/OT/DE/CB) ×1.15, FB ×0.6, K/P ×0.4.
 - Payroll = sum of active contract salaries. Signings that exceed the cap are rejected.
+- Contracts signed in the offseason start the next season.
+
+### Re-signing
+
+Once the champion is crowned, the **Contracts** page opens re-signing for the
+franchise's expiring deals; it closes when the next season starts, and anyone not
+re-signed leaves in free agency.
+
+- Each expiring player has an **asking price** — his market value — at the length he
+  prefers: 4 years at 26 or younger, 3 at 27–29, 2 at 30–31, 1 after that.
+- Offer any salary for 1–5 years. Each year away from his preferred length adds 5% to
+  his price. He signs if the offer meets it; otherwise he says no and names his price
+  for that length (no penalty for asking again).
+- A deal must fit under **next season's** cap: salary already committed to next season
+  (contracts running past this one) plus the new deal. The page shows both payrolls.
+- During the season the page shows what each expiring player will ask; the dashboard
+  reminds you to re-sign once the window opens.
 
 ## Roster rules (implemented)
 
@@ -190,19 +207,21 @@ offseason in one deterministic step and the league plays on:
 - **Retirement:** from 30, rising with age (2% at 30, 28% at 34, 70% at 37; everyone by
   40). Stars hang on longer, fringe players leave sooner, and unsigned veterans are the
   likeliest to go. Retired players keep their pages and stats.
-- **Contracts (placeholder):** every team re-signs its expiring players at market value,
-  best first, while the cap allows — keeping room to fill the roster — but lets fading
-  depth veterans (30+, under 70 OVR) walk. The rest become free agents.
+- **Contracts:** the franchise keeps whoever it re-signed on the Contracts page (see
+  Re-signing); its other expiring players leave. AI teams re-sign theirs at market
+  value, best first, while the cap allows — keeping room to fill the roster — but let
+  fading depth veterans (30+, under 70 OVR) walk. Everyone else becomes a free agent.
 - **Refilling rosters (placeholder):** each spot lost is refilled at the same position,
   one round at a time across the league: the best affordable free agent (64+ OVR), or
-  else an undrafted rookie (age 21–23, ~60 OVR with upside) on a minimum deal. The
-  free-agent pool is topped back up with young players.
+  else an undrafted rookie (age 21–23, ~60 OVR with upside) on a minimum deal. A team
+  never signs back a player it just let go. The free-agent pool is topped back up with
+  young players.
 - **New season:** a fresh schedule; standings, leaders, and the bracket start over. The
   dashboard shows an **offseason recap** (re-signed, new arrivals, departures,
   biggest risers and decliners, notable retirements around the league) until week 1.
 
-Until re-signing, free agency, and the draft get their own screens, these steps happen
-automatically for every team, the user's included. Over ten simulated offseasons team
+Until free agency and the draft get their own screens, refilling happens automatically
+for every team, the user's included. Over ten simulated offseasons team
 strength, roster sizes, ages, and payrolls stay stable.
 
 ## Injuries

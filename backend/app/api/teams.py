@@ -9,9 +9,11 @@ from app.schemas import (
     PlayerDetail,
     PlayerSummary,
     SigningRequest,
+    TeamContracts,
     TeamDetail,
     TeamUpdate,
 )
+from app.services import contracts as contract_service
 from app.services import leagues as league_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
@@ -60,3 +62,9 @@ def sign_player(request: SigningRequest, team: Team = Depends(get_team),
     with roster_errors(db):
         player = roster_service.sign_player(db, team, request)
     return player_detail(player)
+
+
+@router.get("/{team_id}/contracts", response_model=TeamContracts)
+def contracts(team: Team = Depends(get_team), db: Session = Depends(get_db)):
+    """Payroll now and next season, expiring deals with asking prices, all contracts."""
+    return contract_service.contracts_view(db, team)

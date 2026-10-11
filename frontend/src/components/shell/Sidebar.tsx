@@ -17,6 +17,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Dashboard", href: "/", icon: <IconGrid /> },
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
+      { label: "Contracts", href: "/contracts", icon: <IconContract /> },
       { label: "Schedule", href: "/schedule", icon: <IconCalendar /> },
       { label: "Playoffs", href: "/playoffs", icon: <IconBracket /> },
       { label: "Stats", href: "/stats", icon: <IconChart /> },
@@ -181,6 +182,13 @@ function IconFolders() {
   return (
     <svg {...iconProps}>
       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+    </svg>
+  );
+}
+function IconContract() {
+  return (
+    <svg {...iconProps}>
+      <path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5" />
     </svg>
   );
 }

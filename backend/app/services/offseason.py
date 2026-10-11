@@ -5,14 +5,14 @@ in the new season's `offseason_log`:
 
 1. Aging and development (growth toward potential, decline past 30); injuries heal.
 2. Retirements.
-3. Expiring contracts: re-signed at market value while the cap allows (keeping room to
-   fill the roster), otherwise the player leaves for free agency. Fading depth veterans
-   aren't re-signed.
+3. Expiring contracts: AI teams re-sign at market value while the cap allows (keeping room
+   to fill the roster); fading depth veterans aren't re-signed. The franchise's players
+   re-signed during the offseason window (services/contracts.py) stay; the rest leave.
 4. Every roster spot lost is refilled at the same position with the best affordable free
    agent, or else an undrafted rookie; the free-agent pool is topped up.
 
-Steps 3-4 are automatic for every team, the user's included, until re-signing, free
-agency, and the draft get their own screens.
+Step 4 is automatic for every team, the user's included, until free agency and the
+draft get their own screens.
 5. A new season with a fresh schedule.
 """
 
@@ -28,7 +28,7 @@ from app.domain.contracts import MIN_SALARY, market_salary
 from app.domain.development import contract_years, develop, retirement_chance
 from app.domain.positions import ROSTER_MAX, ROSTER_TEMPLATE, Position, available_jersey
 from app.domain.ratings import clamp_rating
-from app.models import Contract, Player, Season, Team
+from app.models import Contract, Franchise, Player, Season, Team
 from app.seed.generator import (
     FREE_AGENT_COUNT,
     _development_trait,
@@ -117,7 +117,11 @@ def advance(db: Session, season: Season) -> Season:
         if player.team_id is not None:
             rosters[player.team_id].append(player)
     payrolls: dict[int, int] = {}
+    departed_from: dict[int, int] = {}  # a team doesn't sign back who it just let go
     cap = league.salary_cap
+    # The franchise decides its own re-signings (services/contracts.py); whoever it
+    # didn't re-sign leaves.
+    user_team = db.scalar(select(Franchise.team_id).where(Franchise.league_id == league.id))
     for team in teams:
         roster = rosters[team.id]
         expiring = [p for p in roster if p.active_contract.end_year <= season.year]
@@ -128,7 +132,8 @@ def advance(db: Session, season: Season) -> Season:
             salary = market_salary(Position(player.position), player.overall)
             # Keep enough room to fill the rest of the roster.
             reserve = max(0, ROSTER_MAX - committed - 1) * ROSTER_SPOT_RESERVE
-            worth_keeping = player.age < VETERAN_KEEP[0] or player.overall >= VETERAN_KEEP[1]
+            worth_keeping = team.id != user_team and (
+                player.age < VETERAN_KEEP[0] or player.overall >= VETERAN_KEEP[1])
             if worth_keeping and payroll + salary + reserve <= cap:
                 years = contract_years(rng, player.age)
                 _sign(player, team, year, salary, years)
@@ -138,6 +143,7 @@ def advance(db: Session, season: Season) -> Season:
                                          "salary": salary, "years": years})
             else:
                 log["departed"].append({"player": player.id, "team": team.id})
+                departed_from[player.id] = team.id
                 lost[team.id].append(player.position)
                 _leave_team(db, player)
                 roster.remove(player)
@@ -161,6 +167,7 @@ def advance(db: Session, season: Season) -> Season:
             reserve = (ROSTER_MAX - len(roster) - 1) * ROSTER_SPOT_RESERVE
             budget = cap - payrolls[team.id] - reserve
             signing = next((p for p in pool[position] if p.overall >= FREE_AGENT_FLOOR
+                            and departed_from.get(p.id) != team.id
                             and market_salary(Position(position), p.overall) <= budget), None)
             taken = {p.jersey_number for p in roster}
             if signing is not None:

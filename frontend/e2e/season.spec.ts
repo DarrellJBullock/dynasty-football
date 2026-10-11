@@ -80,6 +80,18 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   await expect(page.getByText(/Championship · Neutral site/)).toBeVisible();
   await expect(page.getByRole("link", { name: "← Playoff bracket" })).toBeVisible();
 
+  // Re-sign an expiring player before the rollover.
+  await navigate(page, "Contracts");
+  await expect(page.getByText(/Re-signing is open/)).toBeVisible();
+  const expiring = page.getByRole("region", { name: "Expiring contracts" });
+  const firstRow = expiring.getByRole("row").nth(1);
+  await firstRow.getByRole("button", { name: /^Negotiate with / }).click();
+  const dialog = page.getByRole("dialog", { name: /^Re-sign / });
+  await dialog.getByRole("button", { name: /^Offer / }).click(); // asking price, preferred length
+  await expect(dialog.getByRole("status")).toContainText("signs for");
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(firstRow).toContainText("Re-signed");
+
   // The offseason rolls the league into next year.
   await navigate(page, "Dashboard");
   const overview = page.getByRole("region", { name: "Franchise overview" });
