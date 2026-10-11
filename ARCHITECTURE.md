@@ -208,7 +208,7 @@ Interactive docs: `http://localhost:8000/docs`.
   the game (`/api/games/{id}/playback`) and every play is choreographed in the browser
   (~20 ms a game), so stepping and scrubbing are instant.
   `components/coach/CoachView.tsx` is Coach Mode's call screen (`/games/[id]/coach`;
-  `/coach` redirects to the franchise's next game): each call posts to the coach API,
+  `/coach` renders the franchise's next game the same way): each call posts to the coach API,
   then reloads the game's playback (which, for a game in progress, is the replay so far)
   and `PlayReel` plays the new plays in 3D.
 

@@ -5,7 +5,7 @@ test("coaches the franchise's game: calls plays, hands the rest to the AI, lands
   test.slow();
   await page.goto("/");
   await navigate(page, "Play Game");
-  await expect(page).toHaveURL(/\/games\/\d+\/coach$/);
+  await expect(page).toHaveURL(/\/coach$/);
   await page.getByRole("button", { name: "Start coaching" }).click();
 
   const call = page.getByRole("region", { name: "Your call" });

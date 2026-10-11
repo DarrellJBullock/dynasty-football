@@ -97,6 +97,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   field to `PlayerLine`/`TeamLine` → add the column + a migration.
 - **Dialogs must portal** to `document.body` (see `components/ui/Dialog.tsx`); any
   ancestor with `backdrop-filter` (every `.panel`) otherwise traps the fixed overlay.
+- **Don't `redirect()` to a destination that depends on game state** (e.g. "the next
+  game"): the client router remembers the redirect and keeps following it after the state
+  changes. Render the destination on the route instead (see `src/app/coach/page.tsx`).
 - **After creating/switching a franchise use `hardNavigate("/")`**, not `router.push` —
   the client router cache can serve pages from the previous franchise.
 - **Three.js** components must be client-only: load via `next/dynamic` with

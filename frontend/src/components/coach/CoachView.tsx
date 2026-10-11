@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { choreographGame } from "@/components/field/playback/choreograph";
 import { TeamCrest } from "@/components/ui/TeamCrest";
@@ -52,7 +51,6 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
   initialState: CoachState | null;
   initialPlayback: GamePlayback | null;
 }) {
-  const router = useRouter();
   const [state, setState] = useState(initialState);
   const [playback, setPlayback] = useState(initialPlayback);
   const [reel, setReel] = useState({ key: 0, from: 0 });
@@ -82,8 +80,6 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
       setPkg("auto");
       setTimeoutCall(false);
       setConfirmFinish(false);
-      // A finished game changes the schedule, standings and what Play Game opens.
-      if (next.status === "final") router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {

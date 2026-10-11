@@ -6,8 +6,6 @@ import type { CoachSituation, CoachState, Playbook, PlayOut } from "@/lib/types"
 import { makePlay, makePlayback, opponent, team } from "@/test/fixtures";
 import { CoachView } from "./CoachView";
 
-const router = { refresh: vi.fn(), push: vi.fn() };
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
 // The WebGL scene can't run in jsdom.
 vi.mock("next/dynamic", () => ({ default: () => function Scene() { return <div data-testid="scene" />; } }));
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -75,7 +73,6 @@ function renderView(initial: CoachState | null = state()) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  router.refresh = vi.fn();
   mocked.playback.mockResolvedValue(playback);
 });
 
@@ -159,7 +156,6 @@ describe("CoachView", () => {
     expect(final).toHaveTextContent("You won, 27–20");
     expect(within(final).getByRole("link", { name: "Box score" })).toHaveAttribute("href", "/games/7");
     expect(screen.getByTestId("coach-score-home")).toHaveTextContent("27");
-    expect(router.refresh).toHaveBeenCalled(); // pages showing the schedule are stale now
   });
 
   it("shows why a call failed", async () => {
