@@ -21,7 +21,7 @@ from app.schemas import (
     ImportSummary,
 )
 from app.services.errors import RosterError
-from app.services.roster import new_player, release_player, season_year
+from app.services.roster import contract_start_year, new_player, release_player
 from app.services.teams import load_roster, payroll
 
 
@@ -131,7 +131,7 @@ def commit(db: Session, team: Team, plan: ImportPlan, skip_invalid: bool) -> tup
             release_player(db, player)
             released += 1
 
-    year = season_year(db, team)
+    year = contract_start_year(db, team)
     for row in valid:
         assert row.position is not None and row.salary is not None
         db.add(new_player(

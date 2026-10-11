@@ -584,3 +584,39 @@ class Dashboard(BaseModel):
     alerts: list[Alert]
     injury_report: list[PlayerSummary] = []
     offseason: OffseasonRecap | None = None  # shown until the first game of the season
+
+
+# ---------- contracts ----------
+
+
+class ContractTerms(BaseModel):
+    salary: int
+    years: int
+
+
+class ExpiringContract(BaseModel):
+    player: PlayerSummary
+    asking: ContractTerms  # at the length he prefers
+    re_signed: ContractOut | None  # the new deal, once he has signed one
+
+
+class TeamContracts(BaseModel):
+    season: SeasonOut
+    window_open: bool  # re-signing is open (the season is over)
+    salary_cap: int
+    payroll: int  # active contracts now
+    next_year_payroll: int  # already committed to next season
+    expiring: list[ExpiringContract]
+    players: list[PlayerSummary]  # everyone under contract, highest salary first
+
+
+class ReSignOffer(BaseModel):
+    salary: int = Field(ge=750_000, le=100_000_000)
+    years: int = Field(ge=1, le=5)
+
+
+class NegotiationResult(BaseModel):
+    accepted: bool
+    message: str
+    counter: ContractTerms | None  # his price for the offered length, if he said no
+    player: PlayerSummary

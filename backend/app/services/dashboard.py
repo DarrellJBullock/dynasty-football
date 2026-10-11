@@ -64,7 +64,7 @@ def _position_groups(roster: list[Player],
 
 def _alerts(roster: list[Player], cap_space: int, expiring: int,
             groups: list[PositionGroupSummary],
-            lineup: dict[Position, list[Player]]) -> list[Alert]:
+            lineup: dict[Position, list[Player]], offseason: bool = False) -> list[Alert]:
     alerts: list[Alert] = []
     missing = unfilled_slots(lineup)
     if missing and sum(missing.values()) == sum(STARTERS.values()):
@@ -90,7 +90,12 @@ def _alerts(roster: list[Player], cap_space: int, expiring: int,
     if injured:
         alerts.append(Alert(level="warning",
                             message=f"{len(injured)} player(s) on the injury report."))
-    if expiring:
+    if expiring and offseason:
+        alerts.append(Alert(level="warning",
+                            message=f"{expiring} expiring contract(s): re-sign them on the "
+                                    "Contracts page or they leave when the next season "
+                                    "starts."))
+    elif expiring:
         alerts.append(Alert(level="info",
                             message=f"{expiring} contract(s) expire after this season."))
     weakest = min((g for g in groups if g.starter_overall), key=lambda g: g.starter_overall,
@@ -142,7 +147,8 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
         top_players=[player_summary(p) for p in roster[:TOP_PLAYERS]],
         position_groups=groups,
         expiring_contracts=expiring,
-        alerts=_alerts(roster, detail.cap_space, expiring, groups, lineup),
+        alerts=_alerts(roster, detail.cap_space, expiring, groups, lineup,
+                       offseason=season.phase == "offseason"),
         injury_report=[player_summary(p) for p in sorted(
             (p for p in roster if p.injury_status != "healthy"),
             key=lambda p: (-p.injury_weeks, -p.overall, p.id))],

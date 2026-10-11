@@ -463,3 +463,31 @@ export interface PlayoffsOut {
   rounds: PlayoffRound[];
   champion: TeamSummary | null;
 }
+
+export interface ContractTerms {
+  salary: number;
+  years: number;
+}
+
+export interface ExpiringContract {
+  player: PlayerSummary;
+  asking: ContractTerms; // at the length he prefers
+  re_signed: Contract | null; // the new deal, once he has signed one
+}
+
+export interface TeamContracts {
+  season: Season;
+  window_open: boolean; // re-signing is open (the season is over)
+  salary_cap: number;
+  payroll: number;
+  next_year_payroll: number;
+  expiring: ExpiringContract[];
+  players: PlayerSummary[]; // everyone under contract, highest salary first
+}
+
+export interface NegotiationResult {
+  accepted: boolean;
+  message: string;
+  counter: ContractTerms | null;
+  player: PlayerSummary;
+}

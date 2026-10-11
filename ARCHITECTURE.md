@@ -93,6 +93,8 @@ Design notes:
 | `PATCH /api/teams/{id}` | Edit team identity (city, nickname, abbreviation, colors, stadium) |
 | `POST /api/seasons/{id}/simulate` `{until: next_week \| end_of_regular_season \| end_of_playoffs}` | Play a week (or playoff round) or the rest of a phase; persist scores, stats, play logs; seeds and schedules playoff rounds |
 | `POST /api/seasons/{id}/advance` | After the champion: run the offseason (aging, development, retirements, contracts, rookies) and create the next season |
+| `GET /api/teams/{id}/contracts` | Payroll now and committed to next season, expiring deals with asking prices (and new deals once re-signed), every contract |
+| `POST /api/players/{id}/re-sign` `{salary, years}` | Offseason only: offer an expiring player a new deal; returns accepted, or his price for that length |
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
 | `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play, injuries |
@@ -125,7 +127,7 @@ Interactive docs: `http://localhost:8000/docs`.
 
 - **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
   `/leagues` (saved franchises), `/leagues/new` (league builder), `/schedule?week=`,
-  `/games/[id]`, `/playoffs`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
+  `/games/[id]`, `/playoffs`, `/contracts`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
   active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
@@ -171,6 +173,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Playoffs | pytest | seed counts, pairing and reseeding, round names, each tiebreaker, division winners seeded first; full bracket to a neutral-site champion, offseason 409s, playoff games excluded from standings and stats, projected bracket, small one-conference leagues |
 | Offseason | pytest | growth/decline/retirement curves, contract lengths; rollover creates the next season and schedule, ages players, retires and refills (full rosters, under the cap, one active contract each), determinism, retired players leave free agency, dashboard recap, a full season → next season through the API, multi-year stability |
 | Injuries | pytest | contact and toughness odds, injury table ranges, injured players sit for the rest of the game, play outcomes unchanged before the first injury, determinism, status mapping, weekly countdown (hand-set statuses untouched), lineups skip the injured, dashboard report, game-page list, manual healing, offseason healing |
+| Contracts | pytest | preferred lengths, length premiums, overview and payrolls, window timing, counter-offers and deals, already-signed / not-expiring / over-the-cap / free-agent rejections, rollover keeps re-signed players and lets the rest go (AI still re-signs), offseason signings start next season, dashboard reminder |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

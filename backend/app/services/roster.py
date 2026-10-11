@@ -15,11 +15,13 @@ from app.services.teams import current_season, load_roster, payroll
 DEFAULT_RATING = 50
 
 
-def season_year(db: Session, team: Team) -> int:
+def contract_start_year(db: Session, team: Team) -> int:
+    """The season new contracts start in: the current one, or next season once this one
+    is over (offseason signings shouldn't expire at the rollover)."""
     season = current_season(db, team.league_id)
     if season is None:
         raise RosterError("league has no active season", 400)
-    return season.year
+    return season.year + 1 if season.phase == "offseason" else season.year
 
 
 def _check_roster_space(roster: list[Player]) -> None:
@@ -55,7 +57,7 @@ def create_player(db: Session, team: Team, payload: PlayerCreate) -> Player:
 
     player = new_player(
         team,
-        season_year=season_year(db, team),
+        season_year=contract_start_year(db, team),
         ratings=ratings,
         salary=salary,
         contract_years=payload.contract_years,
@@ -146,7 +148,7 @@ def sign_player(db: Session, team: Team, request: SigningRequest) -> Player:
     if player.jersey_number in taken:
         player.jersey_number = available_jersey(player.position, taken)
     player.team_id = team.id
-    player.contracts.append(Contract(team_id=team.id, start_year=season_year(db, team),
+    player.contracts.append(Contract(team_id=team.id, start_year=contract_start_year(db, team),
                                      years=request.years, salary=salary))
     db.flush()
     return player
