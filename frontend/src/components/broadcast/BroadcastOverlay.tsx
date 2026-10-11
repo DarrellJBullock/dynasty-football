@@ -6,6 +6,8 @@ import { luminance } from "@/components/field/players/kit";
 import { bannerAt, bannersFor, downText, formatClock, gameClockAt, playClockAt, scoreAt,
          type BannerTone } from "@/lib/broadcast";
 import { formatSpot } from "@/lib/games";
+import { breakAfter, driveEndingAt, statLowerThird, statsThrough, type DriveSummary,
+         type TeamLine } from "@/lib/gameStats";
 import type { GamePlayback, TeamSummary } from "@/lib/types";
 
 const BANNER_STYLES: Record<BannerTone, string> = {
@@ -34,6 +36,17 @@ export function BroadcastOverlay({ playback, index, timeline, time, replay = fal
 }) {
   const play = playback.plays[index];
   const banners = useMemo(() => (play ? bannersFor(play, timeline) : []), [play, timeline]);
+  const graphics = useMemo(() => {
+    const roster = new Map(playback.players.map((p) => [p.id, p]));
+    const plays = playback.plays;
+    const shown = breakAfter(plays, index);
+    return {
+      lower: statLowerThird(plays, index, roster),
+      drive: driveEndingAt(plays, index),
+      break: shown,
+      teams: shown ? statsThrough(plays, index).teams : null,
+    };
+  }, [index, playback]);
   if (!play) return null;
   const previous = playback.plays[index - 1];
   const { home, away } = playback.game;
@@ -41,6 +54,9 @@ export function BroadcastOverlay({ playback, index, timeline, time, replay = fal
   const clock = gameClockAt(play, timeline, replay ? timeline.duration : time);
   const playClock = replay ? null : playClockAt(play, time);
   const banner = replay ? null : bannerAt(banners, time);
+  // After the whistle: the key player's stat line, how the drive went, the half or the game.
+  const whistle = timeline.moments.find((m) => m.kind === "whistle")?.t ?? timeline.duration;
+  const after = !replay && time >= whistle + 0.3;
   const [offense, defense] = play.side === "home" ? [home, away] : [away, home];
   const down = downText(play);
   const spot = play.ball_on != null && play.down != null
@@ -53,6 +69,23 @@ export function BroadcastOverlay({ playback, index, timeline, time, replay = fal
           className={`pointer-events-none absolute left-1/2 top-[14%] -translate-x-1/2 animate-[banner_0.25s_ease-out] rounded-md px-5 py-1.5 font-display text-xl font-bold uppercase tracking-widest shadow-lg sm:text-2xl ${BANNER_STYLES[banner.tone]}`}>
           {banner.text}
         </div>
+      )}
+      {after && graphics.lower && (
+        <div role="note" aria-label="Player stats" data-testid="lower-third"
+          className="pointer-events-none absolute bottom-14 left-3 animate-[lower_0.3s_ease-out] overflow-hidden rounded-md shadow-lg ring-1 ring-black/40">
+          <div className="bg-ink-950/90 px-3 py-1 font-display text-sm font-bold uppercase tracking-wide text-chalk">
+            {graphics.lower.player && <span className="mr-1.5 text-gold">#{graphics.lower.player.number}</span>}
+            {graphics.lower.player?.short_name ?? "Stand-in"}
+            {graphics.lower.player && <span className="ml-1.5 text-xs text-mist">{graphics.lower.player.position}</span>}
+          </div>
+          <div className="bg-gold px-3 py-0.5 text-xs font-semibold text-ink-950">{graphics.lower.line}</div>
+        </div>
+      )}
+      {after && graphics.drive && !graphics.break && (
+        <DriveCard drive={graphics.drive} team={graphics.drive.side === "home" ? home : away} />
+      )}
+      {after && graphics.break && graphics.teams && (
+        <BreakCard kind={graphics.break} home={home} away={away} score={play.score} teams={graphics.teams} />
       )}
       <div role="group" aria-label="Score bug"
         className="pointer-events-none absolute inset-x-2 bottom-2 flex items-stretch overflow-hidden whitespace-nowrap rounded-md text-sm shadow-lg ring-1 ring-black/40 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2">
@@ -121,5 +154,62 @@ export function ReplayBadge({ onSkip }: { onSkip: () => void }) {
         </button>
       </div>
     </>
+  );
+}
+
+function DriveCard({ drive, team }: { drive: DriveSummary; team: TeamSummary }) {
+  return (
+    <div role="note" aria-label="Drive summary" data-testid="drive-summary"
+      className="pointer-events-none absolute bottom-14 right-3 animate-[lower_0.3s_ease-out] rounded-md bg-ink-950/90 px-3 py-1.5 text-xs shadow-lg ring-1 ring-white/10">
+      <div className="font-display text-[11px] font-semibold uppercase tracking-widest text-mist">
+        {team.abbreviation} drive
+      </div>
+      <div className="tabular-nums text-chalk">
+        {drive.plays} plays · {drive.yards} yds · {formatClock(drive.seconds)} ·{" "}
+        <span className="font-semibold text-gold">{drive.result}</span>
+      </div>
+    </div>
+  );
+}
+
+const ROWS: [string, (t: TeamLine) => string][] = [
+  ["Total yards", (t) => String(t.total_yds)],
+  ["Passing", (t) => String(t.pass_yds)],
+  ["Rushing", (t) => String(t.rush_yds)],
+  ["First downs", (t) => String(t.first_downs)],
+  ["3rd down", (t) => `${t.third_down_conv}/${t.third_down_att}`],
+  ["Turnovers", (t) => String(t.turnovers)],
+  ["Possession", (t) => formatClock(t.time_of_possession)],
+];
+
+function BreakCard({ kind, home, away, score, teams }: {
+  kind: "halftime" | "final"; home: TeamSummary; away: TeamSummary; score: { home: number; away: number };
+  teams: Record<"home" | "away", TeamLine>;
+}) {
+  return (
+    <div role="note" aria-label={kind === "final" ? "Final stats" : "Halftime stats"} data-testid="break-card"
+      className="pointer-events-none absolute left-1/2 top-1/2 w-72 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg bg-ink-950/92 text-sm shadow-2xl ring-1 ring-white/10">
+      <div className="bg-gold py-1 text-center font-display text-sm font-bold uppercase tracking-[0.2em] text-ink-950">
+        {kind === "final" ? "Final" : "Halftime"}
+      </div>
+      <table className="w-full tabular-nums">
+        <thead>
+          <tr className="font-display text-xs uppercase">
+            <th className="w-1/3 py-1.5" style={{ color: away.primary_color }}>{away.abbreviation} {score.away}</th>
+            <th className="w-1/3" />
+            <th className="w-1/3 py-1.5" style={{ color: home.primary_color }}>{home.abbreviation} {score.home}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ROWS.map(([label, value]) => (
+            <tr key={label} className="border-t border-white/5">
+              <td className="py-1 text-center">{value(teams.away)}</td>
+              <td className="py-1 text-center text-[11px] uppercase tracking-wider text-mist">{label}</td>
+              <td className="py-1 text-center">{value(teams.home)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

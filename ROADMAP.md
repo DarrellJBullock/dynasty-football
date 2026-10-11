@@ -108,7 +108,9 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Score bug and banners (team colors, scores, timeouts, possession, a running game
       clock and the play clock, down and distance; FIRST DOWN, TOUCHDOWN, SACK, FLAG and
       kick banners) on the Watch page and Coach Mode — design: `docs/design/broadcast.md`
-- [ ] Stat overlays (player stat lines, drive summaries, halftime and final cards)
+- [x] Stat overlays (the key player's game stat line after notable plays, drive summaries
+      when possession changes, halftime and final team stat cards; worked out in the
+      browser from the play events, matching the box score)
 
 ## M7 — Platform
 

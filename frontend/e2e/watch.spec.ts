@@ -16,6 +16,11 @@ test("watches a play in 3D from the play-by-play, then steps through the game", 
   const viewer = page.getByRole("region", { name: "Play viewer" });
   await expect(viewer.locator("canvas")).toBeVisible();
   await expect(viewer.getByText(/^Play 2 of \d+ · \w+ 1st & 10 at /)).toBeVisible();
+  // The broadcast score bug, with the clock and the down.
+  const bug = viewer.getByRole("group", { name: "Score bug" });
+  await expect(bug).toBeVisible();
+  await expect(bug.getByTestId("down")).toHaveText("1st & 10");
+  await expect(bug.getByTestId("game-clock")).toHaveText(/^\d+:\d\d$/);
 
   // It plays on its own: the playhead moves, then pausing and scrubbing take over.
   const scrubber = viewer.getByRole("slider", { name: "Play timeline" });
