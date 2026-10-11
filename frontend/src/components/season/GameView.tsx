@@ -90,9 +90,14 @@ export function GameView({ detail }: { detail: GameDetail }) {
             </Panel>
           )}
           <Panel title="Play-by-play" action={
-            <Link href={`/games/${game.id}/watch`} className="btn btn-primary px-3 py-1 text-xs">
-              Watch in 3D
-            </Link>
+            <div className="flex gap-2">
+              <Link href={`/games/${game.id}/watch?highlights=1&auto=1`} className="btn btn-ghost px-3 py-1 text-xs">
+                Highlights
+              </Link>
+              <Link href={`/games/${game.id}/watch?auto=1`} className="btn btn-primary px-3 py-1 text-xs">
+                Watch in 3D
+              </Link>
+            </div>
           }>
             <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} />
           </Panel>

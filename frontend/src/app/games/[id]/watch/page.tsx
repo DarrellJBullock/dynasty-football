@@ -24,8 +24,9 @@ export default function WatchPage({ params, searchParams }: PageProps<"/games/[i
 
 async function WatchContent({ params, searchParams }: PageProps<"/games/[id]/watch">) {
   const { id } = await params;
-  const { play } = await searchParams;
+  const { play, auto, highlights } = await searchParams;
   const result = await attempt(() => api.playback(Number(id)));
   if (!result.ok) return <ServerError error={result.error} />;
-  return <WatchView playback={result.data} initialPlay={Number(play) || 1} />;
+  return <WatchView playback={result.data} initialPlay={Number(play) || undefined}
+    initialAuto={auto === "1"} initialHighlights={highlights === "1"} />;
 }

@@ -1,4 +1,4 @@
-import { expect, test } from "./support/fixtures";
+import { expect, navigate, test } from "./support/fixtures";
 
 test("watches a play in 3D from the play-by-play, then steps through the game", async ({ page }) => {
   await page.goto("/");
@@ -37,4 +37,27 @@ test("watches a play in 3D from the play-by-play, then steps through the game", 
   await expect(viewer.getByText(/^Play 1 of \d+ · \w+ kicks off$/)).toBeVisible();
   await page.getByRole("link", { name: "← Box score" }).click();
   await expect(page).toHaveURL(gameUrl);
+});
+
+test("watches a game from the schedule, straight through or just the highlights", async ({ page }) => {
+  await page.goto("/");
+  const overview = page.getByRole("region", { name: "Franchise overview" });
+  await overview.getByRole("button", { name: "Sim week 1" }).click();
+  await expect(overview.getByRole("status")).toHaveText(/^Week 1: /);
+
+  await navigate(page, "Schedule");
+  await page.getByRole("navigation", { name: "Weeks" }).getByRole("link", { name: "Wk 1", exact: true }).click();
+  const week = page.getByRole("region", { name: "Week 1 games" });
+  await week.getByRole("link", { name: /^Watch / }).first().click();
+  await expect(page).toHaveURL(/\/games\/\d+\/watch\?play=1&auto=1$/);
+  const viewer = page.getByRole("region", { name: "Play viewer" });
+  await expect(viewer.getByRole("checkbox", { name: "Play straight through" })).toBeChecked();
+
+  await viewer.getByRole("checkbox", { name: /^Highlights only \(\d+\)$/ }).check();
+  await expect(viewer.getByText(/^Highlight 1 of \d+ · Play \d+ of /)).toBeVisible();
+  await expect(page).toHaveURL(/highlights=1/);
+  const list = page.getByRole("complementary", { name: "Plays" });
+  await expect(list.getByRole("heading", { name: "Highlights" })).toBeVisible();
+  await viewer.getByRole("button", { name: "Next play ›" }).click();
+  await expect(viewer.getByText(/^Highlight 2 of \d+/)).toBeVisible();
 });

@@ -93,7 +93,9 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Coach Mode UI (Play Game in the sidebar and Coach this game on the Dashboard; the
       call screen with the score bug, situation, playbook tabs, the AI's pick, personnel,
       timeouts and "let the AI call"; each call's plays in 3D, skippable; the final)
-- [ ] Watch Mode
+- [x] Watch Mode (Watch on every played game in the Schedule; the Watch page plays a game
+      straight through, or just its highlights: scores, turnovers, 20-yard plays, missed
+      kicks)
 
 ## M6 — Broadcast presentation
 

@@ -48,7 +48,9 @@ export function ScheduleView({ schedule, teamId }: { schedule: ScheduleWeek; tea
         <ul className="grid gap-3 md:grid-cols-2">
           {[...mine, ...others].map((game) => (
             <li key={game.id}>
-              <GameCard game={game} highlight={mine.includes(game)} />
+              <GameCard game={game} highlight={mine.includes(game)}
+                coachable={mine.includes(game) && game.status !== "final" && week === season.current_week
+                  && ["preseason", "regular_season", "playoffs"].includes(season.phase)} />
             </li>
           ))}
         </ul>
@@ -57,16 +59,17 @@ export function ScheduleView({ schedule, teamId }: { schedule: ScheduleWeek; tea
   );
 }
 
-function GameCard({ game, highlight }: { game: Game; highlight: boolean }) {
+/** A game: the card opens the box score; final games can be watched, and the franchise's
+ * game this week can be coached. (Separate links, so none is nested in another.) */
+function GameCard({ game, highlight, coachable }: { game: Game; highlight: boolean; coachable: boolean }) {
   const final = game.status === "final";
   const awayWon = final && game.away_score! > game.home_score!;
   const homeWon = final && game.home_score! > game.away_score!;
+  const matchup = `${game.away.full_name} at ${game.home.full_name}`;
   return (
-    <Link
-      href={`/games/${game.id}`}
-      aria-label={`${game.away.full_name} at ${game.home.full_name}`}
-      className={`panel flex items-center gap-4 px-4 py-3 hover:border-white/15 ${highlight ? "ring-1 ring-gold/40" : ""}`}
-    >
+    <div className={`panel relative flex items-center gap-4 px-4 py-3 hover:border-white/15 ${highlight ? "ring-1 ring-gold/40" : ""}`}>
+      <Link href={`/games/${game.id}`} aria-label={matchup}
+        className="absolute inset-0 rounded-[inherit] focus-visible:outline-2 focus-visible:outline-gold" />
       <div className="min-w-0 flex-1 space-y-1.5">
         {[
           { team: game.away, score: game.away_score, won: awayWon },
@@ -81,9 +84,23 @@ function GameCard({ game, highlight }: { game: Game; highlight: boolean }) {
           </div>
         ))}
       </div>
-      <span className="w-14 text-right text-xs uppercase tracking-wider text-mist">
-        {final ? (game.overtime ? "Final/OT" : "Final") : "Upcoming"}
-      </span>
-    </Link>
+      <div className="flex w-16 flex-col items-end gap-1 text-right">
+        <span className="text-xs uppercase tracking-wider text-mist">
+          {final ? (game.overtime ? "Final/OT" : "Final") : "Upcoming"}
+        </span>
+        {final && (
+          <Link href={`/games/${game.id}/watch?auto=1`} aria-label={`Watch ${matchup}`}
+            className="relative text-xs font-semibold text-gold hover:underline">
+            Watch
+          </Link>
+        )}
+        {coachable && (
+          <Link href="/coach" aria-label={`Coach ${matchup}`}
+            className="relative text-xs font-semibold text-gold hover:underline">
+            Coach
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
