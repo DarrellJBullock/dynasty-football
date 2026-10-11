@@ -24,6 +24,7 @@ MENTAL = ("awareness", "play_recognition")
 RETIREMENT_BY_AGE = {30: 0.02, 31: 0.05, 32: 0.10, 33: 0.18, 34: 0.28, 35: 0.40,
                      36: 0.55, 37: 0.70, 38: 0.80, 39: 0.90}
 MANDATORY_RETIREMENT_AGE = 40
+FRINGE_OVR, FRINGE_EXIT = 66, 0.5  # unsigned players below this OVR leave football at this rate
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,8 @@ def retirement_chance(position: str, age: int, overall: int, signed: bool) -> fl
         chance *= 1.5
     if not signed and age >= DECLINE_START:
         chance = chance * 2 + 0.1  # unsigned veterans move on
+    if not signed and overall < FRINGE_OVR:
+        chance = max(chance, FRINGE_EXIT)  # so do fringe free agents of any age
     return min(1.0, chance)
 
 

@@ -19,6 +19,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
       { label: "Contracts", href: "/contracts", icon: <IconContract /> },
       { label: "Free Agency", href: "/free-agency", icon: <IconSign /> },
+      { label: "Draft", href: "/draft", icon: <IconDraft /> },
       { label: "Schedule", href: "/schedule", icon: <IconCalendar /> },
       { label: "Playoffs", href: "/playoffs", icon: <IconBracket /> },
       { label: "Stats", href: "/stats", icon: <IconChart /> },
@@ -29,7 +30,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
   {
     heading: "Coming soon",
     items: [
-      { label: "Draft & Trades", icon: <IconSwap /> },
+      { label: "Trades", icon: <IconSwap /> },
       { label: "Play Game", icon: <IconPlay /> },
     ],
   },
@@ -183,6 +184,13 @@ function IconFolders() {
   return (
     <svg {...iconProps}>
       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+    </svg>
+  );
+}
+function IconDraft() {
+  return (
+    <svg {...iconProps}>
+      <path d="M4 4h16v4H4z M4 10h16v4H4z M4 16h10v4H4z" />
     </svg>
   );
 }

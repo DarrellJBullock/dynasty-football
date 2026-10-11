@@ -14,6 +14,7 @@ from app.schemas import (
     TeamUpdate,
 )
 from app.services import contracts as contract_service
+from app.services import draft as draft_service
 from app.services import leagues as league_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
@@ -68,3 +69,11 @@ def sign_player(request: SigningRequest, team: Team = Depends(get_team),
 def contracts(team: Team = Depends(get_team), db: Session = Depends(get_db)):
     """Payroll now and next season, expiring deals with asking prices, all contracts."""
     return contract_service.contracts_view(db, team)
+
+
+@router.post("/{team_id}/cut-down", response_model=list[PlayerSummary])
+def cut_down(team: Team = Depends(get_team), db: Session = Depends(get_db)):
+    """Release the lowest-rated players until the roster is at the 53-man limit."""
+    with roster_errors(db):
+        released = draft_service.cut_down(db, team)
+    return [player_summary(p) for p in released]

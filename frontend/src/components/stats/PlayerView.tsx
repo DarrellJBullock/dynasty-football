@@ -24,6 +24,9 @@ export function PlayerView({ player, stats }: { player: PlayerDetail; stats: Pla
               ? `Retired after ${player.retired_year}`
               : <>{player.years_pro ? `${player.years_pro} yr pro` : "Rookie"} · {injuryDetail(player)}</>}
             {player.contract && <> · {formatMoney(player.contract.salary)}/yr through {player.contract.end_year}</>}
+            {player.draft_pick
+              ? <> · Drafted {player.draft_year}, round {player.draft_round}, pick {player.draft_pick}</>
+              : player.draft_year && <> · Undrafted ({player.draft_year})</>}
           </p>
         </div>
         <div className="flex items-center gap-4">

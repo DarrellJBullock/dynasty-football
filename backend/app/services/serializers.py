@@ -74,6 +74,9 @@ def _player_fields(player: Player) -> dict:
         injury=player.injury,
         injury_weeks=player.injury_weeks,
         retired_year=player.retired_year,
+        draft_year=player.draft_year,
+        draft_round=player.draft_round,
+        draft_pick=player.draft_pick,
         contract=contract_out(player.active_contract),
         key_ratings={name: ratings[name] for name in key_attributes(player.position)},
     )

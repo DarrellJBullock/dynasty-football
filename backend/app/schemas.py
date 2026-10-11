@@ -88,6 +88,9 @@ class PlayerSummary(BaseModel):
     injury: str | None = None  # from a simulated game
     injury_weeks: int = 0  # games still to miss (99: rest of the season)
     retired_year: int | None = None
+    draft_year: int | None = None
+    draft_round: int | None = None
+    draft_pick: int | None = None  # overall pick
     contract: ContractOut | None
     key_ratings: dict[str, int]
 
@@ -566,7 +569,7 @@ class OffseasonRecap(BaseModel):
     departed: list[PlayerSummary]  # contract expired and no cap room to re-sign
     re_signed: list[RecapSigning]
     signed: list[RecapSigning]  # free agents who filled open spots
-    rookies: list[PlayerSummary]
+    rookies: list[PlayerSummary]  # draft picks (by pick), then undrafted free agents
     risers: list[RecapMove]
     decliners: list[RecapMove]
     league_retirements: list[RecapRetirement]
@@ -662,3 +665,59 @@ class FreeAgencyResult(BaseModel):
     season: SeasonOut
     signings: list[MarketSigning]
     mine: list[MarketSigning]
+
+
+# ---------- draft ----------
+
+
+class ProspectRow(BaseModel):
+    """A draft prospect as the franchise sees him: a projection until scouted."""
+    id: int
+    full_name: str
+    position: Position
+    age: int
+    college: str
+    height_in: int
+    weight_lb: int
+    projected: int  # projected OVR (exact once scouted)
+    low: int
+    high: int
+    grade: str  # potential grade, A+ to D
+    scouted: bool
+    overall: int | None  # true values, once scouted
+    potential: int | None
+
+
+class DraftPickOut(BaseModel):
+    round: int
+    number: int  # overall
+    pick_in_round: int
+    team: TeamSummary
+    player: PlayerSummary | None
+
+
+class DraftOut(BaseModel):
+    season: SeasonOut
+    year: int  # the class
+    status: Literal["upcoming", "live", "complete"]
+    picks: list[DraftPickOut]
+    on_the_clock: int | None
+    my_team_id: int | None
+    my_next_pick: int | None
+    prospects: list[ProspectRow]  # still available, best projection first
+    scouting_left: int
+    roster_count: int
+    roster_max: int
+
+
+class DraftPickRequest(BaseModel):
+    player_id: int
+
+
+class DraftRequest(BaseModel):
+    until: Literal["my_pick", "end"] = "my_pick"
+
+
+class DraftResult(BaseModel):
+    season: SeasonOut
+    picks: list[DraftPickOut]

@@ -59,11 +59,12 @@ players.team_id NULL  = free agent
 | `leagues` | name, abbreviation, salary_cap |
 | `conferences`, `divisions` | name (+ abbreviation) |
 | `teams` | city, nickname, abbreviation (unique per league), primary/secondary colour, stadium |
-| `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status, injury? (description), injury_weeks (games still to miss), retired_year? |
+| `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status, injury? (description), injury_weeks (games still to miss), retired_year?, is_prospect, scouted, draft_year?, draft_round?, draft_pick? |
 | `player_ratings` | player_id PK + 24 attribute columns (0–99) |
 | `contracts` | player_id, team_id, start_year, years, salary, signing_bonus, is_active |
-| `seasons` | league_id, year (unique per league), phase (free_agency → preseason → regular_season → playoffs → offseason), free_agency_day, current_week, champion_team_id?, offseason_log (what the rollover into this season did; JSON) |
+| `seasons` | league_id, year (unique per league), phase (free_agency → draft → preseason → regular_season → playoffs → offseason), free_agency_day, current_week, champion_team_id?, offseason_log (what the rollover into this season did; JSON) |
 | `playoff_seeds` | season_id, conference_id, team_id, seed, division_winner; fixed when the regular season ends |
+| `draft_picks` | season_id, round, number (overall, unique per season), team_id, player_id? (set once made) |
 | `free_agent_offers` | season_id, player_id, team_id, salary, years, day, status (pending / accepted / lost / expired) |
 | `games` | season_id, week, stage (regular \| playoff), playoff_round?, neutral_site, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB) |
 | `player_game_stats` | game_id, player_id, team_id + one column per `sim.stats.PlayerLine` field |
@@ -96,7 +97,12 @@ Design notes:
 | `POST /api/seasons/{id}/advance` | After the champion: run the offseason (aging, development, retirements, contracts) and create the next season, in free agency |
 | `GET /api/leagues/{id}/free-agency` | The market: free agents with asking prices and offer counts, your offers (leading/outbid), this offseason's signings |
 | `POST /api/players/{id}/offer` `{salary, years}` / `DELETE` | Make (or replace) / withdraw the franchise's offer to a free agent |
-| `POST /api/seasons/{id}/free-agency` `{until: next_day \| end}` | Play market days; after the last, rookies fill open spots and the preseason begins |
+| `POST /api/seasons/{id}/free-agency` `{until: next_day \| end}` | Play market days; after the last, the draft opens |
+| `GET /api/leagues/{id}/draft` | The draft: order and picks, the class as scouted (projections until scouted), scouting reports left, your roster count; generates the class the first time |
+| `POST /api/players/{id}/scout` | Spend a scouting report on a prospect |
+| `POST /api/leagues/{id}/draft/pick` `{player_id}` | The franchise drafts when it's on the clock |
+| `POST /api/seasons/{id}/draft` `{until: my_pick \| end}` | AI teams pick until you're up, or finish (auto-picking for you); then undrafted free agents, cut-downs, preseason |
+| `POST /api/teams/{id}/cut-down` | Release the lowest-rated players down to 53 |
 | `GET /api/teams/{id}/contracts` | Payroll now and committed to next season, expiring deals with asking prices (and new deals once re-signed), every contract |
 | `POST /api/players/{id}/re-sign` `{salary, years}` | Offseason only: offer an expiring player a new deal; returns accepted, or his price for that length |
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
@@ -131,7 +137,7 @@ Interactive docs: `http://localhost:8000/docs`.
 
 - **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
   `/leagues` (saved franchises), `/leagues/new` (league builder), `/schedule?week=`,
-  `/games/[id]`, `/playoffs`, `/contracts`, `/free-agency`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
+  `/games/[id]`, `/playoffs`, `/contracts`, `/free-agency`, `/draft`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
   active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
@@ -179,6 +185,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Injuries | pytest | contact and toughness odds, injury table ranges, injured players sit for the rest of the game, play outcomes unchanged before the first injury, determinism, status mapping, weekly countdown (hand-set statuses untouched), lineups skip the injured, dashboard report, game-page list, manual healing, offseason healing |
 | Contracts | pytest | preferred lengths, length premiums, overview and payrolls, window timing, counter-offers and deals, already-signed / not-expiring / over-the-cap / free-agent rejections, rollover keeps re-signed players and lets the rest go (AI still re-signs), offseason signings start next season, dashboard reminder |
 | Free agency | pytest | daily demand curve, offer ranking (money, then contenders, then earliest), market opening (AI bids only for lost positions, never for the franchise), view, a premium offer wins on day 1, a lowball waits for the last day, offer rules (free agents only, cap, replace, withdraw), closed outside the market, closing fills rosters and starts the preseason, AI never re-signs its own departures, determinism, dashboard alert |
+| Draft | pytest | class quality by rank, rookie scale, potential grades, draft order (worst first, champion last, deterministic ties), stable scouting error; class generated once and hidden from free agency and signings; scouting budget and reveals; draft opens after free agency with a 7-round order; franchise picks only on the clock with slotted rookie deals; finishing (AI rosters at 53 and under the cap, undrafted become free agents, early picks better than late, franchise must cut to 53 before week 1, the finished draft stays visible); determinism; prospects skip aging; dashboard alert; recap rookies |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

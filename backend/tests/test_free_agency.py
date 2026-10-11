@@ -128,7 +128,7 @@ def test_a_lowball_waits_for_the_last_day(client: TestClient, db: Session, marke
     _play(client, market)
     assert db.get(Player, row["player"]["id"]).team_id is None
     result = _play(client, market, "end")
-    assert result["season"]["phase"] == "preseason"
+    assert result["season"]["phase"] == "draft"
     signing = next(s for s in result["mine"] if s["player"]["id"] == row["player"]["id"])
     assert signing["day"] == MARKET_DAYS
 
@@ -162,23 +162,22 @@ def test_the_market_is_closed_outside_free_agency(client: TestClient, league: Le
                        json={"until": "end"}).status_code == 409
 
 
-def test_closing_fills_rosters_and_starts_the_preseason(
+def test_closing_opens_the_draft(
         client: TestClient, db: Session, market: Season, league: League, franchise: Franchise):
     result = _play(client, market, "end")
-    assert result["season"]["phase"] == "preseason"
+    assert result["season"]["phase"] == "draft"
     assert not _pending(db, market)
     log = market.offseason_log
-    assert log["rookies"] and log["signed"]
+    assert log["signed"]
     teams = client.get(f"/api/leagues/{league.id}/teams").json()
-    assert all(t["roster_count"] == ROSTER_MAX and t["cap_space"] >= 0 for t in teams)
+    assert all(t["roster_count"] <= ROSTER_MAX and t["cap_space"] >= 0 for t in teams)
     # AI teams don't sign back players they let go.
     departed = {e["player"]: e["team"] for e in log["departed"]}
     assert all(departed.get(e["player"]) != e["team"] for e in log["signed"])
-    # The franchise made no offers: its open spots went to undrafted rookies.
     recap = client.get("/api/franchise/dashboard").json()["offseason"]
-    assert recap["rookies"] and not recap["signed"]
+    assert not recap["signed"]  # the franchise made no offers
     assert client.post(f"/api/seasons/{market.id}/simulate",
-                       json={"until": "next_week"}).status_code == 200
+                       json={"until": "next_week"}).status_code == 409
 
 
 def test_market_is_deterministic(db: Session, league: League):

@@ -15,6 +15,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -124,6 +125,12 @@ class Player(Base):
     injury: Mapped[str | None] = mapped_column(String(40))
     injury_weeks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     retired_year: Mapped[int | None] = mapped_column(Integer)  # last season played
+    # Draft: prospects are in a class (draft_year) until drafted or let go after the draft.
+    is_prospect: Mapped[bool] = mapped_column(default=False, server_default=false())
+    scouted: Mapped[bool] = mapped_column(default=False, server_default=false())  # by the franchise
+    draft_year: Mapped[int | None] = mapped_column(Integer)
+    draft_round: Mapped[int | None] = mapped_column(Integer)
+    draft_pick: Mapped[int | None] = mapped_column(Integer)  # overall pick number
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     league: Mapped[League] = relationship()
@@ -231,7 +238,7 @@ class Season(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"))
     year: Mapped[int] = mapped_column(Integer)
-    # free_agency | preseason | regular_season | playoffs | offseason
+    # free_agency | draft | preseason | regular_season | playoffs | offseason
     phase: Mapped[str] = mapped_column(String(20), default="preseason")
     current_week: Mapped[int] = mapped_column(Integer, default=1)
     champion_team_id: Mapped[int | None] = mapped_column(
@@ -291,6 +298,25 @@ class PlayoffSeed(Base):
     division_winner: Mapped[bool] = mapped_column(default=False)
 
     team: Mapped["Team"] = relationship()
+
+
+class DraftPick(Base):
+    """One slot in a season's draft order; `player_id` is set once the pick is made."""
+
+    __tablename__ = "draft_picks"
+    __table_args__ = (UniqueConstraint("season_id", "number"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"),
+                                           index=True)
+    round: Mapped[int] = mapped_column(Integer)
+    number: Mapped[int] = mapped_column(Integer)  # overall pick, 1-based
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    player_id: Mapped[int | None] = mapped_column(
+        ForeignKey("players.id", ondelete="SET NULL"))
+
+    team: Mapped["Team"] = relationship()
+    player: Mapped["Player | None"] = relationship()
 
 
 class FreeAgentOffer(Base):
