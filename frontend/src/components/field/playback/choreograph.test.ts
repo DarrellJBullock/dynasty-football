@@ -80,6 +80,12 @@ const PLAYS: Record<string, PlaybackPlay> = {
   }),
   kickoffReturn: kickPlay([{ t: "kickoff", kicker: pid(A, "K"), touchback: false, return: 27,
                              returner: pid(H, "WR", 2) }], { side: "away", offense: "ABQ" }),
+  squibKick: kickPlay([{ t: "kickoff", kicker: pid(A, "K"), touchback: false, return: 31, kind: "squib",
+                         returner: pid(H, "RB") }], { side: "away", offense: "ABQ" }),
+  onsideRecovered: kickPlay([{ t: "kickoff", kicker: pid(A, "K"), touchback: false, return: 54, kind: "onside",
+                               recovered: true, recovered_by: pid(A, "WR", 1) }], { side: "away", offense: "ABQ" }),
+  onsideLost: kickPlay([{ t: "kickoff", kicker: pid(A, "K"), touchback: false, return: 53, kind: "onside",
+                          recovered: false, recovered_by: pid(H, "TE") }], { side: "away", offense: "ABQ" }),
   kickoffTouchback: kickPlay([{ t: "kickoff", kicker: pid(A, "K"), touchback: true, return: 0 }],
                              { side: "away", offense: "ABQ" }),
   puntReturn: kickPlay([{ t: "punt", punter: pid(H, "P"), yards: 45, touchback: false, fair_catch: false,
@@ -261,6 +267,27 @@ describe("choreograph: kicks", () => {
     const touchback = byName.kickoffTouchback.timeline;
     expect(touchback.moments.map((m) => m.text)).toContain("Touchback");
     expect(touchback.players.find((p) => p.role === "KR")!.poses.at(-1)!.pose).toBe("kneel");
+  });
+
+  it("squibs bounce short and are returned to the recorded spot", () => {
+    const { timeline } = byName.squibKick;
+    expect(ballEnd(timeline)[0]).toBeCloseTo(fieldX(31, 1), -0.2);
+    const flights = timeline.ball.filter((b) => b.kind === "flight");
+    expect(flights.length).toBeGreaterThanOrEqual(2); // the kick, then the skip to the returner
+    expect(timeline.moments.map((m) => m.text)).toContain("H. RB1 fields the squib");
+  });
+
+  it("onside kicks end with the recorded recoverer on the ball, 10–13 yards out", () => {
+    // ABQ kicks toward −x from its 35 (field x 75); the ball is recovered 11–12 yards on.
+    for (const [name, id, team] of [["onsideRecovered", pid(A, "WR", 1), "the kicking team!"],
+                                    ["onsideLost", pid(H, "TE"), "the receiving team"]] as const) {
+      const { timeline } = byName[name];
+      const last = timeline.ball.at(-1)!;
+      expect(last).toMatchObject({ kind: "held", player: id });
+      expect(ballEnd(timeline)[0]).toBeCloseTo(fieldX(name === "onsideRecovered" ? 54 : 53, 1), -0.3);
+      expect(timeline.moments.some((m) => m.text.endsWith(team))).toBe(true);
+      expect(player(timeline, id).poses.map((p) => p.pose)).toContain("dive");
+    }
   });
 
   it("punts: returned to the recorded spot, fair caught, or into the end zone", () => {

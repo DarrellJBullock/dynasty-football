@@ -18,7 +18,8 @@ from app.sim.playcalls import DefenseCall
 from app.sim.teams import REPLACEMENT_RATING, SimTeam, build_sim_team, short_name
 
 SCRIMMAGE = {"run", "pass", "sack", "scramble", "kneel", "penalty"}
-ID_KEYS = ("player", "qb", "target", "to", "forced_by", "kicker", "punter", "returner")
+ID_KEYS = ("player", "qb", "target", "to", "forced_by", "kicker", "punter", "returner",
+           "recovered_by")
 DEFENSE_KEYS = {"by", "forced_by", "returner"}
 
 
@@ -81,10 +82,11 @@ def game_playback(db: Session, game: Game) -> GamePlayback:
                 ids = value if key == "by" and isinstance(value, list) else [value]
                 if key not in (*ID_KEYS, "by"):
                     continue
+                # An onside kick's recoverer is on whichever team got the ball.
+                theirs = key in DEFENSE_KEYS or (key == "recovered_by" and not event["recovered"])
                 for pid in ids:
                     if pid is not None:
-                        team_of.setdefault(pid, defense.id if key in DEFENSE_KEYS
-                                           else offense.id)
+                        team_of.setdefault(pid, defense.id if theirs else offense.id)
         plays.append(PlaybackPlay(
             n=record["n"], quarter=record["quarter"], clock=record["clock"],
             offense=record["offense"], side=record["side"], down=record["down"],

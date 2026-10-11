@@ -727,7 +727,8 @@ export interface CareerOut {
 // depth-chart spots.
 
 export type PlayEvent =
-  | { t: "kickoff"; kicker: number; touchback: boolean; return: number; returner?: number | null }
+  | { t: "kickoff"; kicker: number; touchback: boolean; return: number; returner?: number | null;
+      kind?: "normal" | "squib" | "onside"; recovered?: boolean | null; recovered_by?: number | null }
   | { t: "punt"; punter: number; yards: number; touchback: boolean; fair_catch: boolean; return: number; returner?: number | null }
   | { t: "field_goal"; kicker: number; distance: number; good: boolean }
   | { t: "extra_point"; kicker: number; good: boolean }
@@ -831,7 +832,7 @@ export interface Playbook {
 // ---------- coach mode ----------
 
 export interface CoachSituation {
-  role: "offense" | "defense"; // which call you make
+  role: "offense" | "defense" | "kickoff" | "conversion"; // a play, or a kicking decision
   quarter: number;
   clock: string; // before any runoff
   seconds: number;
@@ -844,7 +845,7 @@ export interface CoachSituation {
   spot: string;
   score: { home: number; away: number };
   timeouts: { home: number; away: number };
-  suggestion: string; // the AI's call (a playbook key)
+  suggestion: string; // the AI's call: a playbook key, or a kickoff / conversion choice
   suggestion_name: string;
   suggested_package: "base" | "nickel" | "dime" | null;
 }

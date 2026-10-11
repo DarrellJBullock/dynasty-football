@@ -886,6 +886,11 @@ class KickoffEvent(_Event):
     touchback: bool
     return_spot: int = Field(alias="return")  # receiving team's yard line after the return
     returner: int | None = None  # (SIM_VERSION 1.2+)
+    # (SIM_VERSION 1.4+) a squib or onside kick; who recovered an onside kick, and whether
+    # it was the kicking team.
+    kind: Literal["normal", "squib", "onside"] = "normal"
+    recovered: bool | None = None
+    recovered_by: int | None = None
 
 
 class PuntEvent(_Event):
@@ -1097,7 +1102,8 @@ class PlaybookOut(BaseModel):
 # ---------- coach mode ----------
 
 class CoachSituation(BaseModel):
-    role: Literal["offense", "defense"]  # which call the user makes
+    # Which call the user makes: a play (offense / defense) or a kicking decision.
+    role: Literal["offense", "defense", "kickoff", "conversion"]
     quarter: int
     clock: str  # before any runoff, e.g. "2:05"
     seconds: int
@@ -1110,7 +1116,9 @@ class CoachSituation(BaseModel):
     spot: str  # broadcast yard line, e.g. "HFD 25"
     score: dict[str, int]
     timeouts: dict[str, int]
-    suggestion: str  # the AI's call (a playbook key)
+    # The AI's call: a playbook key, or a kickoff (normal / squib / onside) or conversion
+    # (kick / two) choice.
+    suggestion: str
     suggestion_name: str
     suggested_package: Literal["base", "nickel", "dime"] | None
 

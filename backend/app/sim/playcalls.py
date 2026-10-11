@@ -17,6 +17,8 @@ RunDirection = Literal["inside", "outside"]
 PassDepth = Literal["screen", "short", "medium", "deep"]
 Package = Literal["base", "nickel", "dime"]
 Coverage = Literal["man", "zone"]
+KickoffChoice = Literal["normal", "squib", "onside"]
+ConversionChoice = Literal["kick", "two"]
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,10 @@ class DefenseCall:
         return data
 
 
+def _other(side: str) -> str:
+    return "away" if side == "home" else "home"
+
+
 def _weighted(options: list[tuple[str, float]], rng: random.Random) -> str:
     return rng.choices([k for k, _ in options], [w for _, w in options])[0]
 
@@ -81,6 +87,14 @@ class Coach(Protocol):
 
     def timeout(self, state: GameState, side: str) -> bool:
         """Before a snap with the clock running: stop it with a timeout?"""
+        ...
+
+    def kickoff_call(self, state: GameState, side: str) -> KickoffChoice:
+        """Kicking off: a normal kick, a squib, or an onside kick?"""
+        ...
+
+    def conversion_call(self, state: GameState, side: str) -> ConversionChoice:
+        """After a touchdown: kick the extra point, or go for two?"""
         ...
 
 
@@ -136,6 +150,24 @@ class AICoach:
         if side == s.offense:
             return cls._hurry(s)
         return s.quarter >= 4 and not s.in_overtime and s.margin > 0 and s.game_seconds_left <= 180
+
+    @staticmethod
+    def kickoff_call(s: GameState, side: str) -> KickoffChoice:
+        """Onside when trailing by two scores or less in the last four minutes; squib at the
+        end of a half so there's no time for a long return."""
+        behind = s.score[_other(side)] - s.score[side]
+        if s.quarter == 4 and 0 < behind <= 16 and s.game_seconds_left <= 240:
+            return "onside"
+        if s.quarter in (2, 4) and s.clock <= 20:
+            return "squib"
+        return "normal"
+
+    @staticmethod
+    def conversion_call(s: GameState, side: str) -> ConversionChoice:
+        """Go for two late when it ties the game or pulls within a field goal."""
+        margin = s.score[side] - s.score[_other(side)]
+        late = s.quarter == 4 and s.game_seconds_left <= 300
+        return "two" if late and margin in (-2, -5) else "kick"
 
     # ---------- offense helpers ----------
 

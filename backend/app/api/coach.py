@@ -57,6 +57,13 @@ def make_call(request: CoachCallIn, game: Game = Depends(get_game),
                                   request.package, request.timeout)
 
 
+@router.delete("/games/{game_id}/coach", status_code=204)
+def abandon(game: Game = Depends(get_game), db: Session = Depends(get_db)):
+    """Stop coaching a game in progress; it can be coached again or simulated."""
+    with roster_errors(db):
+        coach_service.abandon(db, coach_service.coached_game(db, game))
+
+
 @router.post("/games/{game_id}/coach/auto", response_model=CoachStateOut)
 def let_ai_call(request: CoachAutoIn, game: Game = Depends(get_game),
                 db: Session = Depends(get_db)):

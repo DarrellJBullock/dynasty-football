@@ -135,6 +135,26 @@ describe("CoachView", () => {
     expect(mocked.coachCall).toHaveBeenCalledWith(7, { play: "cover3", timeout: false, package: "dime" });
   });
 
+  it("makes the kicking decisions: the kickoff and the conversion", async () => {
+    const user = userEvent.setup();
+    mocked.coachCall.mockResolvedValue(state({ situation: situation({ role: "conversion",
+      suggestion: "kick", suggestion_name: "Extra point", score: { home: 6, away: 7 } }) }));
+    renderView(state({ plays: [], situation: situation({ role: "kickoff", suggestion: "normal",
+      suggestion_name: "Kick it deep" }) }));
+    expect(screen.getByRole("heading", { name: "Your kickoff" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument(); // no playbook
+    expect(screen.queryByRole("checkbox", { name: /timeout/ })).not.toBeInTheDocument();
+    const kickoff = screen.getByRole("list", { name: "Kickoff" });
+    expect(within(kickoff).getByRole("button", { name: "Kick it deep (AI pick)" })).toBeInTheDocument();
+    await user.click(within(kickoff).getByRole("button", { name: "Onside kick" }));
+    expect(mocked.coachCall).toHaveBeenCalledWith(7, { play: "onside" });
+
+    expect(await screen.findByRole("heading", { name: "After the touchdown" })).toBeInTheDocument();
+    expect(screen.getByTestId("situation")).toHaveTextContent("Touchdown! Q1 15:00 · score 6–7");
+    await user.click(screen.getByRole("button", { name: "Go for two" }));
+    expect(mocked.coachCall).toHaveBeenLastCalledWith(7, { play: "two" });
+  });
+
   it("hands the AI a play, the drive, or the rest of the game", async () => {
     const user = userEvent.setup();
     mocked.coachAuto.mockResolvedValue(state());

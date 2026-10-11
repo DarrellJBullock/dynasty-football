@@ -18,13 +18,20 @@ from app.sim.state import GameState, Side, other
 from app.sim.teams import SimTeam
 from app.sim.tuning import DEFAULT_TUNING
 
-Role = Literal["offense", "defense"]
+Role = Literal["offense", "defense", "kickoff", "conversion"]
+CHOICES: dict[str, tuple[str, ...]] = {
+    "kickoff": ("normal", "squib", "onside"),
+    "conversion": ("kick", "two"),
+}
+CHOICE_NAMES = {"normal": "Kick it deep", "squib": "Squib kick", "onside": "Onside kick",
+                "kick": "Extra point", "two": "Go for two"}
 
 
 @dataclass(frozen=True)
 class CoachCall:
     """One of the user's calls: a named offensive play or defensive call, the defense's
-    personnel package (None: fit the situation), and whether to call a timeout first."""
+    personnel package (None: fit the situation), and whether to call a timeout first; or a
+    kicking decision (a kickoff's kind, or a conversion's)."""
     role: Role
     play: str
     package: Package | None = None
@@ -55,6 +62,10 @@ class Situation:
     suggested_package: Package | None  # with the AI's personnel, on defense
 
 
+class OutOfStep(Exception):  # noqa: N818
+    """The recorded calls don't fit the game (it was coached on an older engine)."""
+
+
 class NeedCall(Exception):  # noqa: N818 (a signal, not an error)
     def __init__(self, situation: Situation):
         super().__init__("the coach needs a call")
@@ -80,8 +91,8 @@ class ScriptedCoach:
         if self.used < len(self.calls):
             call = self.calls[self.used]
             if call.role != role:
-                raise ValueError(f"recorded call {self.used} is for the {call.role}, "
-                                 f"but this snap needs the {role}")
+                raise OutOfStep(f"recorded call {self.used} is for the {call.role}, "
+                                f"but this snap needs the {role}")
             self.used += 1
             self.pending = call
             return
@@ -104,6 +115,29 @@ class ScriptedCoach:
 
     def snap_done(self) -> None:
         self.pending = None
+
+    def _decide(self, role: Role, state: GameState, suggestion: str) -> str:
+        """A kicking decision, made between snaps."""
+        if self.used < len(self.calls):
+            call = self.calls[self.used]
+            if call.role != role:
+                raise OutOfStep(f"recorded call {self.used} is for the {call.role}, "
+                                f"but the game needs a {role} decision")
+            self.used += 1
+            return call.play
+        if self.autopilot:
+            return suggestion
+        raise NeedCall(Situation(
+            role=role, quarter=state.quarter, clock=state.clock, clock_running=False,
+            possession=state.possession, down=state.down, distance=state.distance,
+            ball_on=state.ball_on, score=dict(state.score), timeouts=dict(state.timeouts),
+            suggestion=suggestion, suggested_package=None))
+
+    def kickoff_call(self, state: GameState, side: str) -> str:
+        return self._decide("kickoff", state, self.ai.kickoff_call(state, side))
+
+    def conversion_call(self, state: GameState, side: str) -> str:
+        return self._decide("conversion", state, self.ai.conversion_call(state, side))
 
     def timeout(self, state: GameState, side: str) -> bool:
         if self.pending:
@@ -148,7 +182,15 @@ def replay(home: SimTeam, away: SimTeam, seed: int, side: Side, calls: list[Coac
 def check_call(call: CoachCall, situation: Situation) -> str | None:
     """Why `call` can't be made in `situation`, or None if it can."""
     if call.role != situation.role:
+        if situation.role in CHOICES:
+            return f"This is a {situation.role} decision."
         return f"It's your {situation.role}'s call."
+    if call.role in CHOICES:
+        if call.play not in CHOICES[call.role]:
+            return f"Choose one of: {', '.join(CHOICES[call.role])}."
+        if call.package or call.timeout:
+            return "That's a kicking decision: no personnel or timeouts."
+        return None
     known = OFFENSE_BY_KEY if call.role == "offense" else DEFENSE_BY_KEY
     if call.play not in known:
         return f"Unknown {call.role} play: {call.play}."
