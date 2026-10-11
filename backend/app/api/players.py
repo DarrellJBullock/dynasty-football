@@ -4,8 +4,15 @@ from sqlalchemy.orm import Session
 from app.api.errors import roster_errors
 from app.db import get_db
 from app.models import Player
-from app.schemas import NegotiationResult, PlayerDetail, PlayerUpdate, ReSignOffer
+from app.schemas import (
+    ContractTerms,
+    NegotiationResult,
+    PlayerDetail,
+    PlayerUpdate,
+    ReSignOffer,
+)
 from app.services import contracts as contract_service
+from app.services import free_agency as free_agency_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail
 
@@ -46,3 +53,18 @@ def re_sign(offer: ReSignOffer, player: Player = Depends(get_player),
     the result says no and names his price."""
     with roster_errors(db):
         return contract_service.negotiate(db, player, offer)
+
+
+@router.post("/{player_id}/offer", status_code=204)
+def make_offer(offer: ReSignOffer, player: Player = Depends(get_player),
+               db: Session = Depends(get_db)):
+    """During free agency: offer this free agent a deal (replaces any earlier offer). He
+    decides when the market day is played."""
+    with roster_errors(db):
+        free_agency_service.make_offer(db, player, ContractTerms(**offer.model_dump()))
+
+
+@router.delete("/{player_id}/offer", status_code=204)
+def withdraw_offer(player: Player = Depends(get_player), db: Session = Depends(get_db)):
+    with roster_errors(db):
+        free_agency_service.withdraw_offer(db, player)

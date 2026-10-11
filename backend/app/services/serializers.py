@@ -24,7 +24,9 @@ def league_out(league: League) -> LeagueOut:
 def season_out(season: Season, weeks: int) -> SeasonOut:
     return SeasonOut(id=season.id, year=season.year, phase=season.phase,
                      current_week=season.current_week, weeks=weeks,
-                     regular_season_complete=season.current_week > weeks)
+                     regular_season_complete=season.current_week > weeks,
+                     free_agency_day=season.free_agency_day
+                     if season.phase == "free_agency" else None)
 
 
 def team_summary(team: Team) -> TeamSummary:

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.models import Franchise, Game, League, Player, PlayerGameStats, Season
 from app.services.injuries import after_week, status_for
-from app.services.offseason import advance
 from app.sim.calibration import default_league_teams
 from app.sim.engine import simulate_game
 from app.sim.injuries import (
@@ -19,6 +18,7 @@ from app.sim.injuries import (
 )
 from app.sim.teams import SimPlayer, SimTeam
 from app.sim.tuning import DEFAULT_TUNING
+from tests.conftest import rollover
 
 # ---------- engine ----------
 
@@ -198,6 +198,6 @@ def test_the_offseason_heals_everyone(db: Session, season: Season, league: Leagu
     player = db.scalars(select(Player).where(Player.team_id.is_not(None))).first()
     _hurt(player, "Torn ACL", 99)
     season.phase = "offseason"
-    advance(db, season)
+    rollover(db, season)
     assert db.scalar(select(Player).where(Player.league_id == league.id,
                                           Player.injury.is_not(None))) is None

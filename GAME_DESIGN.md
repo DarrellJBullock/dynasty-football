@@ -196,8 +196,8 @@ Preseason → Regular season (17 weeks) → Playoffs → Championship
   → Offseason: re-sign / release → Free agency → Draft → Development & aging → next season
 ```
 
-Once a champion is crowned, **Start {next year} season** (with confirmation) runs the
-offseason in one deterministic step and the league plays on:
+Once a champion is crowned, **Start free agency** (with confirmation) runs the
+offseason in one deterministic step and opens the next season in free agency:
 
 - **Aging & development:** everyone ages a year. Players under 27 close part of the gap
   to their potential each year (30% normal, 40% impact, 50% star, 60% elite trait, with
@@ -211,18 +211,38 @@ offseason in one deterministic step and the league plays on:
   Re-signing); its other expiring players leave. AI teams re-sign theirs at market
   value, best first, while the cap allows — keeping room to fill the roster — but let
   fading depth veterans (30+, under 70 OVR) walk. Everyone else becomes a free agent.
-- **Refilling rosters (placeholder):** each spot lost is refilled at the same position,
-  one round at a time across the league: the best affordable free agent (64+ OVR), or
-  else an undrafted rookie (age 21–23, ~60 OVR with upside) on a minimum deal. A team
-  never signs back a player it just let go. The free-agent pool is topped back up with
-  young players.
 - **New season:** a fresh schedule; standings, leaders, and the bracket start over. The
-  dashboard shows an **offseason recap** (re-signed, new arrivals, departures,
-  biggest risers and decliners, notable retirements around the league) until week 1.
+  free-agent pool is topped back up with young players, and the season opens with
+  **free agency** (below). The dashboard shows an **offseason recap** (re-signed, new
+  arrivals, departures, biggest risers and decliners, notable retirements around the
+  league) until week 1.
 
-Until free agency and the draft get their own screens, refilling happens automatically
-for every team, the user's included. Over ten simulated offseasons team
-strength, roster sizes, ages, and payrolls stay stable.
+Over ten simulated offseasons team strength, roster sizes, ages, and payrolls stay stable.
+
+### Free agency
+
+A five-day market between the rollover and the preseason, on the **Free Agency** page.
+
+- **Your offers:** offer any free agent a salary for 1–5 years (it must fit under your
+  cap, with an open roster spot). You can change or withdraw it until the day is played.
+  The page shows each player's asking price, how many offers he has, and whether yours is
+  currently **leading** or **outbid**.
+- **AI teams** bid for the positions they lost this offseason (retirements and departures),
+  spreading their cap room over the spots still open, at 90–112% of a player's price, and
+  chase one clear upgrade a day — a free agent at least 4 OVR better than their best
+  player at his position. They never bid on players they just let go and only on 64+ OVR
+  players. Unsigned AI offers are refreshed every day, so stars usually go by day 3:
+  outbid early to land one.
+- **Players decide** when a day is played, best players first: each takes his best offer
+  if it reaches his demand for the day — 115% of his price on day 1, then 108%, 100%,
+  92%, and 80% on the last day — and otherwise waits. Offers are ranked by money (salary
+  against his price for that length, so unwanted lengths cost more) with a small pull
+  toward stronger teams (±1% per OVR point of team strength).
+- **Play free agency day N** plays one day; **Finish free agency** plays the rest. When
+  the market closes, every spot a team still lost goes to an undrafted rookie (age 21–23,
+  ~60 OVR with upside, minimum salary) — the placeholder until the draft — and the
+  preseason begins. Games can't be simulated during free agency, and free agents can't
+  be signed instantly; outside it they sign instantly at their asking price.
 
 ## Injuries
 

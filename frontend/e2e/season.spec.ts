@@ -95,11 +95,30 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   // The offseason rolls the league into next year.
   await navigate(page, "Dashboard");
   const overview = page.getByRole("region", { name: "Franchise overview" });
-  await overview.getByRole("button", { name: /^Start \d{4} season$/ }).click();
+  await overview.getByRole("button", { name: "Start free agency" }).click();
   await overview.getByRole("button", { name: "Confirm: run the offseason" }).click();
   const recap = page.getByRole("region", { name: "Offseason recap" });
   await expect(recap).toContainText(/\d{4} offseason/, { timeout: 30_000 });
   await expect(recap.getByRole("group", { name: "Re-signed" })).toBeVisible();
+
+  // Free agency: outbid everyone for a kicker on day 1, then let the market run out.
+  await navigate(page, "Free Agency");
+  await expect(page.getByText(/Day 1 of 5/)).toBeVisible();
+  const agents = page.getByRole("region", { name: "Free agents" });
+  await agents.getByLabel("Position").selectOption("K");
+  await agents.getByRole("button", { name: /^Make an offer to / }).first().click();
+  const offer = page.getByRole("dialog", { name: /^Offer / });
+  await offer.getByLabel("Salary per year ($M)").fill("5");
+  await offer.getByRole("button", { name: /^Offer \$5\.0M/ }).click();
+  await expect(agents.getByText(/Leading/)).toBeVisible();
+  const controls = page.getByRole("group", { name: "Free agency" });
+  await controls.getByRole("button", { name: "Play free agency day 1" }).click();
+  await expect(controls.getByRole("status")).toContainText("you signed");
+  await controls.getByRole("button", { name: "Finish free agency" }).click();
+  await controls.getByRole("button", { name: "Confirm: finish free agency" }).click();
+
+  await navigate(page, "Dashboard");
+  await expect(recap.getByRole("group", { name: "New arrivals" })).toContainText("FA ·");
   await expect(overview.getByText("0-0", { exact: true })).toBeVisible();
 
   await overview.getByRole("button", { name: "Sim week 1" }).click();

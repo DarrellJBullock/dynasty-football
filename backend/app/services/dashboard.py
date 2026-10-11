@@ -6,6 +6,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.domain.depth_chart import REPLACEMENT_LEVEL, unfilled_slots
+from app.domain.free_agency import MARKET_DAYS
 from app.domain.positions import ROSTER_MAX, STARTERS, Position, PositionGroup, group_of
 from app.models import Franchise, Game, Player
 from app.schemas import (
@@ -64,7 +65,8 @@ def _position_groups(roster: list[Player],
 
 def _alerts(roster: list[Player], cap_space: int, expiring: int,
             groups: list[PositionGroupSummary],
-            lineup: dict[Position, list[Player]], offseason: bool = False) -> list[Alert]:
+            lineup: dict[Position, list[Player]], offseason: bool = False,
+            free_agency_day: int | None = None) -> list[Alert]:
     alerts: list[Alert] = []
     missing = unfilled_slots(lineup)
     if missing and sum(missing.values()) == sum(STARTERS.values()):
@@ -90,6 +92,11 @@ def _alerts(roster: list[Player], cap_space: int, expiring: int,
     if injured:
         alerts.append(Alert(level="warning",
                             message=f"{len(injured)} player(s) on the injury report."))
+    if free_agency_day:
+        alerts.append(Alert(level="warning",
+                            message=f"Free agency, day {free_agency_day} of {MARKET_DAYS}: make "
+                                    "offers on the Free Agency page. Open spots left when it "
+                                    "closes go to undrafted rookies."))
     if expiring and offseason:
         alerts.append(Alert(level="warning",
                             message=f"{expiring} expiring contract(s): re-sign them on the "
@@ -148,9 +155,12 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
         position_groups=groups,
         expiring_contracts=expiring,
         alerts=_alerts(roster, detail.cap_space, expiring, groups, lineup,
-                       offseason=season.phase == "offseason"),
+                       offseason=season.phase == "offseason",
+                       free_agency_day=season.free_agency_day
+                       if season.phase == "free_agency" else None),
         injury_report=[player_summary(p) for p in sorted(
             (p for p in roster if p.injury_status != "healthy"),
             key=lambda p: (-p.injury_weeks, -p.overall, p.id))],
-        offseason=recap(db, season, team.id) if season.phase == "preseason" else None,
+        offseason=recap(db, season, team.id)
+        if season.phase in ("free_agency", "preseason") else None,
     )

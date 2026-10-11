@@ -116,6 +116,8 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
     regular_done = season.current_week > weeks
     if season.phase == "offseason":
         raise RosterError("The season is complete.")
+    if season.phase == "free_agency":
+        raise RosterError("Finish free agency before the season starts.")
     if request.until == "end_of_regular_season" and regular_done:
         raise RosterError("The regular season is complete.")
     if request.until == "end_of_playoffs" and not regular_done:

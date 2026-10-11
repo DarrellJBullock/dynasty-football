@@ -228,6 +228,7 @@ class SeasonOut(BaseModel):
     weeks: int
     regular_season_complete: bool
     next_round: str | None = None  # name of the next playoff round to play, if any
+    free_agency_day: int | None = None  # market day to play next, during free agency
     champion: "TeamSummary | None" = None
 
 
@@ -620,3 +621,44 @@ class NegotiationResult(BaseModel):
     message: str
     counter: ContractTerms | None  # his price for the offered length, if he said no
     player: PlayerSummary
+
+
+# ---------- free agency ----------
+
+
+class FreeAgentRow(BaseModel):
+    player: PlayerSummary
+    asking: ContractTerms  # his price at the length he prefers
+    offers: int  # pending offers, yours included
+    my_offer: ContractTerms | None
+    leading: bool | None  # your offer is currently his best (None: no offer)
+
+
+class MarketSigning(BaseModel):
+    player: PlayerSummary
+    team: TeamSummary
+    salary: int
+    years: int
+    day: int
+
+
+class FreeAgencyOut(BaseModel):
+    season: SeasonOut
+    open: bool
+    day: int | None  # market day to play next
+    days: int
+    demand: float | None  # share of his price a player needs today
+    open_spots: int  # on your roster
+    cap_space: int  # yours, now
+    players: list[FreeAgentRow]  # best first
+    signings: list[MarketSigning]  # this offseason's market, latest first
+
+
+class FreeAgencyRequest(BaseModel):
+    until: Literal["next_day", "end"] = "next_day"
+
+
+class FreeAgencyResult(BaseModel):
+    season: SeasonOut
+    signings: list[MarketSigning]
+    mine: list[MarketSigning]

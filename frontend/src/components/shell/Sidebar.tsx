@@ -18,6 +18,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
       { label: "Contracts", href: "/contracts", icon: <IconContract /> },
+      { label: "Free Agency", href: "/free-agency", icon: <IconSign /> },
       { label: "Schedule", href: "/schedule", icon: <IconCalendar /> },
       { label: "Playoffs", href: "/playoffs", icon: <IconBracket /> },
       { label: "Stats", href: "/stats", icon: <IconChart /> },
@@ -182,6 +183,13 @@ function IconFolders() {
   return (
     <svg {...iconProps}>
       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+    </svg>
+  );
+}
+function IconSign() {
+  return (
+    <svg {...iconProps}>
+      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 21a8 8 0 0 1 12-6.9 M19 15v6 M16 18h6" />
     </svg>
   );
 }

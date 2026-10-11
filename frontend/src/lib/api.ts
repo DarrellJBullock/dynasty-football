@@ -3,6 +3,9 @@ import type {
   PlayoffsOut,
   LeadersOut,
   ContractTerms,
+  FreeAgencyOut,
+  FreeAgencyResult,
+  FreeAgencyUntil,
   NegotiationResult,
   PlayerSeasonStats,
   TeamContracts,
@@ -136,6 +139,13 @@ export const api = {
   contracts: (teamId: number) => request<TeamContracts>(`/teams/${teamId}/contracts`),
   reSign: (playerId: number, offer: ContractTerms) =>
     post<NegotiationResult>(`/players/${playerId}/re-sign`, offer),
+  freeAgency: (leagueId: number) => request<FreeAgencyOut>(`/leagues/${leagueId}/free-agency`),
+  makeOffer: (playerId: number, offer: ContractTerms) =>
+    post<void>(`/players/${playerId}/offer`, offer),
+  withdrawOffer: (playerId: number) =>
+    request<void>(`/players/${playerId}/offer`, { method: "DELETE" }),
+  playFreeAgency: (seasonId: number, until: FreeAgencyUntil) =>
+    post<FreeAgencyResult>(`/seasons/${seasonId}/free-agency`, { until }),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {
