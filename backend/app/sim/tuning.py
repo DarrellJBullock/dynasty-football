@@ -36,6 +36,8 @@ class Tuning:
 
     # Coverage and throwing
     open_sd: float = 0.85
+    read_bonus: tuple[float, ...] = (0.6, 0.25)  # preference for the 1st and 2nd reads
+    screen_open: float = 1.6  # a screen's designed target is open by design, not by route
     completion_base: dict[str, float] = field(default_factory=lambda: {
         "screen": 1.45, "short": 0.6, "medium": -0.25, "deep": -1.2})
     completion_accuracy_k: float = 0.32
@@ -61,6 +63,55 @@ class Tuning:
     runoff: tuple[int, int] = (31, 37)
     runoff_hurry: int = 12
     runoff_bleed: int = 39
+
+    # Play concepts against coverage shells (app/sim/playbook.py): raw edges for the
+    # offense, centered at use against the AI's shell mix so each play breaks even on
+    # average. Passes add the edge to every receiver's openness; runs add it, times
+    # `concept_run_k` yards, to the expected gain. Two-high shells (Cover 2, 4, Tampa 2,
+    # 2-Man, prevent) leave a lighter box; single-high shells and blitzes load it.
+    concept_pass_k: float = 1.0
+    concept_run_k: float = 1.4
+    concept_edges: dict[str, dict[str, float]] = field(default_factory=lambda: {
+        "inside_zone": {"cover2": 0.2, "tampa2": 0.1, "cover4": 0.2, "two_man": 0.2,
+                        "prevent": 0.4, "cover1": -0.15, "cover3": -0.1, "cover0": -0.25,
+                        "fire_zone": -0.2},
+        "power": {"cover2": 0.25, "cover4": 0.25, "two_man": 0.2, "prevent": 0.4,
+                  "cover1": -0.15, "cover3": -0.15, "cover0": -0.2, "fire_zone": -0.15},
+        "counter": {"cover0": 0.25, "fire_zone": 0.2, "cover1": 0.1, "cover3": -0.15,
+                    "tampa2": -0.1},
+        "draw": {"cover0": 0.3, "fire_zone": 0.3, "prevent": 0.45, "cover2": 0.2,
+                 "tampa2": 0.15, "cover1": -0.2, "cover3": -0.2},
+        "outside_zone": {"cover4": 0.2, "two_man": 0.15, "cover2": -0.15, "fire_zone": -0.2,
+                         "cover0": 0.1},
+        "toss": {"cover0": 0.25, "cover1": 0.1, "fire_zone": -0.25, "cover2": -0.2},
+        "slants": {"cover3": 0.3, "cover4": 0.2, "cover0": 0.2, "prevent": 0.3,
+                   "cover1": -0.1, "two_man": -0.3, "tampa2": -0.15},
+        "stick": {"cover3": 0.25, "cover2": 0.1, "prevent": 0.25, "cover1": -0.2,
+                  "two_man": -0.2},
+        "hitches": {"cover3": 0.25, "cover4": 0.25, "prevent": 0.35, "cover0": -0.1,
+                    "cover2": -0.2, "two_man": -0.2},
+        "curl_flat": {"cover3": 0.2, "tampa2": 0.1, "prevent": 0.2, "cover2": -0.15,
+                      "cover1": -0.2},
+        "mesh": {"cover1": 0.35, "cover0": 0.3, "two_man": 0.2, "cover3": -0.15,
+                 "tampa2": -0.3, "cover2": -0.1},
+        "smash": {"cover2": 0.4, "tampa2": 0.15, "cover4": -0.25, "cover1": -0.15},
+        "flood": {"cover3": 0.35, "fire_zone": 0.15, "cover2": -0.1, "cover1": -0.25,
+                  "two_man": -0.2},
+        "dig": {"cover4": 0.25, "cover2": 0.15, "tampa2": -0.25, "cover1": -0.1},
+        "y_cross": {"cover1": 0.25, "cover3": 0.15, "cover2": -0.15, "tampa2": -0.25},
+        "four_verts": {"cover3": 0.3, "cover0": 0.3, "cover2": 0.1, "cover4": -0.4,
+                       "prevent": -0.5},
+        "post_wheel": {"cover1": 0.25, "cover3": 0.2, "cover4": -0.3, "two_man": -0.2,
+                       "prevent": -0.4},
+        "pa_boot": {"cover3": 0.2, "cover1": 0.1, "fire_zone": -0.2, "cover0": -0.15},
+        "pa_crossers": {"cover3": 0.25, "cover1": 0.2, "tampa2": -0.25, "cover2": -0.1},
+        "pa_post": {"cover1": 0.3, "cover0": 0.35, "cover3": 0.1, "cover4": -0.3,
+                    "cover2": -0.1, "prevent": -0.4},
+        "rb_screen": {"cover0": 0.5, "fire_zone": 0.35, "cover1": 0.15, "cover2": -0.2,
+                      "tampa2": -0.3, "cover4": -0.2},
+        "bubble": {"cover3": 0.3, "cover4": 0.3, "prevent": 0.4, "cover2": -0.3,
+                   "two_man": -0.3, "cover1": -0.15},
+    })
 
     # Penalties
     false_start_rate: float = 0.011

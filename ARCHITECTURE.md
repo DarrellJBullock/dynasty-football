@@ -116,6 +116,7 @@ Design notes:
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
 | `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play, injuries |
+| `GET /api/playbook` | The named offensive plays (category, formation, the engine call, target weights) and defensive calls (shell, man/zone, blitz, forced package) |
 | `GET /api/games/{id}/playback` | 3D playback data: typed play records with each scrimmage play's 22 players (rebuilt from today's depth charts, flagged approximate, for games before SIM_VERSION 1.2) and those players' names, numbers, positions, speed |
 | `GET /api/leagues/{id}/leaders?category=&limit=` | Season leaders: all categories (top 5) or one (up to 50) |
 | `GET /api/leagues/{id}/team-stats` | Every team's season totals, offense and defense (allowed) |
@@ -208,6 +209,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend API | pytest + TestClient | every endpoint incl. 404/409/422 paths |
 | Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip; export → re-import is lossless in every format |
 | Backend leagues | pytest | spec validation, templates, creation (generated/empty rosters, custom identities, schedules for small leagues, determinism), franchise switching, team edits, protected delete |
+| Playbooks | pytest | plays are complete engine calls, concept tables name real plays and shells, AI choices match the coarse call, concepts break even against the AI's mix, every snap is a named call, concepts change outcomes (Smash vs Cover 2 / Cover 4, runs vs two-high / single-high), plays steer the QB's target, the playbook API, play names on game detail and playback |
 | Simulation | pytest | determinism, score/clock/down invariants, box-score consistency, overtime rules, Coach seam, AI 4th-down/kneel calls, depth-chart lineups, calibration targets, rating sensitivity |
 | Season | pytest | week/season simulation, persisted stats match scores, standings and dashboard follow results, reproducible seeds, injured QB benched, schedule/game endpoints, deleting played leagues |
 | Season stats | pytest | leaders equal summed box scores (and "long" columns are maxima), released players keep their last team, player totals equal the game log, team totals reconcile with standings and league-wide (yards gained = allowed, turnovers = takeaways) |
@@ -249,8 +251,8 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
   snapshots (built from rosters + depth charts by `build_sim_team`) and returns a
   `GameResult` with a play log. Same inputs → same game. No DB access in `app/sim/`.
 - **Play-level:** each snap is resolved from the two calls (`playcalls.AICoach`; the
-  `Coach` protocol is the Coach Mode seam) and the specific players' matchups
-  (`resolve.py`). Probabilities are `sigmoid(base + k · rating_difference)`.
+  `Coach` protocol is the Coach Mode seam), named plays from the playbooks
+  (`playbook.py`), and the specific players' matchups (`resolve.py`). Probabilities are `sigmoid(base + k · rating_difference)`.
 - **Events are the contract:** every play records semantic events (handoff, rush, pass,
   sack, tackle, penalty, kicks…). Play-by-play text (`text.py`) and box scores
   (`stats.py`) are derived from events only, and the 3D client animates from them —

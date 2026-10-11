@@ -182,7 +182,8 @@ const detail: GameDetail = {
       stats: { pass_att: 31, pass_cmp: 18, pass_yds: 200, pass_int: 1 } },
   ],
   scoring_plays: [play(9, { text: "Nash runs for 3 yards. TOUCHDOWN.", scoring: true, home_score: 6 })],
-  plays: [play(1), play(2), play(9, { quarter: 2, text: "Nash runs for 3 yards. TOUCHDOWN.", scoring: true })],
+  plays: [play(1, { play_name: "Smash", defense_name: "Cover 2" }), play(2),
+    play(9, { quarter: 2, text: "Nash runs for 3 yards. TOUCHDOWN.", scoring: true })],
 };
 
 describe("GameView", () => {
@@ -198,6 +199,7 @@ describe("GameView", () => {
     expect(screen.getByRole("table", { name: "ABQ passing" })).toHaveTextContent("18/31");
     expect(screen.getByRole("region", { name: "Scoring summary" })).toHaveTextContent("TOUCHDOWN");
     expect(screen.getByRole("list", { name: "Quarter 1" })).toHaveTextContent("HFD 1st&10");
+    expect(screen.getByRole("list", { name: "Quarter 1" })).toHaveTextContent("Smash vs Cover 2");
     expect(screen.getByText("Quarter 2")).toBeInTheDocument();
   });
 

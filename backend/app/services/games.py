@@ -7,6 +7,7 @@ from app.models import Game, Player, PlayerGameStats, Season, TeamGameStats
 from app.schemas import GameDetail, GameInjury, PlayerGameLine, PlayOut, ScheduleWeek
 from app.services.season import season_view, season_weeks
 from app.services.serializers import game_out
+from app.sim.playbook import defense_name, offense_name
 from app.sim.stats import PlayerLine, TeamLine
 from app.sim.text import spot_label
 
@@ -50,7 +51,8 @@ def _play_out(play: dict, abbreviations: dict[str, str]) -> PlayOut:
                    down=play["down"], distance=play["distance"], spot=spot,
                    type=result.get("type", ""), text=play["text"],
                    home_score=play["score"]["home"], away_score=play["score"]["away"],
-                   scoring=scoring)
+                   scoring=scoring, play_name=offense_name(play.get("call")),
+                   defense_name=defense_name(play.get("defense")))
 
 
 def _injuries(db: Session, game: Game, log: list[dict]) -> list[GameInjury]:

@@ -144,6 +144,10 @@ class TestScheduleAndGames:
         passers = [p for p in detail["players"] if p["stats"].get("pass_att")]
         assert len(passers) >= 2 and all(p["name"] for p in passers)
         assert any(p["spot"] for p in detail["plays"])
+        # Snaps name both calls; kickoffs and kicks don't.
+        assert detail["plays"][0]["play_name"] is None
+        named = [p for p in detail["plays"] if p["play_name"]]
+        assert len(named) > 40 and all(p["defense_name"] for p in named if p["type"] == "run")
 
     def test_unplayed_game_detail_is_empty(self, client: TestClient, league: League):
         game = client.get(f"/api/leagues/{league.id}/schedule").json()["games"][0]

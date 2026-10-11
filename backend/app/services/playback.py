@@ -13,6 +13,7 @@ from app.schemas import GamePlayback, Personnel, PlaybackPlay, PlaybackPlayer
 from app.services.serializers import game_out
 from app.services.teams import load_overrides
 from app.sim import resolve
+from app.sim.playbook import defense_name, offense_name
 from app.sim.playcalls import DefenseCall
 from app.sim.teams import REPLACEMENT_RATING, SimTeam, build_sim_team, short_name
 
@@ -81,7 +82,8 @@ def game_playback(db: Session, game: Game) -> GamePlayback:
             distance=record["distance"], ball_on=record["ball_on"], call=record["call"],
             defense=record["defense"], result=record["result"], events=record["events"],
             elapsed=record["elapsed"], score=record["score"], text=record["text"],
-            personnel=lineup, approximate=rebuilt))
+            personnel=lineup, approximate=rebuilt, play_name=offense_name(record["call"]),
+            defense_name=defense_name(record["defense"])))
 
     return GamePlayback(game=game_out(game), sim_version=game.sim_version,
                         approximate=approximate, players=_players(db, team_of), plays=plays)
