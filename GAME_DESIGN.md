@@ -488,6 +488,12 @@ resolved, the AI, overtime and playoff rules, and calibration targets. Remaining
   Touchdown, Sack, Interception, Fumble, Flag with the foul, field goals and two-point
   tries, onside recoveries, safeties). Games played before this was added show no
   timeouts and a clock that holds at the snap.
+- **The Broadcast camera** (the default) directs itself: a high wide shot before the
+  snap, the sideline camera from the snap, pulling back wide on a deep ball, a tight shot
+  on the tackle or the touchdown, behind the kicker for field goals and extra points, and
+  tracking kickoffs and punts. Shots cut rather than pan, and each is held at least a
+  second (a touchdown cuts at once). Sideline, End zone and All-22 remain as fixed
+  cameras.
 - Plays: run, pass, blocking schemes, tackling, field goals, punts, kickoffs.
 - AI: situational play calling (down, distance, clock, score) for both sides.
 - Presentation: broadcast cameras, all-22 view, instant replay from the timeline.

@@ -61,6 +61,13 @@ export const CAMERA_PRESETS: { key: CameraPreset; label: string }[] = [
   { key: "all22", label: "All-22" },
 ];
 
+/** The cameras for watching plays: the broadcast director, or a fixed preset. */
+export type CameraChoice = CameraPreset | "broadcast";
+export const PLAY_CAMERAS: { key: CameraChoice; label: string }[] = [
+  { key: "broadcast", label: "Broadcast" },
+  ...CAMERA_PRESETS.filter((c) => c.key !== "overview"),
+];
+
 export interface CameraShot {
   position: Vec3; // scene coordinates
   target: Vec3;
@@ -71,11 +78,30 @@ export interface CameraShot {
  * Where a preset puts the camera, framing the action at field x `focus` with the offense
  * driving toward `direction`. The overview orbits midfield; `time` (seconds) turns it.
  */
-export function cameraShot(preset: CameraPreset, focus = LENGTH / 2, direction: 1 | -1 = 1,
-                           time = 0): CameraShot {
+/** Every shot the cameras can take: the presets, plus the broadcast director's own
+ * (docs/design/broadcast.md §4). */
+export type ShotName = CameraPreset | "wide" | "tight" | "skycam" | "reverse";
+
+/**
+ * Where the camera sits and looks for `shot`, framing field x `focus` (and, for the close
+ * shots, field y `focusY`), with the offense driving toward `direction`.
+ */
+export function cameraShot(shot: ShotName, focus = LENGTH / 2, direction: 1 | -1 = 1,
+                           time = 0, focusY = WIDTH / 2): CameraShot {
   const x = Math.min(Math.max(focus, END_ZONE), LENGTH - END_ZONE);
   const [sx] = toScene(x, WIDTH / 2);
-  switch (preset) {
+  // The close shots follow the ball into the end zones and across the field.
+  const [cx, , cz] = toScene(Math.min(Math.max(focus, 3), LENGTH - 3), Math.min(Math.max(focusY, 2), WIDTH - 2));
+  switch (shot) {
+    case "wide": // the establishing shot: higher and wider than the sideline camera
+      return { position: [sx, 34, WIDTH / 2 + 52], target: [sx + direction * 4, 0, 0], fov: 34 };
+    case "tight": // low and close on the ball, from the near side
+      return { position: [cx - direction * 3, 7, cz + 15], target: [cx, 1, cz], fov: 30 };
+    case "skycam": // behind and above the offense, looking downfield
+      return { position: [cx - direction * 13, 13, cz * 0.6], target: [cx + direction * 10, 0, cz * 0.8],
+               fov: 55 };
+    case "reverse": // the far sideline, for replays
+      return { position: [sx, 20, -(WIDTH / 2 + 36)], target: [sx - direction * 4, 0, 0], fov: 26 };
     case "sideline": // the broadcast camera: high on the near sideline, square to the line, zoomed in
       return { position: [sx, 20, WIDTH / 2 + 36], target: [sx + direction * 4, 0, 0], fov: 26 };
     case "endzone": // behind the offense, looking downfield

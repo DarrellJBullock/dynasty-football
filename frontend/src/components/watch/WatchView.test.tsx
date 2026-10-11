@@ -124,7 +124,11 @@ describe("WatchView", () => {
     await user.click(within(screen.getByRole("group", { name: "Speed" })).getByRole("button", { name: "2×" }));
     expect(scene.props!.clock.speed).toBe(2);
     const cameras = screen.getByRole("group", { name: "Camera" });
-    expect(within(cameras).getByRole("button", { name: "Sideline" })).toHaveAttribute("aria-pressed", "true");
+    // The broadcast director by default, with the play's shot list; it always follows the ball.
+    expect(within(cameras).getByRole("button", { name: "Broadcast" })).toHaveAttribute("aria-pressed", "true");
+    expect(scene.props!.camera).toBe("broadcast");
+    expect(scene.props!.cues?.[0]).toEqual({ t: 0, shot: "wide" });
+    expect(screen.getByRole("button", { name: "Follow ball" })).toBeDisabled();
     await user.click(within(cameras).getByRole("button", { name: "All-22" }));
     expect(scene.props!.camera).toBe("all22");
     expect(within(cameras).queryByRole("button", { name: "Overview" })).not.toBeInTheDocument();

@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BroadcastOverlay } from "@/components/broadcast/BroadcastOverlay";
 import type { Choreography } from "@/components/field/playback/choreograph";
 import { PlayClock } from "@/components/field/playback/clock";
-import { CAMERA_PRESETS, type CameraPreset } from "@/components/field/layout";
+import { PLAY_CAMERAS, type CameraChoice } from "@/components/field/layout";
+import { shotList } from "@/components/field/playback/director";
 import { callLabel } from "@/lib/games";
 import type { GamePlayback } from "@/lib/types";
 
@@ -15,7 +16,6 @@ const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"),
   loading: () => <div className="h-full w-full animate-pulse bg-turf/10" />,
 });
 
-const CAMERAS = CAMERA_PRESETS.filter((c) => c.key !== "overview");
 const BETWEEN_PLAYS = 700; // ms pause before the next play in the reel
 
 /**
@@ -25,12 +25,13 @@ const BETWEEN_PLAYS = 700; // ms pause before the next play in the reel
 export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Choreography[] }) {
   const [index, setIndex] = useState(0);
   const [ended, setEnded] = useState(false);
-  const [camera, setCamera] = useState<CameraPreset>("sideline");
+  const [camera, setCamera] = useState<CameraChoice>("broadcast");
   const [clock] = useState(() => new PlayClock());
   const [time, setTime] = useState(0); // for the broadcast graphics, a tenth of a second at a time
   const shown = useRef(0);
   const last = reel.length - 1;
   const current = reel[Math.min(index, last)];
+  const cues = useMemo(() => (current ? shotList(current.play, current.timeline) : []), [current]);
 
   const onTick = useCallback((t: number, justEnded: boolean) => {
     if (justEnded) setEnded(true);
@@ -78,12 +79,13 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
     <section className="panel overflow-hidden" aria-label="Last play">
       <div className="relative aspect-video w-full bg-ink-950">
         <PlayScene playback={playback} timeline={current.timeline} clock={clock} camera={camera}
+          cues={cues}
           follow onTick={onTick} />
         <BroadcastOverlay playback={playback} timeline={current.timeline} time={time}
           index={playback.plays.findIndex((p) => p.n === current.play.n)} />
         <div role="group" aria-label="Camera"
           className="absolute right-3 top-3 flex gap-1 rounded-lg bg-ink-950/70 p-1 backdrop-blur">
-          {CAMERAS.map(({ key, label }) => (
+          {PLAY_CAMERAS.map(({ key, label }) => (
             <button key={key} type="button" aria-pressed={camera === key}
               className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
                 camera === key ? "bg-gold text-ink-950" : "text-mist hover:text-chalk"}`}

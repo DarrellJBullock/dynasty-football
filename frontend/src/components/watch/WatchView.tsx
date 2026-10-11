@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { choreographGame } from "@/components/field/playback/choreograph";
 import { BroadcastOverlay } from "@/components/broadcast/BroadcastOverlay";
 import { PlayClock } from "@/components/field/playback/clock";
-import { CAMERA_PRESETS, type CameraPreset } from "@/components/field/layout";
+import { PLAY_CAMERAS, type CameraChoice } from "@/components/field/layout";
+import { shotList } from "@/components/field/playback/director";
 import { callLabel, formatSpot } from "@/lib/games";
 import { highlightIndexes } from "@/lib/highlights";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
@@ -17,7 +18,6 @@ const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"),
   loading: () => <div className="h-full w-full animate-pulse bg-turf/10" />,
 });
 
-const CAMERAS = CAMERA_PRESETS.filter((c) => c.key !== "overview");
 const SPEEDS = [0.5, 1, 2];
 const AUTO_ADVANCE_PAUSE = 900; // ms between plays when playing the drive
 const UI_STEP = 0.1; // seconds of playhead between scrubber updates
@@ -63,7 +63,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   const [time, setTime] = useState(0);
   const [playing, setPlayingState] = useState(true);
   const [speed, setSpeedState] = useState(1);
-  const [camera, setCamera] = useState<CameraPreset>("sideline");
+  const [camera, setCamera] = useState<CameraChoice>("broadcast");
   const [follow, setFollow] = useState(true);
   const [auto, setAuto] = useState(initialAuto);
   const [clock] = useState(() => new PlayClock());
@@ -73,6 +73,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   const play = current?.play;
   const timeline = current?.timeline;
   const duration = timeline?.duration ?? 0;
+  const cues = useMemo(() => (play && timeline ? shotList(play, timeline) : []), [play, timeline]);
   const ended = time >= duration - 1e-6;
 
   const setPlaying = useCallback((value: boolean) => {
@@ -199,7 +200,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="panel overflow-hidden" aria-label="Play viewer">
           <div className="relative aspect-video w-full bg-ink-950">
-            <PlayScene playback={playback} timeline={timeline} clock={clock} camera={camera}
+            <PlayScene playback={playback} timeline={timeline} clock={clock} camera={camera} cues={cues}
               follow={follow} onTick={onTick} />
             <BroadcastOverlay playback={playback} index={index} timeline={timeline} time={time} />
             {moment && (
@@ -233,7 +234,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
 
             <div className="flex flex-wrap items-center gap-2">
               <div role="group" aria-label="Camera" className="flex gap-1 rounded-lg bg-white/[0.03] p-1">
-                {CAMERAS.map(({ key, label }) => (
+                {PLAY_CAMERAS.map(({ key, label }) => (
                   <button key={key} type="button" aria-pressed={camera === key}
                     className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
                       camera === key ? "bg-gold text-ink-950" : "text-mist hover:text-chalk"}`}
@@ -242,9 +243,10 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
                   </button>
                 ))}
               </div>
-              <button type="button" aria-pressed={follow}
+              <button type="button" aria-pressed={follow} disabled={camera === "broadcast"}
+                title={camera === "broadcast" ? "The broadcast camera always follows the ball" : undefined}
                 className={`rounded-md px-2 py-1 text-[11px] font-semibold ${
-                  follow ? "bg-white/10 text-chalk" : "text-mist hover:text-chalk"}`}
+                  follow ? "bg-white/10 text-chalk" : "text-mist hover:text-chalk"} disabled:opacity-40`}
                 onClick={() => setFollow(!follow)}>
                 Follow ball
               </button>
