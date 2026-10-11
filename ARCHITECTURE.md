@@ -116,6 +116,11 @@ Design notes:
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
 | `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play, injuries |
+| `GET /api/franchise/next-game` | The franchise's game this week (or playoff round) if it hasn't been played, and whether the user is coaching it |
+| `POST /api/games/{id}/coach` | Coach Mode: start coaching the franchise's next game (snapshots both teams) or pick it up again; returns the state |
+| `GET /api/games/{id}/coach` | The coached game's state: the next call (situation with the clock before runoff, the AI's suggestion) and every play so far |
+| `POST /api/games/{id}/coach/call` | Make the next call `{play, package?, timeout?}`; the snap is played up to the next call. 422 for a call that doesn't fit the situation |
+| `POST /api/games/{id}/coach/auto` | Let the AI call the next play, the rest of the drive, or the rest of the game (`{scope}`) |
 | `GET /api/playbook` | The named offensive plays (category, formation, the engine call, target weights) and defensive calls (shell, man/zone, blitz, forced package) |
 | `GET /api/games/{id}/playback` | 3D playback data: typed play records with each scrimmage play's 22 players (rebuilt from today's depth charts, flagged approximate, for games before SIM_VERSION 1.2) and those players' names, numbers, positions, speed |
 | `GET /api/leagues/{id}/leaders?category=&limit=` | Season leaders: all categories (top 5) or one (up to 50) |
@@ -212,6 +217,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend API | pytest + TestClient | every endpoint incl. 404/409/422 paths |
 | Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip; export → re-import is lossless in every format |
 | Backend leagues | pytest | spec validation, templates, creation (generated/empty rosters, custom identities, schedules for small leagues, determinism), franchise switching, team edits, protected delete |
+| Coach Mode | pytest | a coached game stops at the first call, plays to the end on the AI's suggestions and replays exactly, partial replays are prefixes of the full game, the user's offensive and defensive calls (and package) are the calls made, a timeout saves the runoff, autopilot finishes the game, team snapshots play identically; call validation; the API: next game, start (and resume), wrong-side and unknown calls refused, AI play/drive/game, the week blocked while in progress, the finished game stored like a simulated one and left alone when the week is simmed (its injuries settled), only the franchise's next game coachable, roster moves don't change a game in progress |
 | Playbooks | pytest | plays are complete engine calls, concept tables name real plays and shells, AI choices match the coarse call, concepts break even against the AI's mix, every snap is a named call, concepts change outcomes (Smash vs Cover 2 / Cover 4, runs vs two-high / single-high), plays steer the QB's target, the playbook API, play names on game detail and playback |
 | Simulation | pytest | determinism, score/clock/down invariants, box-score consistency, overtime rules, Coach seam, AI 4th-down/kneel calls, depth-chart lineups, calibration targets, rating sensitivity |
 | Season | pytest | week/season simulation, persisted stats match scores, standings and dashboard follow results, reproducible seeds, injured QB benched, schedule/game endpoints, deleting played leagues |

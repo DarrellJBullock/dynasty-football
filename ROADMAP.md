@@ -86,7 +86,9 @@ Each milestone ends with working software, green tests, and updated docs.
       boots, screens — and each defensive call's zones, man matchups and blitzers, drawn
       in 3D)
 - [ ] Special teams: field goals, punts, kickoffs
-- [ ] Coach Mode (call plays, AI executes) and Watch Mode
+- [x] Coach Mode engine and API (a coached game is replayed from the user's calls; start,
+      call, timeouts, "let the AI call" a play / drive / game; week-simulation rules)
+- [ ] Coach Mode UI (the call screen, the 3D play after each call) and Watch Mode
 
 ## M6 — Broadcast presentation
 

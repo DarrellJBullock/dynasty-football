@@ -39,7 +39,7 @@ def line_score(play_log: list[dict]) -> dict[str, list[int]]:
     return totals
 
 
-def _play_out(play: dict, abbreviations: dict[str, str]) -> PlayOut:
+def play_out(play: dict, abbreviations: dict[str, str]) -> PlayOut:
     offense, side = play["offense"], play["side"]
     defense = abbreviations["away" if side == "home" else "home"]
     result = play["result"]
@@ -85,7 +85,7 @@ def game_detail(db: Session, game: Game) -> GameDetail:
     ]
     log = game.play_log or []
     abbreviations = {"home": game.home_team.abbreviation, "away": game.away_team.abbreviation}
-    plays = [_play_out(p, abbreviations) for p in log]
+    plays = [play_out(p, abbreviations) for p in log]
     return GameDetail(
         injuries=_injuries(db, game, log),
         game=game_out(game),

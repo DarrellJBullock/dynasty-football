@@ -47,6 +47,15 @@ replay reaches the same point, the AI's calls and every random draw included.
   bytes of calls. It survives server restarts, and the finished game is simply the
   replay of all the calls: stored, box-scored and counted exactly like a simulated game.
 - Cost: replaying ~150 plays takes ~30 ms in Python, well inside a request.
+  (*Measured:* ~9 ms for a full game.)
+- *As built* (`app/sim/coaching.py`): the engine gives a `huddle` to any coach that wants
+  one at the start of each snap, before timeouts and the clock runoff, so the user sees
+  the true pre-snap clock and can call a timeout with the play. A call stays with its
+  snap if the period ends before it; possession changing at the half voids it. Both
+  teams are snapshotted at the start (`teams.team_to_dict`), so roster moves mid-game
+  don't change the replay. **Engine changes that alter the order of random draws change
+  how an in-progress coached game replays**, so ship them with a `SIM_VERSION` bump and
+  expect in-progress coached games to be restarted.
 - The user can hand any snap, the rest of the drive, or the rest of the game to the AI.
 
 ## 4. Playbooks

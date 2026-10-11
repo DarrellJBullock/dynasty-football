@@ -79,6 +79,10 @@ class Coach(Protocol):
     def defense(self, state: GameState, offense: SimTeam, defense: SimTeam,
                 rng: random.Random) -> DefenseCall: ...
 
+    def timeout(self, state: GameState, side: str) -> bool:
+        """Before a snap with the clock running: stop it with a timeout?"""
+        ...
+
 
 def field_goal_distance(ball_on: int) -> int:
     """Kick distance from the offense's spot: line to goal + 10 (end zone) + 7 (hold)."""
@@ -109,16 +113,29 @@ class AICoach:
                 rng: random.Random) -> DefenseCall:
         s = state
         passing_down = (s.down >= 3 and s.distance >= 6) or self._hurry(s, defending=True)
-        if s.down >= 3 and s.distance >= 10:
-            package: Package = "dime"
-        elif passing_down or s.distance >= 8:
-            package = "nickel"
-        else:
-            package = "base"
+        package = self.package(s)
         blitz_rate = 0.30 if passing_down else 0.24 if s.distance <= 2 else 0.17
         coverage: Coverage = "man" if rng.random() < 0.45 else "zone"
         blitz = rng.random() < blitz_rate
         return DefenseCall.named(_weighted(AI_DEFENSES[(coverage, blitz)], rng), package)
+
+    @classmethod
+    def package(cls, s: GameState) -> Package:
+        """Personnel to match the situation: dime on 3rd and long, nickel on passing downs."""
+        passing_down = (s.down >= 3 and s.distance >= 6) or cls._hurry(s, defending=True)
+        if s.down >= 3 and s.distance >= 10:
+            return "dime"
+        if passing_down or s.distance >= 8:
+            return "nickel"
+        return "base"
+
+    @classmethod
+    def timeout(cls, s: GameState, side: str) -> bool:
+        """The offense saves time in its two-minute drill; a defense trailing late stops the
+        clock to get the ball back."""
+        if side == s.offense:
+            return cls._hurry(s)
+        return s.quarter >= 4 and not s.in_overtime and s.margin > 0 and s.game_seconds_left <= 180
 
     # ---------- offense helpers ----------
 

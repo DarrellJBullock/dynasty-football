@@ -422,6 +422,26 @@ fakes the handoff (the boot rolls the quarterback out the other way), and screen
 rush in before the line releases to block. Defenders drop to their call's zones, trail
 their men in man coverage, and the call's blitzer comes after the quarterback.
 
+## Coach Mode
+
+Coach your team's game instead of simulating it (the API is in place; the call screen
+comes next in Milestone 5):
+
+- **Which game:** your team's game this week, or your next playoff game. Starting it
+  freezes both rosters as they are, so later moves (a release, a depth-chart change)
+  don't change the game in progress.
+- **Calls:** before every snap you call the play from the playbook: an offensive play
+  when you have the ball, a defensive call (and optionally the personnel package) when
+  you don't. The AI's suggested call is always shown. Kicking decisions (punt, field goal)
+  are offensive plays; extra points, kickoffs and two-point tries stay with the AI until
+  the special-teams update.
+- **Timeouts:** call one with your play while the clock is running to save the runoff.
+- **Hand it off:** let the AI call the next play, the rest of the drive, or the rest of
+  the game.
+- **The week:** simulating the week plays your game with the AI if you haven't started
+  it. A game you've started has to be finished (or handed to the AI) first. A finished
+  game counts like any other: standings, stats, records, and its injuries.
+
 ## Simulation & 3D gameplay
 
 The play-level engine is built (Milestone 2); see

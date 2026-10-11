@@ -827,3 +827,48 @@ export interface Playbook {
   offense: OffensivePlay[];
   defense: DefensivePlay[];
 }
+
+// ---------- coach mode ----------
+
+export interface CoachSituation {
+  role: "offense" | "defense"; // which call you make
+  quarter: number;
+  clock: string; // before any runoff
+  seconds: number;
+  clock_running: boolean; // time runs off before the snap unless you call a timeout
+  possession: "home" | "away";
+  offense: string;
+  down: number;
+  distance: number;
+  ball_on: number;
+  spot: string;
+  score: { home: number; away: number };
+  timeouts: { home: number; away: number };
+  suggestion: string; // the AI's call (a playbook key)
+  suggestion_name: string;
+  suggested_package: "base" | "nickel" | "dime" | null;
+}
+
+export interface CoachState {
+  game: Game;
+  team: TeamSummary;
+  side: "home" | "away";
+  status: "in_progress" | "final";
+  autopilot: boolean;
+  calls: number;
+  situation: CoachSituation | null;
+  plays: PlayOut[];
+  new_plays: number;
+  season: Season;
+}
+
+export interface CoachCallIn {
+  play: string;
+  package?: "base" | "nickel" | "dime" | null;
+  timeout?: boolean;
+}
+
+export interface NextGame {
+  game: Game | null;
+  coaching: boolean;
+}

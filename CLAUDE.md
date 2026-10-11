@@ -116,5 +116,8 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   franchise per league (unique constraint).
 - **League deletion** deletes child rows explicitly (`services/leagues.delete_league`)
   because SQLite tests don't enforce `ON DELETE CASCADE`. Add new league-owned tables there.
+- **Coached games replay from the user's calls** (`app/sim/coaching.py`): an engine change
+  that alters the order of random draws changes how an in-progress coached game replays.
+  Bump `SIM_VERSION` with such changes.
 - **Generator RNG order is load-bearing:** `build_league` must keep the default league
   byte-identical for a given seed. Append new random draws after existing ones.
