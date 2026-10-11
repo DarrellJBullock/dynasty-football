@@ -1046,6 +1046,10 @@ class PlaybackPlay(BaseModel):
     approximate: bool = False  # personnel rebuilt from today's depth charts (old logs)
     play_name: str | None = None  # the named offensive play (SIM_VERSION 1.3+)
     defense_name: str | None = None  # the named defensive call
+    # (SIM_VERSION 1.5+) each side's timeouts left at the snap, and the game seconds the
+    # play ran (the clock at the snap minus at the whistle).
+    timeouts: dict[str, int] | None = None
+    seconds: int | None = None
 
 
 class PlaybackPlayer(BaseModel):

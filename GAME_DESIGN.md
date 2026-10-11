@@ -481,6 +481,13 @@ resolved, the AI, overtime and playoff rules, and calibration targets. Remaining
   follow the ball, **Play straight through** (on to the next play after each whistle),
   and **Highlights only** (just the scores, turnovers, gains of 20 yards or more, and
   missed field goals).
+- **Broadcast graphics** (Milestone 6) over the 3D view on the Watch page and in Coach
+  Mode: a score bug with both teams in their colors, scores, timeouts and possession; the
+  quarter and a game clock that runs down through each play; the down, distance and
+  spot; the play clock before the snap; and banners as things happen (First down,
+  Touchdown, Sack, Interception, Fumble, Flag with the foul, field goals and two-point
+  tries, onside recoveries, safeties). Games played before this was added show no
+  timeouts and a clock that holds at the snap.
 - Plays: run, pass, blocking schemes, tackling, field goals, punts, kickoffs.
 - AI: situational play calling (down, distance, clock, score) for both sides.
 - Presentation: broadcast cameras, all-22 view, instant replay from the timeline.

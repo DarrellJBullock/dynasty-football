@@ -97,6 +97,11 @@ def test_playback(client: TestClient, game: Game):
                 assert "return" in event  # serialized with the engine's key
     snaps = [p for p in body["plays"] if p["result"]["type"] in ("run", "pass")]
     assert all(p["play_name"] and p["call"]["play"] for p in snaps)
+    # Broadcast graphics: timeouts at the snap and how long each play ran.
+    assert all(set(p["timeouts"]) == {"home", "away"} for p in body["plays"])
+    assert all(0 <= t <= 3 for p in body["plays"] for t in p["timeouts"].values())
+    assert all(0 <= p["seconds"] <= 15 for p in body["plays"])
+    assert sum(p["seconds"] for p in snaps) > 0
     sample = next(iter(players.values()))
     assert {"name", "short_name", "number", "position", "team_id", "speed", "height_in",
             "weight_lb"} <= set(sample)

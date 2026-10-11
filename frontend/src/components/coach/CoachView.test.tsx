@@ -101,6 +101,9 @@ describe("CoachView", () => {
     await user.click(screen.getByRole("button", { name: "Smash" }));
     expect(mocked.coachCall).toHaveBeenCalledWith(7, { play: "smash", timeout: false, package: null });
     expect(await screen.findByTestId("reel-text")).toHaveTextContent("pass complete for 14 yards");
+    // The reel carries the broadcast score bug.
+    expect(within(screen.getByRole("region", { name: "Last play" })).getByRole("group", { name: "Score bug" }))
+      .toBeInTheDocument();
     expect(screen.getByTestId("situation")).toHaveTextContent("at HFD 44");
     const log = screen.getByRole("complementary", { name: "Play-by-play" });
     expect(log).toHaveTextContent("Smash vs Cover 1");

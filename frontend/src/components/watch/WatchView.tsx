@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { choreographGame } from "@/components/field/playback/choreograph";
+import { BroadcastOverlay } from "@/components/broadcast/BroadcastOverlay";
 import { PlayClock } from "@/components/field/playback/clock";
 import { CAMERA_PRESETS, type CameraPreset } from "@/components/field/layout";
 import { callLabel, formatSpot } from "@/lib/games";
@@ -184,8 +185,6 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
     );
   }
 
-  const before = index > 0 ? plays[index - 1].score : { home: 0, away: 0 };
-  const score = ended ? play.score : before;
   const moment = [...timeline.moments].reverse().find((m) => m.t <= time + 1e-6);
 
   return (
@@ -202,14 +201,9 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
           <div className="relative aspect-video w-full bg-ink-950">
             <PlayScene playback={playback} timeline={timeline} clock={clock} camera={camera}
               follow={follow} onTick={onTick} />
-            <div className="absolute left-3 top-3 flex items-center gap-3 rounded-lg bg-ink-950/75 px-3 py-1.5 text-sm backdrop-blur"
-              aria-label="Score" role="group">
-              <span className="font-semibold">{game.away.abbreviation} <span className="tabular-nums">{score.away}</span></span>
-              <span className="font-semibold">{game.home.abbreviation} <span className="tabular-nums">{score.home}</span></span>
-              <span className="text-xs tabular-nums text-mist">{quarterLabel(play.quarter)} {play.clock}</span>
-            </div>
+            <BroadcastOverlay playback={playback} index={index} timeline={timeline} time={time} />
             {moment && (
-              <p className="absolute bottom-3 left-3 rounded-lg bg-ink-950/75 px-3 py-1.5 text-sm font-semibold backdrop-blur"
+              <p className="absolute left-3 top-3 rounded-lg bg-ink-950/75 px-3 py-1.5 text-sm font-semibold backdrop-blur"
                 role="status">
                 {moment.text}
               </p>

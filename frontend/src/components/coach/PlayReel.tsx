@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BroadcastOverlay } from "@/components/broadcast/BroadcastOverlay";
 import type { Choreography } from "@/components/field/playback/choreograph";
 import { PlayClock } from "@/components/field/playback/clock";
 import { CAMERA_PRESETS, type CameraPreset } from "@/components/field/layout";
@@ -26,11 +27,17 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   const [ended, setEnded] = useState(false);
   const [camera, setCamera] = useState<CameraPreset>("sideline");
   const [clock] = useState(() => new PlayClock());
+  const [time, setTime] = useState(0); // for the broadcast graphics, a tenth of a second at a time
+  const shown = useRef(0);
   const last = reel.length - 1;
   const current = reel[Math.min(index, last)];
 
-  const onTick = useCallback((_: number, justEnded: boolean) => {
+  const onTick = useCallback((t: number, justEnded: boolean) => {
     if (justEnded) setEnded(true);
+    if (justEnded || Math.abs(t - shown.current) >= 0.1) {
+      shown.current = t;
+      setTime(t);
+    }
   }, []);
 
   // On to the next play in the reel after a short pause.
@@ -39,6 +46,8 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
     const timer = setTimeout(() => {
       clock.seek(0);
       clock.setPlaying(true);
+      shown.current = 0;
+      setTime(0);
       setEnded(false);
       setIndex(index + 1);
     }, BETWEEN_PLAYS);
@@ -49,12 +58,16 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
     setIndex(last);
     clock.seek(reel[last].timeline.duration);
     clock.setPlaying(false);
+    shown.current = reel[last].timeline.duration;
+    setTime(reel[last].timeline.duration);
     setEnded(true);
   };
 
   const replay = () => {
     clock.seek(0);
     clock.setPlaying(true);
+    shown.current = 0;
+    setTime(0);
     setEnded(false);
   };
 
@@ -66,6 +79,8 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
       <div className="relative aspect-video w-full bg-ink-950">
         <PlayScene playback={playback} timeline={current.timeline} clock={clock} camera={camera}
           follow onTick={onTick} />
+        <BroadcastOverlay playback={playback} timeline={current.timeline} time={time}
+          index={playback.plays.findIndex((p) => p.n === current.play.n)} />
         <div role="group" aria-label="Camera"
           className="absolute right-3 top-3 flex gap-1 rounded-lg bg-ink-950/70 p-1 backdrop-blur">
           {CAMERAS.map(({ key, label }) => (

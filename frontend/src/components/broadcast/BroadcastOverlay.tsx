@@ -1,0 +1,106 @@
+"use client";
+
+import { useMemo } from "react";
+import type { PlayTimeline } from "@/components/field/playback/timeline";
+import { luminance } from "@/components/field/players/kit";
+import { bannerAt, bannersFor, downText, formatClock, gameClockAt, playClockAt, scoreAt,
+         type BannerTone } from "@/lib/broadcast";
+import { formatSpot } from "@/lib/games";
+import type { GamePlayback, TeamSummary } from "@/lib/types";
+
+const BANNER_STYLES: Record<BannerTone, string> = {
+  gold: "bg-gold text-ink-950",
+  red: "bg-rose-600 text-white",
+  flag: "bg-yellow-400 text-ink-950",
+  plain: "bg-ink-950/85 text-chalk ring-1 ring-white/15",
+};
+
+function quarterLabel(q: number): string {
+  return q <= 4 ? `${["", "1st", "2nd", "3rd", "4th"][q]}` : q === 5 ? "OT" : `OT${q - 4}`;
+}
+
+/**
+ * The broadcast graphics over the 3D view (docs/design/broadcast.md §3): a score bug along
+ * the bottom with the running game clock, the play clock before the snap, the down and
+ * distance; and banners at the moments that earn them. `time` is seconds into the play.
+ */
+export function BroadcastOverlay({ playback, index, timeline, time }: {
+  playback: GamePlayback;
+  index: number; // the play in playback.plays
+  timeline: PlayTimeline;
+  time: number;
+}) {
+  const play = playback.plays[index];
+  const banners = useMemo(() => (play ? bannersFor(play, timeline) : []), [play, timeline]);
+  if (!play) return null;
+  const previous = playback.plays[index - 1];
+  const { home, away } = playback.game;
+  const score = scoreAt(play, previous, timeline, time);
+  const clock = gameClockAt(play, timeline, time);
+  const playClock = playClockAt(play, time);
+  const banner = bannerAt(banners, time);
+  const [offense, defense] = play.side === "home" ? [home, away] : [away, home];
+  const down = downText(play);
+  const spot = play.ball_on != null && play.down != null
+    ? formatSpot(play.ball_on, offense.abbreviation, defense.abbreviation) : null;
+
+  return (
+    <>
+      {banner && (
+        <div key={`${banner.t}-${banner.text}`} aria-live="polite" data-testid="banner"
+          className={`pointer-events-none absolute left-1/2 top-[14%] -translate-x-1/2 animate-[banner_0.25s_ease-out] rounded-md px-5 py-1.5 font-display text-xl font-bold uppercase tracking-widest shadow-lg sm:text-2xl ${BANNER_STYLES[banner.tone]}`}>
+          {banner.text}
+        </div>
+      )}
+      <div role="group" aria-label="Score bug"
+        className="pointer-events-none absolute inset-x-2 bottom-2 flex items-stretch overflow-hidden whitespace-nowrap rounded-md text-sm shadow-lg ring-1 ring-black/40 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2">
+        <TeamCell team={away} score={score.away} timeouts={play.timeouts?.away} ball={play.side === "away"} />
+        <TeamCell team={home} score={score.home} timeouts={play.timeouts?.home} ball={play.side === "home"} />
+        <div className="flex items-center gap-2 bg-ink-950/90 px-3 font-display font-semibold tabular-nums">
+          <span className="text-mist">{quarterLabel(play.quarter)}</span>
+          <span data-testid="game-clock">{formatClock(clock)}</span>
+        </div>
+        {(down || spot) && (
+          <div className="hidden items-center gap-1.5 bg-ink-900/90 px-3 font-display font-semibold sm:flex">
+            <span className="text-gold" data-testid="down">{down}</span>
+            {spot && <span className="text-xs text-mist">at {spot}</span>}
+          </div>
+        )}
+        {playClock !== null && (
+          <div className="flex items-center bg-ink-800/90 px-2 font-display text-xs font-semibold tabular-nums text-mist"
+            aria-label={`Play clock ${playClock}`}>
+            :{String(playClock).padStart(2, "0")}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function TeamCell({ team, score, timeouts, ball }: {
+  team: TeamSummary; score: number; timeouts: number | undefined; ball: boolean;
+}) {
+  const light = luminance(team.primary_color) > 0.45;
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-1" style={{ backgroundColor: team.primary_color }}
+      data-testid={`bug-${team.abbreviation}`}>
+      <span className={`font-display font-bold uppercase ${light ? "text-ink-950" : "text-white"}`}>
+        {team.abbreviation}
+      </span>
+      <span className={`flex w-3 justify-center text-[10px] ${light ? "text-ink-950" : "text-white"}`}
+        aria-label={ball ? "has the ball" : undefined}>
+        {ball ? "●" : ""}
+      </span>
+      <div className="flex flex-col items-end">
+        <span className={`stat-number text-lg ${light ? "text-ink-950" : "text-white"}`}>{score}</span>
+        {timeouts != null && (
+          <span className="flex gap-0.5" aria-label={`${timeouts} timeouts`}>
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={`h-0.5 w-2 rounded ${i < timeouts ? (light ? "bg-ink-950" : "bg-white") : "bg-black/25"}`} />
+            ))}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
