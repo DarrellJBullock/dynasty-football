@@ -170,6 +170,50 @@ describe("WatchView", () => {
     expect(window.location.search).toBe("?play=2&highlights=1&auto=1");
   });
 
+  it("replays a highlight from another angle at half speed, then carries on", () => {
+    vi.useFakeTimers();
+    render(<WatchView playback={playback} initialPlay={2} initialAuto />);
+    const { timeline } = scene.props!;
+    tick(timeline.duration); // the 64-yard touchdown ends
+    expect(screen.queryByRole("group", { name: "Instant replay" })).not.toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(800); });
+
+    // The replay rolls: back to the snap, the skycam, half speed, the result held on the bug.
+    expect(screen.getByRole("group", { name: "Instant replay" })).toHaveTextContent("Replay");
+    expect(scene.props!.camera).toBe("broadcast");
+    expect(scene.props!.cues).toEqual([{ t: 0, shot: "skycam" }]);
+    expect(scene.props!.clock.speed).toBe(0.5);
+    expect(scene.props!.clock.time).toBeLessThan(2);
+    expect(screen.getByTestId("bug-HFD")).toHaveTextContent("6");
+    // Straight-through play waits for it.
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(screen.getByTestId("play-text")).toHaveTextContent("TOUCHDOWN");
+
+    tick(timeline.duration - 0.5); // past the end of the replay's stretch
+    expect(screen.queryByRole("group", { name: "Instant replay" })).not.toBeInTheDocument();
+    expect(scene.props!.clock.speed).toBe(1);
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(screen.getByTestId("play-text")).toHaveTextContent("sacked"); // on to the next play
+  });
+
+  it("skips a replay, or doesn't replay at all", async () => {
+    vi.useFakeTimers();
+    const { unmount } = render(<WatchView playback={playback} initialPlay={2} />);
+    tick(scene.props!.timeline.duration);
+    act(() => { vi.advanceTimersByTime(800); });
+    fireEvent.click(screen.getByRole("button", { name: "Skip replay" }));
+    expect(screen.queryByRole("group", { name: "Instant replay" })).not.toBeInTheDocument();
+    expect(scene.props!.clock.time).toBeCloseTo(scene.props!.timeline.duration);
+    expect(scene.props!.clock.speed).toBe(1);
+    unmount();
+
+    render(<WatchView playback={playback} initialPlay={2} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Instant replays" }));
+    tick(scene.props!.timeline.duration);
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(screen.queryByRole("group", { name: "Instant replay" })).not.toBeInTheDocument();
+  });
+
   it("takes the keyboard: space plays and pauses, arrows step", () => {
     render(<WatchView playback={playback} />);
     fireEvent.keyDown(window, { key: " " });

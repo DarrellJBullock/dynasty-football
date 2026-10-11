@@ -24,21 +24,23 @@ function quarterLabel(q: number): string {
  * the bottom with the running game clock, the play clock before the snap, the down and
  * distance; and banners at the moments that earn them. `time` is seconds into the play.
  */
-export function BroadcastOverlay({ playback, index, timeline, time }: {
+export function BroadcastOverlay({ playback, index, timeline, time, replay = false }: {
   playback: GamePlayback;
   index: number; // the play in playback.plays
   timeline: PlayTimeline;
   time: number;
+  /** During an instant replay: the bug holds the play's result (no banners, no play clock). */
+  replay?: boolean;
 }) {
   const play = playback.plays[index];
   const banners = useMemo(() => (play ? bannersFor(play, timeline) : []), [play, timeline]);
   if (!play) return null;
   const previous = playback.plays[index - 1];
   const { home, away } = playback.game;
-  const score = scoreAt(play, previous, timeline, time);
-  const clock = gameClockAt(play, timeline, time);
-  const playClock = playClockAt(play, time);
-  const banner = bannerAt(banners, time);
+  const score = replay ? play.score : scoreAt(play, previous, timeline, time);
+  const clock = gameClockAt(play, timeline, replay ? timeline.duration : time);
+  const playClock = replay ? null : playClockAt(play, time);
+  const banner = replay ? null : bannerAt(banners, time);
   const [offense, defense] = play.side === "home" ? [home, away] : [away, home];
   const down = downText(play);
   const spot = play.ball_on != null && play.down != null
@@ -102,5 +104,22 @@ function TeamCell({ team, score, timeouts, ball }: {
         )}
       </div>
     </div>
+  );
+}
+
+/** The instant replay's tag, with a wipe as it rolls, and a way out. */
+export function ReplayBadge({ onSkip }: { onSkip: () => void }) {
+  return (
+    <>
+      <div aria-hidden className="pointer-events-none absolute inset-0 animate-[wipe_0.5s_ease-in_forwards] bg-gradient-to-r from-transparent via-gold/60 to-transparent" />
+      <div role="group" aria-label="Instant replay"
+        className="absolute right-3 top-3 flex items-center gap-2 rounded-md bg-ink-950/85 py-1 pl-3 pr-1 shadow-lg ring-1 ring-gold/40">
+        <span className="font-display text-sm font-bold uppercase tracking-[0.25em] text-gold">Replay</span>
+        <button type="button" onClick={onSkip}
+          className="rounded px-2 py-0.5 text-[11px] font-semibold text-mist hover:bg-white/10 hover:text-chalk">
+          Skip replay
+        </button>
+      </div>
+    </>
   );
 }

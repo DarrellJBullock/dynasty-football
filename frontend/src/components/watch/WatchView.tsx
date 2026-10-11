@@ -4,10 +4,12 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { choreographGame } from "@/components/field/playback/choreograph";
-import { BroadcastOverlay } from "@/components/broadcast/BroadcastOverlay";
+import { BroadcastOverlay, ReplayBadge } from "@/components/broadcast/BroadcastOverlay";
 import { PlayClock } from "@/components/field/playback/clock";
 import { PLAY_CAMERAS, type CameraChoice } from "@/components/field/layout";
 import { shotList } from "@/components/field/playback/director";
+import { replayPlan } from "@/components/field/playback/replay";
+import { useInstantReplay } from "@/components/field/playback/useInstantReplay";
 import { callLabel, formatSpot } from "@/lib/games";
 import { highlightIndexes } from "@/lib/highlights";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
@@ -66,6 +68,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   const [camera, setCamera] = useState<CameraChoice>("broadcast");
   const [follow, setFollow] = useState(true);
   const [auto, setAuto] = useState(initialAuto);
+  const [replays, setReplays] = useState(true);
   const [clock] = useState(() => new PlayClock());
   const shown = useRef(0);
 
@@ -81,6 +84,16 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
     setPlayingState(value);
   }, [clock]);
 
+  // Instant replay of highlight plays, from a second angle at half speed.
+  const plan = useMemo(() => (play && timeline ? replayPlan(play, plays[index - 1], timeline) : null),
+                       [index, play, plays, timeline]);
+  const onSeek = useCallback((t: number) => {
+    shown.current = t;
+    setTime(t);
+    setPlayingState(clock.playing);
+  }, [clock]);
+  const replay = useInstantReplay({ clock, plan, enabled: replays, ended, playKey: index, duration, onSeek });
+
   // The plays being stepped through: all of them, or just the highlights.
   const reel = highlights ? highlightList : null;
   const neighbor = useCallback((from: number, step: 1 | -1): number | null => {
@@ -92,14 +105,16 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
     return candidates[0] ?? null;
   }, [plays.length, reel]);
 
+  const { cancel: cancelReplay } = replay;
   const goTo = useCallback((next: number | null) => {
     if (next === null || next < 0 || next >= plays.length) return;
+    cancelReplay();
     clock.seek(0);
     shown.current = 0;
     setIndex(next);
     setTime(0);
     setPlaying(true);
-  }, [clock, plays.length, setPlaying]);
+  }, [cancelReplay, clock, plays.length, setPlaying]);
 
   // Keep the URL in step, so the address bar links back to exactly this.
   useEffect(() => {
@@ -114,13 +129,15 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
     if (on && !highlightList.includes(index)) goTo(highlightList.find((i) => i > index) ?? highlightList[0]);
   };
 
+  const { track: trackReplay } = replay;
   const onTick = useCallback((t: number, justEnded: boolean) => {
     if (justEnded) setPlayingState(false);
     if (justEnded || Math.abs(t - shown.current) >= UI_STEP) {
       shown.current = t;
       setTime(t);
     }
-  }, []);
+    trackReplay(t);
+  }, [trackReplay]);
 
   const togglePlay = useCallback(() => {
     if (!clock.playing && clock.time >= duration - 1e-6) {
@@ -132,6 +149,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   }, [clock, duration, setPlaying]);
 
   const scrub = (t: number) => {
+    cancelReplay();
     setPlaying(false);
     clock.seek(t);
     shown.current = t;
@@ -146,11 +164,12 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   // Straight through: on to the next play (or highlight) after a short pause.
   const next = neighbor(index, 1);
   const previous = neighbor(index, -1);
+  const replayDone = replay.settled;
   useEffect(() => {
-    if (!auto || !ended || next === null) return;
+    if (!auto || !ended || !replayDone || next === null) return;
     const timer = setTimeout(() => goTo(next), AUTO_ADVANCE_PAUSE);
     return () => clearTimeout(timer);
-  }, [auto, ended, next, goTo]);
+  }, [auto, ended, next, goTo, replayDone]);
 
   // Space plays and pauses; the arrow keys step between plays.
   useEffect(() => {
@@ -200,9 +219,13 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="panel overflow-hidden" aria-label="Play viewer">
           <div className="relative aspect-video w-full bg-ink-950">
-            <PlayScene playback={playback} timeline={timeline} clock={clock} camera={camera} cues={cues}
+            <PlayScene playback={playback} timeline={timeline} clock={clock}
+              camera={replay.replaying ? "broadcast" : camera}
+              cues={replay.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
               follow={follow} onTick={onTick} />
-            <BroadcastOverlay playback={playback} index={index} timeline={timeline} time={time} />
+            <BroadcastOverlay playback={playback} index={index} timeline={timeline} time={time}
+              replay={replay.replaying} />
+            {replay.replaying && <ReplayBadge key={plan?.from} onSkip={replay.skip} />}
             {moment && (
               <p className="absolute left-3 top-3 rounded-lg bg-ink-950/75 px-3 py-1.5 text-sm font-semibold backdrop-blur"
                 role="status">
@@ -258,6 +281,13 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
               <label className="flex items-center gap-2 text-xs text-mist">
                 <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
                 Play straight through
+              </label>
+              <label className="flex items-center gap-2 text-xs text-mist">
+                <input type="checkbox" checked={replays} onChange={(e) => {
+                  if (!e.target.checked) replay.cancel();
+                  setReplays(e.target.checked);
+                }} />
+                Instant replays
               </label>
             </div>
 
