@@ -113,6 +113,23 @@ describe("PlayerView", () => {
     expect(screen.getByText(/Free agent/)).toBeInTheDocument();
   });
 
+  it("shows the career table and awards", () => {
+    render(<PlayerView player={{ ...makePlayerDetail({ position: "QB" }), full_name: "Keegan Quarles" }} stats={stats}
+      career={{ player_id: 1, games: 34, totals: { pass_att: 1000, pass_cmp: 650, pass_yds: 8000, pass_td: 60 },
+        seasons: [
+          { year: 2026, team, games: 17, stats: { pass_att: 500, pass_cmp: 320, pass_yds: 3900, pass_td: 28 } },
+          { year: 2027, team, games: 17, stats: { pass_att: 500, pass_cmp: 330, pass_yds: 4100, pass_td: 32 } },
+        ],
+        awards: [{ award: "mvp", label: "Most Valuable Player", year: 2027, player_id: 1, name: "Keegan Quarles",
+          position: "QB", team, summary: "4,100 pass yds" }] }} />);
+    const career = screen.getByRole("region", { name: "Career" });
+    expect(career).toHaveTextContent("Career · 34 games");
+    expect(career).toHaveTextContent("2027 Most Valuable Player");
+    const rows = within(career).getAllByRole("row");
+    expect(rows).toHaveLength(4); // header, two seasons, career totals
+    expect(rows[3]).toHaveTextContent("650/1000");
+  });
+
   it("marks retired players", () => {
     render(<PlayerView player={makePlayerDetail({ retired_year: 2026 })} stats={{ ...stats, games: 0, totals: {}, game_log: [], team: null }} />);
     expect(screen.getByText(/Retired after 2026/)).toBeInTheDocument();

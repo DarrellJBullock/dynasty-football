@@ -26,9 +26,12 @@ export default function PlayerPage({ params }: PageProps<"/players/[id]">) {
 async function PlayerContent({ params }: Pick<PageProps<"/players/[id]">, "params">) {
   const id = Number((await params).id);
   const result = await attempt(async () => {
-    const [player, stats] = await Promise.all([api.player(id), api.playerStats(id)]);
-    return { player, stats };
+    const [player, stats, career] = await Promise.all([
+      api.player(id), api.playerStats(id), api.career(id),
+    ]);
+    return { player, stats, career };
   });
   if (!result.ok) return <ServerError error={result.error} />;
-  return <PlayerView player={result.data.player} stats={result.data.stats} />;
+  const { player, stats, career } = result.data;
+  return <PlayerView player={player} stats={stats} career={career} />;
 }

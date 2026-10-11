@@ -802,3 +802,67 @@ class TradeResult(BaseModel):
     accepted: bool
     evaluation: TradeEvaluation
     trade: TradeOut | None
+
+
+# ---------- history ----------
+
+
+class AwardOut(BaseModel):
+    award: str  # mvp | opoy | dpoy | oroy | droy
+    label: str
+    year: int
+    player_id: int
+    name: str
+    position: str
+    team: TeamSummary | None
+    summary: str
+
+
+class SeasonHistory(BaseModel):
+    season_id: int
+    year: int
+    phase: str
+    complete: bool
+    champion: TeamSummary | None
+    runner_up: TeamSummary | None
+    awards: list[AwardOut]
+    franchise_record: Record | None
+    franchise_result: str  # "Won the championship", "Lost in the Divisional", ...
+
+
+class RecordRow(BaseModel):
+    player_id: int
+    name: str
+    position: str
+    team: str | None  # current team (abbreviation)
+    year: int | None  # single-season records
+    value: int
+    games: int
+    retired: bool
+
+
+class RecordCategory(BaseModel):
+    key: str
+    label: str
+    single_season: list[RecordRow]
+    career: list[RecordRow]
+
+
+class HistoryOut(BaseModel):
+    seasons: list[SeasonHistory]  # latest first
+    records: list[RecordCategory]  # regular season, all seasons in the league
+
+
+class CareerSeason(BaseModel):
+    year: int
+    team: TeamSummary
+    games: int
+    stats: dict[str, int]
+
+
+class CareerOut(BaseModel):
+    player_id: int
+    seasons: list[CareerSeason]
+    games: int
+    totals: dict[str, int]
+    awards: list[AwardOut]

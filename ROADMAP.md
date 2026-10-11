@@ -56,7 +56,8 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Trades with AI valuation (players and next year's picks, trade meter, deadline)
 - [x] Player development, aging, retirement
 - [x] Injuries from simulated games (injury report, recovery countdown, game-page list)
-- [ ] Records and history (season archives, awards)
+- [x] Records and history (season archive, MVP and player/rookie of the year awards,
+      single-season and career records, player career pages)
 
 ## M4 — 3D engine foundation
 

@@ -4,9 +4,11 @@ import { RatingBar } from "@/components/ui/RatingBar";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatAttribute, formatHeight, formatMoney, injuryDetail } from "@/lib/format";
 import { groupsFor } from "@/lib/stats";
-import type { PlayerDetail, PlayerSeasonStats } from "@/lib/types";
+import type { CareerOut, PlayerDetail, PlayerSeasonStats } from "@/lib/types";
 
-export function PlayerView({ player, stats }: { player: PlayerDetail; stats: PlayerSeasonStats }) {
+export function PlayerView({ player, stats, career }: {
+  player: PlayerDetail; stats: PlayerSeasonStats; career?: CareerOut;
+}) {
   const groups = groupsFor(stats.totals);
   const team = stats.team;
   return (
@@ -68,6 +70,8 @@ export function PlayerView({ player, stats }: { player: PlayerDetail; stats: Pla
         </section>
       </div>
 
+      {career && (career.seasons.length > 0 || career.awards.length > 0) && <Career career={career} />}
+
       <section className="panel overflow-x-auto" aria-label="Game log">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
@@ -106,5 +110,60 @@ export function PlayerView({ player, stats }: { player: PlayerDetail; stats: Pla
         </table>
       </section>
     </div>
+  );
+}
+
+function Career({ career }: { career: CareerOut }) {
+  // Season totals only ("LONG" columns are per-game maximums).
+  const groups = groupsFor(career.totals).map((g) => ({
+    ...g, columns: g.columns.filter(([label]) => label !== "LONG"),
+  }));
+  return (
+    <section className="panel overflow-x-auto" aria-label="Career">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-4">
+        <h2 className="eyebrow mr-2">Career · {career.games} games</h2>
+        {career.awards.map((a) => (
+          <span key={`${a.award}-${a.year}`} title={a.summary}
+            className="rounded bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-gold">
+            {a.year} {a.label}
+          </span>
+        ))}
+      </div>
+      {career.seasons.length > 0 && (
+        <table className="mt-2 w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-white/5 text-[11px] uppercase tracking-wider text-mist">
+              <th className="px-4 py-2 text-left font-medium">Year</th>
+              <th className="px-4 py-2 text-left font-medium">Team</th>
+              <th className="px-3 py-2 text-right font-medium">G</th>
+              {groups.flatMap((g) => g.columns.map(([label]) => (
+                <th key={`${g.title}-${label}`} className="px-3 py-2 text-right font-medium" title={g.title}>{label}</th>
+              )))}
+            </tr>
+          </thead>
+          <tbody>
+            {career.seasons.map((s) => (
+              <tr key={s.year} className="border-b border-white/[0.03]">
+                <td className="px-4 py-2 tabular-nums">{s.year}</td>
+                <td className="px-4 py-2">{s.team.abbreviation}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{s.games}</td>
+                {groups.flatMap((g) => g.columns.map(([label, value]) => (
+                  <td key={`${g.title}-${label}`} className="px-3 py-2 text-right tabular-nums">{value(s.stats)}</td>
+                )))}
+              </tr>
+            ))}
+            {career.seasons.length > 1 && (
+              <tr className="font-semibold">
+                <td className="px-4 py-2" colSpan={2}>Career</td>
+                <td className="px-3 py-2 text-right tabular-nums">{career.games}</td>
+                {groups.flatMap((g) => g.columns.map(([label, value]) => (
+                  <td key={`${g.title}-${label}`} className="px-3 py-2 text-right tabular-nums">{value(career.totals)}</td>
+                )))}
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
