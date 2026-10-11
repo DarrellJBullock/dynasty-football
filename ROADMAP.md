@@ -61,7 +61,8 @@ Each milestone ends with working software, green tests, and updated docs.
 
 ## M4 — 3D engine foundation
 
-- [ ] Engine event timeline schema (shared backend ↔ frontend)
+- [x] Play event contract (typed events shared backend ↔ frontend, each play's 22 players in
+      the play log, playback API) — design: `docs/design/play-playback.md`
 - [ ] Stadium, field, and lighting
 - [ ] Player models + core animations (stance, run, block, throw, catch, tackle)
 - [ ] Timeline playback of a single play

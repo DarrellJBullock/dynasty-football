@@ -106,6 +106,38 @@ def defense_personnel(team: SimTeam, call: DefenseCall, rng: random.Random) -> D
                    corners=take(P.CB, cb_count), fs=take(P.FS, 1)[0], ss=take(P.SS, 1)[0])
 
 
+BASE_DEFENSE = DefenseCall()
+
+
+def offense_lineup(team: SimTeam) -> list[SimPlayer]:
+    """Base 11 personnel's first string, without rotation or random draws."""
+    used: list[int] = []
+
+    def take(slot: P, count: int) -> list[SimPlayer]:
+        players = team.at(slot, count, used)
+        used.extend(p.id for p in players)
+        return players
+
+    return [*take(P.QB, 1), *take(P.RB, 1), *take(P.WR, 3), *take(P.TE, 1), *take(P.OT, 2),
+            *take(P.OG, 2), *take(P.C, 1)]
+
+
+def defense_lineup(team: SimTeam, call: DefenseCall) -> list[SimPlayer]:
+    """The package's first-string defenders, without rotation or random draws (for plays
+    where the ball isn't snapped)."""
+    used: list[int] = []
+
+    def take(slot: P, count: int) -> list[SimPlayer]:
+        players = team.at(slot, count, used)
+        used.extend(p.id for p in players)
+        return players
+
+    olbs = {"base": 2, "nickel": 1, "dime": 0}[call.package]
+    corners = {"base": 2, "nickel": 3, "dime": 4}[call.package]
+    return [*take(P.DE, 2), *take(P.DT, 2), *(take(P.OLB, olbs) if olbs else []),
+            *take(P.MLB, 1), *take(P.CB, corners), *take(P.FS, 1), *take(P.SS, 1)]
+
+
 # ---------- outcomes ----------
 
 @dataclass

@@ -718,3 +718,73 @@ export interface CareerOut {
   totals: Record<string, number>;
   awards: AwardOut[];
 }
+
+// ---------- playback (3D) ----------
+// Play events as the simulation engine writes them: the contract between the engine and
+// the 3D choreographer (docs/design/play-playback.md). Negative ids are stand-ins for empty
+// depth-chart spots.
+
+export type PlayEvent =
+  | { t: "kickoff"; kicker: number; touchback: boolean; return: number; returner?: number | null }
+  | { t: "punt"; punter: number; yards: number; touchback: boolean; fair_catch: boolean; return: number; returner?: number | null }
+  | { t: "field_goal"; kicker: number; distance: number; good: boolean }
+  | { t: "extra_point"; kicker: number; good: boolean }
+  | { t: "two_point"; good: boolean }
+  | { t: "handoff"; to: number; direction: string }
+  | { t: "rush"; player: number; yards: number }
+  | { t: "scramble"; qb: number; yards: number }
+  | { t: "kneel"; qb: number; yards: number }
+  | { t: "dropback"; qb: number; depth: "screen" | "short" | "medium" | "deep" }
+  | { t: "pressure" }
+  | { t: "sack"; qb: number; by: number; yards: number }
+  | { t: "pass"; qb: number; target: number | null; result: "complete" | "incomplete" | "interception" | "throwaway"; air: number; yards: number }
+  | { t: "interception"; by: number; return: number }
+  | { t: "pass_defended"; by: number }
+  | { t: "tackle"; by: number[] }
+  | { t: "fumble"; player: number; forced_by: number; lost: boolean }
+  | { t: "penalty"; team: string; kind: string; yards: number; player: number | null; automatic_first: boolean }
+  | { t: "injury"; player: number; team: string; injury: string; weeks: number };
+
+export interface Personnel {
+  offense: number[]; // QB, RB, WR×3, TE, OT×2, OG×2, C
+  defense: number[]; // DE×2, DT×2, OLB×(2/1/0), MLB, CB×(2/3/4), FS, SS
+  package: "base" | "nickel" | "dime";
+}
+
+export interface PlaybackPlay {
+  n: number;
+  quarter: number;
+  clock: string;
+  offense: string; // abbreviation with the ball (the kicking team on kickoffs)
+  side: "home" | "away";
+  down: number | null;
+  distance: number | null;
+  ball_on: number | null; // yards from the offense's own goal line
+  call: Record<string, unknown> | null;
+  defense: { package: string; coverage: string; blitz: boolean } | null;
+  result: { type: string; yards?: number; [key: string]: unknown };
+  events: PlayEvent[];
+  elapsed: number;
+  score: { home: number; away: number };
+  text: string;
+  personnel: Personnel | null;
+  approximate: boolean;
+}
+
+export interface PlaybackPlayer {
+  id: number;
+  name: string;
+  short_name: string;
+  number: number;
+  position: Position;
+  team_id: number;
+  speed: number;
+}
+
+export interface GamePlayback {
+  game: Game;
+  sim_version: string | null;
+  approximate: boolean;
+  players: PlaybackPlayer[];
+  plays: PlaybackPlay[];
+}

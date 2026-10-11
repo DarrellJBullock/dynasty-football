@@ -866,3 +866,192 @@ class CareerOut(BaseModel):
     games: int
     totals: dict[str, int]
     awards: list[AwardOut]
+
+
+# ---------- playback (3D) ----------
+# Play events as the engine writes them (app/sim/resolve.py, engine.py): the contract
+# between the simulation and the 3D choreographer. Ids are player ids; negative ids are
+# stand-ins for empty depth-chart spots.
+
+
+class _Event(BaseModel):
+    model_config = {"populate_by_name": True}
+
+
+class KickoffEvent(_Event):
+    t: Literal["kickoff"]
+    kicker: int
+    touchback: bool
+    return_spot: int = Field(alias="return")  # receiving team's yard line after the return
+    returner: int | None = None  # (SIM_VERSION 1.2+)
+
+
+class PuntEvent(_Event):
+    t: Literal["punt"]
+    punter: int
+    yards: int  # gross
+    touchback: bool
+    fair_catch: bool = False
+    return_yards: int = Field(alias="return")
+    returner: int | None = None
+
+
+class FieldGoalEvent(_Event):
+    t: Literal["field_goal"]
+    kicker: int
+    distance: int
+    good: bool
+
+
+class ExtraPointEvent(_Event):
+    t: Literal["extra_point"]
+    kicker: int
+    good: bool
+
+
+class TwoPointEvent(_Event):
+    t: Literal["two_point"]
+    good: bool
+
+
+class HandoffEvent(_Event):
+    t: Literal["handoff"]
+    to: int
+    direction: str  # inside | outside
+
+
+class RushEvent(_Event):
+    t: Literal["rush"]
+    player: int
+    yards: int
+
+
+class ScrambleEvent(_Event):
+    t: Literal["scramble"]
+    qb: int
+    yards: int
+
+
+class KneelEvent(_Event):
+    t: Literal["kneel"]
+    qb: int
+    yards: int
+
+
+class DropbackEvent(_Event):
+    t: Literal["dropback"]
+    qb: int
+    depth: str  # screen | short | medium | deep
+
+
+class PressureEvent(_Event):
+    t: Literal["pressure"]
+
+
+class SackEvent(_Event):
+    t: Literal["sack"]
+    qb: int
+    by: int
+    yards: int  # negative
+
+
+class PassEvent(_Event):
+    t: Literal["pass"]
+    qb: int
+    target: int | None
+    result: Literal["complete", "incomplete", "interception", "throwaway"]
+    air: int
+    yards: int
+
+
+class InterceptionEvent(_Event):
+    t: Literal["interception"]
+    by: int
+    return_yards: int = Field(alias="return")
+
+
+class PassDefendedEvent(_Event):
+    t: Literal["pass_defended"]
+    by: int
+
+
+class TackleEvent(_Event):
+    t: Literal["tackle"]
+    by: list[int]
+
+
+class FumbleEvent(_Event):
+    t: Literal["fumble"]
+    player: int
+    forced_by: int
+    lost: bool
+
+
+class PenaltyEvent(_Event):
+    t: Literal["penalty"]
+    team: str  # abbreviation of the penalized team
+    kind: str  # false_start | holding | pass_interference
+    yards: int
+    player: int | None = None
+    automatic_first: bool = False
+
+
+class InjuryEvent(_Event):
+    t: Literal["injury"]
+    player: int
+    team: str
+    injury: str
+    weeks: int
+
+
+PlayEvent = Annotated[
+    KickoffEvent | PuntEvent | FieldGoalEvent | ExtraPointEvent | TwoPointEvent
+    | HandoffEvent | RushEvent | ScrambleEvent | KneelEvent | DropbackEvent | PressureEvent
+    | SackEvent | PassEvent | InterceptionEvent | PassDefendedEvent | TackleEvent
+    | FumbleEvent | PenaltyEvent | InjuryEvent,
+    Field(discriminator="t"),
+]
+
+
+class Personnel(BaseModel):
+    offense: list[int]  # 11: QB, RB, WR×3, TE, OT×2, OG×2, C
+    defense: list[int]  # 11: DE×2, DT×2, OLB×(2/1/0), MLB, CB×(2/3/4), FS, SS
+    package: str  # base | nickel | dime
+
+
+class PlaybackPlay(BaseModel):
+    n: int
+    quarter: int
+    clock: str
+    offense: str  # abbreviation with the ball (the kicking team on kickoffs)
+    side: Literal["home", "away"]
+    down: int | None
+    distance: int | None
+    ball_on: int | None  # yards from the offense's own goal line
+    call: dict | None
+    defense: dict | None
+    result: dict
+    events: list[PlayEvent]
+    elapsed: int
+    score: dict[str, int]
+    text: str
+    personnel: Personnel | None  # scrimmage plays only
+    approximate: bool = False  # personnel rebuilt from today's depth charts (old logs)
+
+
+class PlaybackPlayer(BaseModel):
+    id: int  # negative: a stand-in
+    name: str
+    short_name: str
+    number: int
+    position: str
+    team_id: int
+    speed: int
+
+
+class GamePlayback(BaseModel):
+    game: "GameOut"
+    sim_version: str | None
+    approximate: bool  # some plays' lineups were rebuilt (the game predates SIM_VERSION 1.2)
+    players: list[PlaybackPlayer]
+    plays: list[PlaybackPlay]
