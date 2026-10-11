@@ -8,8 +8,12 @@ test("dashboard shows the sample franchise", async ({ page }) => {
   const nextGame = page.getByRole("region", { name: "Next game" });
   await expect(nextGame.getByText("Albuquerque Roadrunners")).toBeVisible();
   await expect(page.getByRole("region", { name: "Front office" })).toContainText("contract(s) expire");
-  // The 3D preview mounts a WebGL canvas.
-  await expect(page.getByRole("region", { name: "Franchise overview" }).locator("canvas")).toBeVisible();
+  // The 3D stadium mounts a WebGL canvas, with camera presets.
+  const overview = page.getByRole("region", { name: "Franchise overview" });
+  await expect(overview.locator("canvas")).toBeVisible();
+  const cameras = overview.getByRole("group", { name: "Camera" });
+  await cameras.getByRole("button", { name: "Sideline" }).click();
+  await expect(cameras.getByRole("button", { name: "Sideline" })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("sidebar reaches every page", async ({ page }) => {

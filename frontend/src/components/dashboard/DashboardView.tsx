@@ -178,6 +178,8 @@ function Hero({ data, awayColor }: { data: Dashboard; awayColor: string }) {
             homeColor={team.primary_color}
             homeAccent={team.secondary_color}
             awayColor={awayColor}
+            nickname={team.nickname}
+            abbreviation={team.abbreviation}
           />
           <div className="eyebrow pointer-events-none absolute bottom-3 left-4 text-[10px]">
             {team.stadium}
