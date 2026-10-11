@@ -174,8 +174,13 @@ Interactive docs: `http://localhost:8000/docs`.
 - **Depth chart editor:** dnd-kit sortable lists (pointer, touch, keyboard) with arrow
   buttons as a fallback. Edits save immediately and optimistically; a failed save reverts
   and shows the error, and only the newest response is applied.
-- **3D:** `components/field/FieldPreview.tsx` (R3F) is a decorative stadium scene,
-  client-only via `next/dynamic({ ssr: false })`.
+- **3D:** `components/field/` (R3F, client-only via `next/dynamic({ ssr: false })`):
+  `layout.ts` holds the field geometry (yards; field x 0–120 along, y 0–53⅓ across; the
+  scene is centered on midfield) and camera presets — pure and unit-tested; `fieldTexture.ts`
+  paints every marking onto one canvas texture (one draw call); `Stadium.tsx` adds goal
+  posts, stands with an instanced crowd in team colors, light towers, lighting, and the
+  line-of-scrimmage / first-down overlays; `CameraRig.tsx` eases between presets
+  (overview orbit, sideline, end zone, all-22). The dashboard shows it with camera buttons.
 
 ## Testing
 
@@ -199,6 +204,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Dead money | pytest | bonus share and remaining proration; generated deals carry bonuses; releases charge the right cap year (next season's in the offseason) and show in payroll, cap space, and the Contracts page; minimum deals cost nothing; dead money blocks signings over the cap; new deals include bonuses; traded players leave their bonus behind and move on a bonus-free deal; mid-deal retirements; roster import replacement creates none |
 | History | pytest | award scoring and winners (MVP win bonus, rookies, minimum games), summaries; awards decided with the champion, once, and backfilled; season archive (champion and runner-up from the final, franchise record and result); records match the season leaders; career totals match season stats; careers and rookies across seasons |
 | Playback | pytest | every scrimmage play records 11 + 11 players from the right rosters (and everyone its events name), kicks name a returner, stand-in ids map to positions; the playback API types every event, resolves every player to the right team, rebuilds approximate lineups for old logs, handles unplayed and missing games |
+| 3D field | Vitest | field geometry (lines, numbers, pro hashes, direction), camera presets (framing, both directions, clamping, orbit), the field painter against a recording canvas, camera buttons; Playwright switches cameras on the dashboard |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |
@@ -236,7 +242,8 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
 
 ### 3D game client
 
-- R3F scene graph: stadium, 22 rigged player models, ball, cameras.
+- R3F scene graph: stadium, 22 player figures (procedural low-poly, per the playback
+  design), ball, cameras.
 - Animation driven by the engine timeline (playback, not client-side physics), so
   replays and Watch Mode are exact.
 - State machines per player (stance → route/block/rush → tackle/celebrate).
