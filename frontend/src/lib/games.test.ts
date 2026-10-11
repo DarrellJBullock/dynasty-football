@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { opponent, team } from "@/test/fixtures";
 import type { Game } from "@/lib/types";
-import { describeResult, formatPossession, resultFor } from "./games";
+import { describeResult, formatPossession, formatSpot, resultFor } from "./games";
 
 function game(overrides: Partial<Game>): Game {
   return { id: 1, week: 3, home: team, away: opponent, home_score: null, away_score: null,
@@ -36,5 +36,13 @@ describe("formatPossession", () => {
   it("formats seconds as m:ss", () => {
     expect(formatPossession(1784)).toBe("29:44");
     expect(formatPossession(65)).toBe("1:05");
+  });
+});
+
+describe("formatSpot", () => {
+  it("names the side of the field", () => {
+    expect(formatSpot(34, "HFD", "ABQ")).toBe("HFD 34");
+    expect(formatSpot(80, "HFD", "ABQ")).toBe("ABQ 20");
+    expect(formatSpot(50, "HFD", "ABQ")).toBe("50");
   });
 });

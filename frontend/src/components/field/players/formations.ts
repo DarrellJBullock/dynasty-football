@@ -15,6 +15,19 @@ export interface Spot {
   stance: "stance3" | "stance2";
 }
 
+/** Typical size by position (inches, pounds) and a typical number by role, for players
+ * who aren't on a real roster (the dashboard's stadium, stand-ins in replays). */
+export const TYPICAL: Record<string, [number, number]> = {
+  QB: [75, 225], RB: [70, 215], WR: [73, 200], TE: [77, 250], OT: [78, 315], OG: [76, 315],
+  C: [75, 305], DE: [76, 270], DT: [75, 310], OLB: [75, 245], MLB: [74, 240], CB: [71, 195],
+  FS: [72, 205], SS: [72, 210], K: [72, 195], P: [74, 210],
+};
+export const NUMBERS: Record<string, number> = {
+  QB: 12, RB: 28, X: 11, Z: 84, SLOT: 17, TE: 87, LT: 74, RT: 71, LG: 66, RG: 63, C: 55,
+  LDE: 91, RDE: 97, LDT: 93, RDT: 99, SAM: 52, WILL: 54, MIKE: 50, CB1: 24, CB2: 21, NB: 31,
+  DB: 37, FS: 29, SS: 33,
+};
+
 export type Package = "base" | "nickel" | "dime";
 
 export function offenseSpots(): Spot[] {

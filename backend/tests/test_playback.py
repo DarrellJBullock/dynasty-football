@@ -96,7 +96,8 @@ def test_playback(client: TestClient, game: Game):
             if event["t"] in ("kickoff", "punt"):
                 assert "return" in event  # serialized with the engine's key
     sample = next(iter(players.values()))
-    assert {"name", "short_name", "number", "position", "team_id", "speed"} <= set(sample)
+    assert {"name", "short_name", "number", "position", "team_id", "speed", "height_in",
+            "weight_lb"} <= set(sample)
 
 
 def test_older_games_get_approximate_lineups(client: TestClient, db: Session, game: Game):

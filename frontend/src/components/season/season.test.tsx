@@ -201,6 +201,14 @@ describe("GameView", () => {
     expect(screen.getByText("Quarter 2")).toBeInTheDocument();
   });
 
+  it("links the game and each play to the 3D viewer", () => {
+    render(<GameView detail={detail} />);
+    const id = detail.game.id;
+    expect(screen.getByRole("link", { name: "Watch in 3D" })).toHaveAttribute("href", `/games/${id}/watch`);
+    expect(screen.getByRole("link", { name: "Watch play 9" }))
+      .toHaveAttribute("href", `/games/${id}/watch?play=9`);
+  });
+
   it("lists injuries from the game", () => {
     const { rerender } = render(<GameView detail={detail} />);
     expect(screen.queryByRole("list", { name: "Injuries" })).not.toBeInTheDocument();

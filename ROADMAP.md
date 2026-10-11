@@ -68,7 +68,12 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Player models + core animations (procedural low-poly figures sized by build, home and
       away uniforms with numbers; stance, run/carry cycle, block, throw, catch, dive, down,
       celebrate; formations for every defensive package)
-- [ ] Timeline playback of a single play
+- [x] Timeline playback of a single play (a choreographer scripts all 22 players and the
+      ball for every play type from the play record — runs, passes, sacks, scrambles,
+      kneels, penalties, kickoffs, punts, field goals, conversions; the Watch page at
+      `/games/[id]/watch` with play/pause, a scrubber marked with moments, speed,
+      previous/next, "play the drive", and sideline/end-zone/all-22 cameras that follow
+      the ball)
 
 ## M5 — Gameplay
 

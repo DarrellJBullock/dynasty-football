@@ -2,7 +2,10 @@ import type {
   Dashboard,
   DepthChart,
   DepthSlot,
+  GamePlayback,
   LeagueCreate,
+  PlaybackPlay,
+  PlaybackPlayer,
   PlayerDetail,
   PlayerSummary,
   Position,
@@ -175,5 +178,61 @@ export function makeSpec(overrides: Partial<LeagueCreate> = {}): LeagueCreate {
       ],
     }],
     ...overrides,
+  };
+}
+
+// ---------- playback ----------
+
+const LINEUP: Position[] = ["QB", "RB", "WR", "WR", "WR", "TE", "OT", "OT", "OG", "OG", "C",
+  "DE", "DE", "DT", "DT", "OLB", "OLB", "MLB", "CB", "CB", "CB", "CB", "FS", "SS", "K", "P"];
+
+/** Player ids: team id × 100 + index in LINEUP (QB 0 … P 25). */
+export function pid(teamId: number, position: Position, nth = 0): number {
+  const indexes = LINEUP.flatMap((p, i) => (p === position ? [i] : []));
+  return teamId * 100 + indexes[nth];
+}
+
+function playbackPlayers(t: TeamSummary): PlaybackPlayer[] {
+  return LINEUP.map((position, i) => ({
+    id: t.id * 100 + i, name: `${t.nickname} ${position}${i}`, short_name: `${t.abbreviation[0]}. ${position}${i}`,
+    number: 10 + i, position, team_id: t.id, speed: 70, height_in: 74, weight_lb: 240,
+  }));
+}
+
+/** Personnel in the order the engine records it: base defense, nickel or dime. */
+export function personnel(offense: number, defense: number, pkg: "base" | "nickel" | "dime" = "base") {
+  const o = (p: Position, n = 0) => pid(offense, p, n);
+  const d = (p: Position, n = 0) => pid(defense, p, n);
+  const olbs = { base: [d("OLB"), d("OLB", 1)], nickel: [d("OLB")], dime: [] }[pkg];
+  const cbs = { base: 2, nickel: 3, dime: 4 }[pkg];
+  return {
+    offense: [o("QB"), o("RB"), o("WR"), o("WR", 1), o("WR", 2), o("TE"), o("OT"), o("OT", 1),
+              o("OG"), o("OG", 1), o("C")],
+    defense: [d("DE"), d("DE", 1), d("DT"), d("DT", 1), ...olbs, d("MLB"),
+              ...Array.from({ length: cbs }, (_, i) => d("CB", i)), d("FS"), d("SS")],
+    package: pkg,
+  };
+}
+
+export function makePlay(overrides: Partial<PlaybackPlay> = {}): PlaybackPlay {
+  const side = overrides.side ?? "home";
+  const [o, d] = side === "home" ? [team.id, opponent.id] : [opponent.id, team.id];
+  return {
+    n: 1, quarter: 1, clock: "15:00", offense: side === "home" ? "HFD" : "ABQ", side,
+    down: 1, distance: 10, ball_on: 30, call: null, defense: { package: "base", coverage: "zone", blitz: false },
+    result: { type: "run", yards: 0 }, events: [], elapsed: 30, score: { home: 0, away: 0 },
+    text: "A play.", personnel: personnel(o, d), approximate: false,
+    ...overrides,
+  };
+}
+
+export function makePlayback(plays: PlaybackPlay[]): GamePlayback {
+  return {
+    game: { id: 7, week: 1, home: team, away: opponent, home_score: 21, away_score: 17, status: "final",
+            overtime: false, stage: "regular", round_name: null, neutral_site: false },
+    sim_version: "1.2",
+    approximate: false,
+    players: [...playbackPlayers(team), ...playbackPlayers(opponent)],
+    plays: plays.map((p, i) => ({ ...p, n: i + 1 })),
   };
 }

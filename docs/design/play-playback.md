@@ -1,6 +1,7 @@
 # Design: 3D Play Playback (Milestone 4)
 
-**Status:** Accepted 2026-10-11 (all §9 recommendations adopted) · **Author:** Claude Code
+**Status:** Implemented 2026-10-11 (all §9 recommendations adopted; the four PRs of §8 are
+delivered) · **Author:** Claude Code
 
 ## 1. Goal
 
@@ -63,6 +64,11 @@ interface Keyframe { t: number; x: number; y: number; z?: number; facing?: numbe
 
 The renderer interpolates keyframes (smoothly, so paths curve) and blends poses. It
 never needs to know the rules of football.
+
+*As built* (`frontend/src/components/field/playback/timeline.ts`): facing comes from the
+direction of travel unless a pose key pins it; the ball is a list of segments (held by a
+player, in flight on an arc, or at rest) rather than keyframes; time starts one second
+before the snap so the players are seen set; and a timeline can carry a penalty flag.
 
 ### Engine change: who was on the field
 

@@ -26,10 +26,10 @@ export interface JointAngles {
 
 export type Pose =
   | "stand" | "stance3" | "stance2" | "run" | "carry" | "block" | "throw" | "catch"
-  | "dive" | "down" | "celebrate";
+  | "dive" | "down" | "kneel" | "kick" | "celebrate";
 
 export const POSES: Pose[] = ["stand", "stance3", "stance2", "run", "carry", "block", "throw",
-  "catch", "dive", "down", "celebrate"];
+  "catch", "dive", "down", "kneel", "kick", "celebrate"];
 
 const ZERO: JointAngles = {
   hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shoulderL: 0, shoulderR: 0, elbowL: 0, elbowR: 0,
@@ -48,7 +48,7 @@ export function runPhase(distance: number): number {
 /**
  * The joint angles of `pose`.
  * - `phase`: run-cycle phase for run and carry (see runPhase)
- * - `progress`: 0–1 through a one-off motion (the throw's windup and release)
+ * - `progress`: 0–1 through a one-off motion (a throw's windup and release, a kick's swing)
  * - `effort`: 0–1, how hard he's running (lean and arm drive grow with it)
  */
 export function pose(name: Pose, phase = 0, progress = 0, effort = 1): JointAngles {
@@ -101,6 +101,15 @@ export function pose(name: Pose, phase = 0, progress = 0, effort = 1): JointAngl
     case "down":
       return { ...ZERO, hipL: 0.1, kneeL: 0.3, kneeR: 0.1, shoulderL: 0.4, shoulderR: 2.6,
                elbowL: 0.6, elbowR: 0.4, lie: 1 };
+    case "kneel": // left foot planted, right knee on the ground
+      return { ...ZERO, hipL: 1.45, kneeL: 1.5, hipR: -0.1, kneeR: 1.55, torso: 0.1,
+               shoulderL: 0.5, shoulderR: 0.4, elbowL: 0.9, elbowR: 0.9 };
+    case "kick": { // plant on the left, right leg swings through (contact at progress ≈ 0.5)
+      const p = Math.min(Math.max(progress, 0), 1);
+      return { ...ZERO, hipL: 0.15, kneeL: 0.35, hipR: -0.7 + 2.5 * p, kneeR: 1.3 * (1 - p),
+               torso: 0.15 - 0.3 * p, crouch: 0.05, shoulderL: 0.9, shoulderR: -0.3,
+               spreadL: 0.7, spreadR: 0.5, elbowL: 0.3, elbowR: 0.3 };
+    }
     case "celebrate": // both arms up
       return { ...ZERO, shoulderL: 2.9, shoulderR: 2.9, elbowL: 0.15, elbowR: 0.15, spreadL: 0.35,
                spreadR: 0.35 };
