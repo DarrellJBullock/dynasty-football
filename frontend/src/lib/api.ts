@@ -10,6 +10,7 @@ import type {
   FreeAgencyOut,
   FreeAgencyResult,
   FreeAgencyUntil,
+  GamePlayback,
   HistoryOut,
   NegotiationResult,
   PlayerSeasonStats,
@@ -171,6 +172,7 @@ export const api = {
     post<TradeResult>(`/leagues/${leagueId}/trades`, proposal),
   history: (leagueId: number) => request<HistoryOut>(`/leagues/${leagueId}/history`),
   career: (playerId: number) => request<CareerOut>(`/players/${playerId}/career`),
+  playback: (gameId: number) => request<GamePlayback>(`/games/${gameId}/playback`),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {

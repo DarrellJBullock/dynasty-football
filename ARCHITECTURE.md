@@ -69,7 +69,7 @@ players.team_id NULL  = free agent
 | `draft_picks` | league_id, year, round, original_team_id, team_id (current owner), season_id? + number? (set when that draft opens, from the original team's finish), player_id? (set once made) |
 | `trades` | league_id, season_id, team_id (franchise), partner_id, phase, week, sent / received (JSON: kind, id, label) |
 | `free_agent_offers` | season_id, player_id, team_id, salary, years, day, status (pending / accepted / lost / expired) |
-| `games` | season_id, week, stage (regular \| playoff), playoff_round?, neutral_site, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB) |
+| `games` | season_id, week, stage (regular \| playoff), playoff_round?, neutral_site, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB; from SIM_VERSION 1.2 each scrimmage play carries `personnel`, its 22 players and package, and kicks a `returner`) |
 | `player_game_stats` | game_id, player_id, team_id + one column per `sim.stats.PlayerLine` field |
 | `team_game_stats` | game_id, team_id + one column per `sim.stats.TeamLine` field |
 | `franchises` | name, league_id (unique — one career per league), team_id, activated_at (latest = active) |
@@ -116,6 +116,7 @@ Design notes:
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
 | `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play, injuries |
+| `GET /api/games/{id}/playback` | 3D playback data: typed play records with each scrimmage play's 22 players (rebuilt from today's depth charts, flagged approximate, for games before SIM_VERSION 1.2) and those players' names, numbers, positions, speed |
 | `GET /api/leagues/{id}/leaders?category=&limit=` | Season leaders: all categories (top 5) or one (up to 50) |
 | `GET /api/leagues/{id}/team-stats` | Every team's season totals, offense and defense (allowed) |
 | `GET /api/players/{id}/stats` | A player's season totals and game log |
@@ -197,6 +198,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Trades | pytest | value curves (stars, age, upside, position, contracts), pick decay, AI margin and need bonus; trade center (partners, assets by value, next year's picks); lopsided offers refused; accepted trades move players, contracts, depth charts, jerseys, and log history; traded picks follow their original team into the draft order ("via"); proposal validation; roster and cap limits for both sides; window (deadline, playoffs, draft) |
 | Dead money | pytest | bonus share and remaining proration; generated deals carry bonuses; releases charge the right cap year (next season's in the offseason) and show in payroll, cap space, and the Contracts page; minimum deals cost nothing; dead money blocks signings over the cap; new deals include bonuses; traded players leave their bonus behind and move on a bonus-free deal; mid-deal retirements; roster import replacement creates none |
 | History | pytest | award scoring and winners (MVP win bonus, rookies, minimum games), summaries; awards decided with the champion, once, and backfilled; season archive (champion and runner-up from the final, franchise record and result); records match the season leaders; career totals match season stats; careers and rookies across seasons |
+| Playback | pytest | every scrimmage play records 11 + 11 players from the right rosters (and everyone its events name), kicks name a returner, stand-in ids map to positions; the playback API types every event, resolves every player to the right team, rebuilds approximate lineups for old logs, handles unplayed and missing games |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

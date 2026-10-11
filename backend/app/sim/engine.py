@@ -17,7 +17,7 @@ from app.sim.teams import SimTeam
 from app.sim.text import describe
 from app.sim.tuning import DEFAULT_TUNING, Tuning
 
-SIM_VERSION = "1.1"  # 1.1: in-game injuries
+SIM_VERSION = "1.2"  # 1.1: in-game injuries; 1.2: personnel and returners in play logs
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 
@@ -38,6 +38,9 @@ class PlayRecord:
     elapsed: int  # game seconds consumed, including pre-snap runoff
     score: dict[str, int]  # after the play, keyed "home"/"away"
     text: str = ""
+    # Scrimmage plays: who was on the field, for 3D playback (offense 11, defense 11, and
+    # the defensive package).
+    personnel: dict | None = None
 
     def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}
@@ -99,6 +102,7 @@ class _Game:
         self.warned_halves: set[int] = set()
         self.pending_elapsed = 0
         self.warning_during_play = False
+        self.personnel: dict | None = None  # for the next recorded play
         self.names = {pid: p.name for team in self.teams.values()
                       for pid, p in team.players.items()}
 
@@ -222,12 +226,17 @@ class _Game:
             return
         kicker = self.teams[kicking].one(P.K)
         spot, event = rs.resolve_kickoff(kicker, self.rng, self.t)
+        event["returner"] = self.returner(other(kicking)).id
         before = self.s.clock
         self.clock_running = False
         if not event["touchback"]:
             self.tick(5, during_play=True)
         self.record(kicking, None, None, {"type": "kickoff"}, [event], before, situation=False)
         self.give_ball(other(kicking), spot)
+
+    def returner(self, side: Side):
+        """Who fields kicks: the second running back (a stand-in if there isn't one)."""
+        return self.teams[side].one(P.RB, 1)
 
     def touchdown(self, side: Side) -> None:
         s = self.s
@@ -277,6 +286,9 @@ class _Game:
             self.field_goal(side, call, situation, clock_before)
         elif call.kind == "kneel":
             events = [{"t": "kneel", "qb": offense.one(P.QB).id, "yards": -1}]
+            self.personnel = {
+                "offense": [p.id for p in rs.offense_lineup(offense)], "package": "base",
+                "defense": [p.id for p in rs.defense_lineup(defense, rs.BASE_DEFENSE)]}
             self.tick(2, during_play=True)
             self.advance(side, -1, call, None, {"type": "kneel", "yards": -1}, events,
                          situation, clock_before, clock_stops=False)
@@ -286,6 +298,7 @@ class _Game:
     def punt(self, side: Side, call: PlayCall, situation, clock_before: int) -> None:
         punter = self.teams[side].one(P.P)
         spot, event = rs.resolve_punt(punter, self.s.ball_on, self.rng, self.t)
+        event["returner"] = self.returner(other(side)).id
         self.tick(8, during_play=True)
         self.clock_running = False
         self.record(side, call, None, {"type": "punt"}, [event], clock_before, situation)
@@ -312,8 +325,12 @@ class _Game:
         offense, defense = self.teams[side], self.teams[s.defense]
         dcall = self.coaches[s.defense].defense(s, offense, defense, rng)
         off = rs.offense_personnel(offense, rng)
+        offense_ids = [p.id for p in off.all]
 
         if rng.random() < t.false_start_rate:
+            # (No snap: the defense is its base lineup for the package, with no rotation.)
+            self.personnel = {"offense": offense_ids, "package": dcall.package,
+                              "defense": [p.id for p in rs.defense_lineup(defense, dcall)]}
             yards = min(5, s.ball_on // 2)
             event = {"t": "penalty", "team": offense.abbreviation, "kind": "false_start",
                      "yards": yards, "player": rng.choice(off.line).id}
@@ -325,6 +342,8 @@ class _Game:
             return
 
         deff = rs.defense_personnel(defense, dcall, rng)
+        self.personnel = {"offense": offense_ids, "defense": [p.id for p in deff.all],
+                          "package": dcall.package}
         edge = self.edge(side)
         if call.kind == "run":
             outcome = rs.resolve_run(call, dcall, off, deff, s.ball_on, edge, rng, t)
@@ -444,8 +463,9 @@ class _Game:
             offense=self.teams[side].abbreviation, side=side, down=down, distance=distance,
             ball_on=ball_on, call=call.describe() if call else None, defense=dcall,
             result=result, events=events, elapsed=self.pending_elapsed,
-            score=dict(s.score),
+            score=dict(s.score), personnel=self.personnel,
         )
+        self.personnel = None
         if wiped:
             play.result["nullified"] = True
         play.text = describe(play, self.names, self.teams)

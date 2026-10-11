@@ -14,6 +14,7 @@ from app.schemas import (
     FreeAgencyRequest,
     FreeAgencyResult,
     GameDetail,
+    GamePlayback,
     PlayoffsOut,
     ScheduleWeek,
     SeasonOut,
@@ -24,6 +25,7 @@ from app.services import draft as draft_service
 from app.services import free_agency as free_agency_service
 from app.services import games as game_service
 from app.services import offseason as offseason_service
+from app.services import playback as playback_service
 from app.services import playoffs as playoff_service
 from app.services import season as season_service
 from app.services.dashboard import current_franchise
@@ -146,3 +148,13 @@ def game(game_id: int, db: Session = Depends(get_db)):
     if game is None:
         raise HTTPException(404, "game not found")
     return game_service.game_detail(db, game)
+
+
+@router.get("/games/{game_id}/playback", response_model=GamePlayback)
+def playback(game_id: int, db: Session = Depends(get_db)):
+    """Everything the 3D viewer needs for a game: typed play records with each scrimmage
+    play's 22 players, and those players' names, numbers, positions, and speed."""
+    game = db.get(Game, game_id)
+    if game is None:
+        raise HTTPException(404, "game not found")
+    return playback_service.game_playback(db, game)

@@ -178,6 +178,9 @@ Each snap produces a `PlayResult`:
   "per-player positions over time"; semantic events keep the engine fast and leave
   animation to the renderer.
 - Logs carry a `sim_version`, so old games stay valid and replayable after the engine changes.
+- *Update (M4, SIM_VERSION 1.2): scrimmage plays also record `personnel` — the 22 players
+  on the field and the defensive package — and kicks name a `returner`, for 3D playback
+  (`docs/design/play-playback.md`). Neither draws random numbers, so outcomes are unchanged.*
 
 ## 7. Calibration
 
