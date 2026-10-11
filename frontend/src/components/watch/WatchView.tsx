@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { choreographGame } from "@/components/field/playback/choreograph";
 import { PlayClock } from "@/components/field/playback/clock";
 import { CAMERA_PRESETS, type CameraPreset } from "@/components/field/layout";
-import { formatSpot } from "@/lib/games";
+import { callLabel, formatSpot } from "@/lib/games";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
@@ -245,6 +245,11 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
                 Play {play.n} of {plays.length} · {situation(play, playback)}
               </p>
               <p className="text-sm" data-testid="play-text">{play.text}</p>
+              {callLabel(play.play_name, play.defense_name) && (
+                <p className="text-xs text-mist" data-testid="play-call">
+                  {callLabel(play.play_name, play.defense_name)}
+                </p>
+              )}
               {play.approximate && (
                 <p className="text-xs text-amber-300">
                   Approximate lineup: this game was played before lineups were recorded, so the

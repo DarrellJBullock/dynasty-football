@@ -17,7 +17,8 @@ from app.sim.teams import SimTeam
 from app.sim.text import describe
 from app.sim.tuning import DEFAULT_TUNING, Tuning
 
-SIM_VERSION = "1.2"  # 1.1: in-game injuries; 1.2: personnel and returners in play logs
+# 1.1: in-game injuries; 1.2: personnel and returners in play logs; 1.3: named plays
+SIM_VERSION = "1.3"
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 

@@ -6,6 +6,7 @@ from app.api import (
     franchise,
     history,
     leagues,
+    playbook,
     players,
     roster_import,
     season,
@@ -33,7 +34,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     for module in (franchise, leagues, teams, depth_chart, roster_import, players, season,
-                   stats, trades, history):
+                   stats, trades, history, playbook):
         api.include_router(module.router)
     api.include_router(franchise.franchises_router)
     app.include_router(api)

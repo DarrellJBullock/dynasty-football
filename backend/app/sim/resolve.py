@@ -9,6 +9,7 @@ import random
 from dataclasses import dataclass, field
 
 from app.domain.positions import Position as P
+from app.sim.playbook import OFFENSE_BY_KEY, concept_edge
 from app.sim.playcalls import DefenseCall, PlayCall
 from app.sim.teams import SimPlayer, SimTeam
 from app.sim.tuning import Tuning
@@ -193,8 +194,10 @@ def resolve_run(call: PlayCall, dcall: DefenseCall, off: Offense, deff: Defense,
     push = wmean(blockers) - wmean(front) + edge
     to_goal = 100 - ball_on
     goal_line = t.red_zone_run * max(0.0, 1 - to_goal / 10)  # stacked box near the goal
+    concept = t.concept_run_k * concept_edge(t.concept_edges, call.play, dcall.shell)
     mu = (t.run_mu + t.run_push_k * push + t.run_carrier_k * (burst - 0.5 * pursuit)
-          + t.run_light_box[dcall.package] - (0.6 if dcall.blitz else 0.0) - goal_line)
+          + t.run_light_box[dcall.package] - (0.6 if dcall.blitz else 0.0) - goal_line
+          + concept)
     yards = max(-5, round(rng.gauss(mu, t.run_sd)))
     breakaway = False
     if yards >= 4:
@@ -310,11 +313,16 @@ def resolve_pass(call: PlayCall, dcall: DefenseCall, off: Offense, deff: Defense
     if pressured:
         events.append({"t": "pressure"})
 
-    # Openness for every route, then the QB's read.
+    # Openness for every route, then the QB's read. A named play sets who he looks for,
+    # and its concept fares better or worse against the coverage shell.
     deep_help = deff.fs.r("zone_coverage") * 0.3 if depth == "deep" else 0.0
+    named = OFFENSE_BY_KEY.get(call.play or "")
+    weights = named.targets if named and named.targets else TARGET_WEIGHTS[depth]
+    concept = t.concept_pass_k * concept_edge(t.concept_edges, call.play, dcall.shell)
+    designed = max(range(len(weights)), key=lambda i: weights[i]) if depth == "screen" else -1
     options = []
-    for (receiver, defender, _), weight in zip(_coverage_matchups(off, deff, blitzer),
-                                                TARGET_WEIGHTS[depth], strict=True):
+    for i, ((receiver, defender, _), weight) in enumerate(
+            zip(_coverage_matchups(off, deff, blitzer), weights, strict=True)):
         speed_k = 0.45 if depth == "deep" else 0.3
         route = 0.45 * receiver.r("route_running") + speed_k * receiver.r("speed") \
             + 0.25 * receiver.r("agility")
@@ -325,7 +333,9 @@ def resolve_pass(call: PlayCall, dcall: DefenseCall, off: Offense, deff: Defense
             cover = 0.5 * defender.r("zone_coverage") + 0.3 * defender.r("play_recognition") \
                 + 0.2 * defender.r("speed")
         sticks = t.passing_down_coverage if obvious_pass else 0.0
-        openness = route - cover - deep_help - sticks + rng.gauss(0, t.open_sd)
+        design = t.screen_open if i == designed else 0.0
+        openness = (route - cover - deep_help - sticks + concept + design
+                    + rng.gauss(0, t.open_sd))
         options.append((receiver, defender, weight, openness))
 
     order = []
@@ -336,7 +346,10 @@ def resolve_pass(call: PlayCall, dcall: DefenseCall, off: Offense, deff: Defense
         pool.remove(choice)
     reads = 2 + (qb.r("awareness") > 0) + (not pressured) + (qb.r("awareness") > 1)
     seen = order[:reads]
-    target, defender, _, openness = max(seen, key=lambda o: o[3] + rng.gauss(0, 0.25))
+    # He favors the play's progression: the first read unless someone else is clearly open.
+    bonus = {id(o): b for o, b in zip(seen, t.read_bonus, strict=False)}
+    target, defender, _, openness = max(
+        seen, key=lambda o: o[3] + bonus.get(id(o), 0.0) + rng.gauss(0, 0.25))
 
     if pressured and openness < -1.1:
         events.append({"t": "pass", "qb": qb.id, "target": None, "result": "throwaway",

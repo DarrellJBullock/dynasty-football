@@ -77,7 +77,10 @@ Each milestone ends with working software, green tests, and updated docs.
 
 ## M5 — Gameplay
 
-- [ ] Offensive & defensive playbooks and play-call UI
+- [x] Offensive & defensive playbooks (25 named plays, 11 defensive calls; the AI calls
+      them; concepts fare better or worse against each coverage shell; names in the
+      play-by-play and the Watch page) — design: `docs/design/coach-mode.md`
+- [ ] Play-call UI
 - [ ] AI players: routes, blocking assignments, pursuit, coverage
 - [ ] Special teams: field goals, punts, kickoffs
 - [ ] Coach Mode (call plays, AI executes) and Watch Mode

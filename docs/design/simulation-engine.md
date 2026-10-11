@@ -42,6 +42,7 @@ backend/app/sim/                pure Python, no database, no HTTP
   state.py       GameState: quarter, clock, possession, down, distance, ball spot, score, timeouts
   teams.py       SimTeam: players by depth-chart slot plus ratings, built from the DB once per game
   playcalls.py   PlayCall / DefenseCall types; situational AI for both sides
+  playbook.py    named offensive plays and defensive calls (M5), concept-vs-shell edges
   resolve/       run.py, pass_.py, special.py (one resolver per play family)
   clock.py       time elapsed per play, two-minute and kneel-down logic
   engine.py      simulate_game(home, away, seed, *, coaches) -> GameResult
@@ -89,6 +90,15 @@ The QB doesn't "choose" a receiver up front; see §5.2.
 **Defense** chooses a **personnel package** (base, nickel, dime, goal line), a
 **coverage** (man or zone), and a **blitz rate** by situation. Blitzing raises pressure
 odds but leaves coverage thinner.
+
+*Update (M5, `SIM_VERSION` 1.3):* every call is now a **named play** from the playbooks in
+`app/sim/playbook.py` (see docs/design/coach-mode.md §4). The AI makes the coarse choice
+above, then picks a named play that matches it (an inside run becomes Inside Zone, Power,
+Counter or Draw; man coverage with a blitz becomes Cover 0 or a Mike Blitz). A pass play's
+target weights set the QB's progression, and he favors his first two reads
+(`Tuning.read_bonus`); a screen's designed target is open by design (`screen_open`). Each
+concept gains or loses a little against each coverage shell (`Tuning.concept_edges`),
+centered against the AI's shell mix so a play called at random breaks even.
 
 ## 5. Play resolution
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { opponent, team } from "@/test/fixtures";
 import type { Game } from "@/lib/types";
-import { describeResult, formatPossession, formatSpot, resultFor } from "./games";
+import { describeResult, callLabel, formatPossession, formatSpot, resultFor } from "./games";
 
 function game(overrides: Partial<Game>): Game {
   return { id: 1, week: 3, home: team, away: opponent, home_score: null, away_score: null,
@@ -44,5 +44,14 @@ describe("formatSpot", () => {
     expect(formatSpot(34, "HFD", "ABQ")).toBe("HFD 34");
     expect(formatSpot(80, "HFD", "ABQ")).toBe("ABQ 20");
     expect(formatSpot(50, "HFD", "ABQ")).toBe("50");
+  });
+});
+
+describe("callLabel", () => {
+  it("pairs the offense's play with the defense's call", () => {
+    expect(callLabel("Smash", "Cover 2")).toBe("Smash vs Cover 2");
+    expect(callLabel("Smash", null)).toBe("Smash");
+    expect(callLabel(null, "Cover 2")).toBeNull();
+    expect(callLabel(undefined, undefined)).toBeNull();
   });
 });

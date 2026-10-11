@@ -392,6 +392,28 @@ style payrolls; the team simply can't sign free agents until it's back under. JS
 a list of players or `{"players": [...]}` and accepts the API's own player shape (nested
 `ratings` and `contract`), so exports round-trip.
 
+## Playbooks
+
+Every team runs the same two playbooks (`GET /api/playbook`):
+
+- **Offense (25 plays):** runs (Inside Zone, Power, Counter, Draw, Outside Zone, Toss),
+  quick passes (Slants, Stick, Hitches, Curl-Flat, Mesh), intermediate (Smash, Flood, Dig,
+  Y-Cross), deep (Four Verticals, Post-Wheel), play action (PA Boot, PA Crossers, PA
+  Post), screens (RB Screen, WR Bubble), and Kneel, Punt and Field Goal.
+- **Defense (11 calls):** zones (Cover 2, Tampa 2, Cover 3, Cover 4), man (Cover 1,
+  2-Man Under), pressure (Cover 0 Blitz, Mike Blitz, Fire Zone, Edge Blitz), and Prevent
+  (always in dime).
+
+A pass play decides whom the quarterback looks for first (an RB Screen goes to the back,
+Y-Cross to the tight end). Each concept does a little better or worse against each
+coverage: Smash beats Cover 2, Four Verticals stretch Cover 3 but die against quarters,
+screens and draws punish blitzes, and runs gain more against two-deep shells that leave
+the box light. These edges are balanced against the AI's own mix of coverages, so a play
+called at random breaks even: the gain comes from calling the right play against the
+defense you expect. The AI calls these plays for both teams, and every snap in the box
+score's play-by-play and on the Watch page shows the two calls ("Smash vs Cover 2").
+Coach Mode (Milestone 5) will let you make the calls yourself.
+
 ## Simulation & 3D gameplay
 
 The play-level engine is built (Milestone 2); see

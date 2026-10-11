@@ -95,6 +95,8 @@ def test_playback(client: TestClient, game: Game):
                     assert event[key] in players
             if event["t"] in ("kickoff", "punt"):
                 assert "return" in event  # serialized with the engine's key
+    snaps = [p for p in body["plays"] if p["result"]["type"] in ("run", "pass")]
+    assert all(p["play_name"] and p["call"]["play"] for p in snaps)
     sample = next(iter(players.values()))
     assert {"name", "short_name", "number", "position", "team_id", "speed", "height_in",
             "weight_lb"} <= set(sample)

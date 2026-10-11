@@ -52,3 +52,10 @@ export function formatSpot(ballOn: number, offense: string, defense: string): st
   if (ballOn === 50) return "50";
   return ballOn < 50 ? `${offense} ${ballOn}` : `${defense} ${100 - ballOn}`;
 }
+
+/** The two calls on a snap: "Smash vs Cover 2", just the offense's when the defense's isn't
+ * known, or null before named plays (SIM_VERSION 1.3). */
+export function callLabel(play: string | null | undefined, defense: string | null | undefined): string | null {
+  if (!play) return null;
+  return defense ? `${play} vs ${defense}` : play;
+}

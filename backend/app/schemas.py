@@ -312,6 +312,8 @@ class PlayOut(BaseModel):
     home_score: int
     away_score: int
     scoring: bool
+    play_name: str | None = None  # the offense's named play (SIM_VERSION 1.3+)
+    defense_name: str | None = None  # the defense's named call
 
 
 class PlayerGameLine(BaseModel):
@@ -1037,6 +1039,8 @@ class PlaybackPlay(BaseModel):
     text: str
     personnel: Personnel | None  # scrimmage plays only
     approximate: bool = False  # personnel rebuilt from today's depth charts (old logs)
+    play_name: str | None = None  # the named offensive play (SIM_VERSION 1.3+)
+    defense_name: str | None = None  # the named defensive call
 
 
 class PlaybackPlayer(BaseModel):
@@ -1057,3 +1061,34 @@ class GamePlayback(BaseModel):
     approximate: bool  # some plays' lineups were rebuilt (the game predates SIM_VERSION 1.2)
     players: list[PlaybackPlayer]
     plays: list[PlaybackPlay]
+
+
+# ---------- playbook ----------
+
+class OffensivePlayOut(BaseModel):
+    key: str
+    name: str
+    category: Literal["run", "quick", "intermediate", "deep", "play_action", "screen", "special"]
+    formation: str
+    kind: Literal["run", "pass", "punt", "field_goal", "kneel"]
+    description: str
+    direction: Literal["inside", "outside"] | None
+    depth: Literal["screen", "short", "medium", "deep"] | None
+    play_action: bool
+    targets: tuple[float, float, float, float, float] | None  # WR1, WR2, WR3, TE, RB
+
+
+class DefensivePlayOut(BaseModel):
+    key: str
+    name: str
+    category: Literal["zone", "man", "pressure", "situational"]
+    shell: str
+    coverage: Literal["man", "zone"]
+    blitz: bool
+    description: str
+    package: Literal["base", "nickel", "dime"] | None
+
+
+class PlaybookOut(BaseModel):
+    offense: list[OffensivePlayOut]
+    defense: list[DefensivePlayOut]

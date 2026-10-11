@@ -21,6 +21,7 @@ const playback = makePlayback([
     events: [{ t: "handoff", to: pid(H, "RB"), direction: "inside" },
              { t: "rush", player: pid(H, "RB"), yards: 6 }, { t: "tackle", by: [pid(2, "MLB")] }] }),
   makePlay({ down: 2, distance: 4, ball_on: 36, text: "Quarles pass complete to Wolfe for 64 yards. TOUCHDOWN.",
+    play_name: "Four Verticals", defense_name: "Cover 3",
     result: { type: "pass", yards: 64, touchdown: true }, score: { home: 6, away: 0 },
     events: [{ t: "dropback", qb: pid(H, "QB"), depth: "deep" },
              { t: "pass", qb: pid(H, "QB"), target: pid(H, "WR"), result: "complete", air: 40, yards: 64 }] }),
@@ -54,6 +55,7 @@ describe("WatchView", () => {
   it("opens on the requested play with its situation and text", () => {
     render(<WatchView playback={playback} initialPlay={2} />);
     expect(screen.getByTestId("play-text")).toHaveTextContent("64 yards. TOUCHDOWN.");
+    expect(screen.getByTestId("play-call")).toHaveTextContent("Four Verticals vs Cover 3");
     expect(screen.getByText(/Play 2 of 3 · HFD 2nd & 4 at HFD 36/)).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Score" })).toHaveTextContent("ABQ 0HFD 0Q1 15:00");
     const current = within(screen.getByRole("complementary", { name: "Plays" }))

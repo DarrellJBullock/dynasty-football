@@ -344,6 +344,8 @@ export interface PlayOut {
   home_score: number;
   away_score: number;
   scoring: boolean;
+  play_name?: string | null; // the offense's named play (games from SIM_VERSION 1.3)
+  defense_name?: string | null; // the defense's named call
 }
 
 export interface PlayerGameLine {
@@ -769,6 +771,8 @@ export interface PlaybackPlay {
   text: string;
   personnel: Personnel | null;
   approximate: boolean;
+  play_name?: string | null;
+  defense_name?: string | null;
 }
 
 export interface PlaybackPlayer {
@@ -789,4 +793,37 @@ export interface GamePlayback {
   approximate: boolean;
   players: PlaybackPlayer[];
   plays: PlaybackPlay[];
+}
+
+// ---------- playbook ----------
+
+export type PlayCategory = "run" | "quick" | "intermediate" | "deep" | "play_action" | "screen" | "special";
+
+export interface OffensivePlay {
+  key: string;
+  name: string;
+  category: PlayCategory;
+  formation: string;
+  kind: "run" | "pass" | "punt" | "field_goal" | "kneel";
+  description: string;
+  direction: "inside" | "outside" | null;
+  depth: "screen" | "short" | "medium" | "deep" | null;
+  play_action: boolean;
+  targets: [number, number, number, number, number] | null; // WR1, WR2, WR3, TE, RB
+}
+
+export interface DefensivePlay {
+  key: string;
+  name: string;
+  category: "zone" | "man" | "pressure" | "situational";
+  shell: string;
+  coverage: "man" | "zone";
+  blitz: boolean;
+  description: string;
+  package: "base" | "nickel" | "dime" | null;
+}
+
+export interface Playbook {
+  offense: OffensivePlay[];
+  defense: DefensivePlay[];
 }

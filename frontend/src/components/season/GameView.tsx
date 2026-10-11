@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { Panel } from "@/components/ui/Panel";
-import { formatPossession } from "@/lib/games";
+import { callLabel, formatPossession } from "@/lib/games";
 import { hasGroup, STAT_GROUPS } from "@/lib/stats";
 import { injuryDuration } from "@/lib/format";
 import type { GameDetail, PlayerGameLine, PlayOut, TeamSummary } from "@/lib/types";
@@ -276,7 +276,12 @@ function PlayByPlay({ gameId, plays, teams }: {
                   {play.down ? `${play.offense} ${ordinal(play.down)}&${play.distance}` : play.offense}
                   {play.spot && <span className="block">at {play.spot}</span>}
                 </span>
-                <span>{play.text}</span>
+                <span>
+                  {play.text}
+                  {callLabel(play.play_name, play.defense_name) && (
+                    <span className="block text-xs text-mist">{callLabel(play.play_name, play.defense_name)}</span>
+                  )}
+                </span>
                 <Link href={`/games/${gameId}/watch?play=${play.n}`} aria-label={`Watch play ${play.n}`}
                   className="self-start text-xs font-semibold text-gold hover:underline">
                   Watch
