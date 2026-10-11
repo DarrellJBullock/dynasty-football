@@ -3,8 +3,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Game, PlayerGameStats, Season, TeamGameStats
-from app.schemas import GameDetail, PlayerGameLine, PlayOut, ScheduleWeek
+from app.models import Game, Player, PlayerGameStats, Season, TeamGameStats
+from app.schemas import GameDetail, GameInjury, PlayerGameLine, PlayOut, ScheduleWeek
 from app.services.season import season_view, season_weeks
 from app.services.serializers import game_out
 from app.sim.stats import PlayerLine, TeamLine
@@ -53,6 +53,21 @@ def _play_out(play: dict, abbreviations: dict[str, str]) -> PlayOut:
                    scoring=scoring)
 
 
+def _injuries(db: Session, game: Game, log: list[dict]) -> list[GameInjury]:
+    hurt = [(play, e) for play in log for e in play["events"] if e["t"] == "injury"]
+    if not hurt:
+        return []
+    players = {p.id: p for p in db.scalars(
+        select(Player).where(Player.id.in_({e["player"] for _, e in hurt})))}
+    team_ids = {game.home_team.abbreviation: game.home_team_id,
+                game.away_team.abbreviation: game.away_team_id}
+    return [GameInjury(player_id=e["player"], team_id=team_ids[e["team"]],
+                       name=players[e["player"]].full_name,
+                       position=players[e["player"]].position, injury=e["injury"],
+                       weeks=e["weeks"], quarter=play["quarter"], clock=play["clock"])
+            for play, e in hurt if e["player"] in players]
+
+
 def game_detail(db: Session, game: Game) -> GameDetail:
     sides = {game.home_team_id: "home", game.away_team_id: "away"}
     team_stats = {sides[row.team_id]: {f: getattr(row, f) for f in TEAM_STATS}
@@ -70,6 +85,7 @@ def game_detail(db: Session, game: Game) -> GameDetail:
     abbreviations = {"home": game.home_team.abbreviation, "away": game.away_team.abbreviation}
     plays = [_play_out(p, abbreviations) for p in log]
     return GameDetail(
+        injuries=_injuries(db, game, log),
         game=game_out(game),
         season_year=game.season.year,
         line_score=line_score(log) if log else {"home": [], "away": []},

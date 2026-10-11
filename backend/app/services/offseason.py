@@ -38,6 +38,7 @@ from app.seed.generator import (
 from app.services import playoffs
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
+from app.services.injuries import heal
 
 if TYPE_CHECKING:
     from app.schemas import OffseasonRecap
@@ -93,7 +94,7 @@ def advance(db: Session, season: Season) -> Season:
             setattr(player.ratings, name, value)
         player.overall = result.overall
         player.potential = result.potential
-        player.injury_status = "healthy"
+        heal(player)
         if player.team_id is not None:
             log["development"][str(player.id)] = [before, player.overall]
 

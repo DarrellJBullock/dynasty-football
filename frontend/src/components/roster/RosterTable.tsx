@@ -2,7 +2,7 @@
 
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { ATTRIBUTE_ABBREVIATIONS } from "@/lib/attributes";
-import { formatHeight, formatMoney, injuryLabel, yearsRemaining } from "@/lib/format";
+import { formatHeight, formatMoney, injuryDetail, injuryLabel, yearsRemaining } from "@/lib/format";
 import type { SortKey, SortState } from "@/lib/roster";
 import type { PlayerSummary } from "@/lib/types";
 
@@ -95,7 +95,8 @@ export function RosterTable({
                 <div className="flex items-center gap-2 text-xs text-mist">
                   <span>{player.college}</span>
                   {player.injury_status !== "healthy" && (
-                    <span className="rounded bg-rose-500/15 px-1.5 text-[10px] font-semibold uppercase text-rose-300">
+                    <span title={injuryDetail(player)}
+                      className="rounded bg-rose-500/15 px-1.5 text-[10px] font-semibold uppercase text-rose-300">
                       {injuryLabel(player.injury_status)}
                     </span>
                   )}

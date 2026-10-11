@@ -44,7 +44,8 @@ def _boosted(team: SimTeam, delta: int) -> SimTeam:
                    {pid: bump(p) for pid, p in team.players.items()})
 
 
-def _favorite_win_pct(base: SimTeam, delta: int, games: int = 300) -> float:
+def _favorite_win_pct(base: SimTeam, delta: int, games: int = 1000) -> float:
+    # 1000 games: a ±1.5% standard error, so the check doesn't hinge on a few seeds.
     favorite = _boosted(base, delta)
     wins = 0
     for i in range(games):

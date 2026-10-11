@@ -95,7 +95,7 @@ Rating tiers (UI colour): 90+ elite · 80–89 great · 70–79 good · 60–69 
 - **Potential** (0–99): ceiling for development; always ≥ current OVR.
 - **Development trait**: normal / impact / star / elite — controls growth speed (M3).
 - **Injury status**: healthy / questionable / out / injured reserve. Out and IR players
-  are excluded from the starting lineup.
+  are excluded from the starting lineup (see Injuries below).
 - Bio: age, height, weight, college (fictional), years pro, jersey number.
 
 ## Depth chart & team ratings
@@ -205,9 +205,31 @@ Until re-signing, free agency, and the draft get their own screens, these steps 
 automatically for every team, the user's included. Over ten simulated offseasons team
 strength, roster sizes, ages, and payrolls stay stable.
 
+## Injuries
+
+Players get hurt in simulated games:
+
+- On every scrimmage snap each of the 22 players on the field has a small chance of
+  injury — three times higher for players in contact (ball carriers, tacklers, sacked
+  quarterbacks, receivers on catches), lower for players with high **Toughness**.
+  League-wide that's about 1.5 injuries per team per game, most of them minor.
+- The injured player leaves the game immediately; the next man on the depth chart takes
+  his snaps. The play-by-play notes it ("K. Quarles (HFD) is injured: Hamstring strain"),
+  and the game page lists every injury.
+- Each injury comes from a fictional table with a range of games missed: ankle and
+  hamstring strains, concussions, and sprains are usually short (0–3 games); a high ankle
+  sprain or broken collarbone takes weeks; a torn ACL or pectoral ends the season.
+- Status follows the games still to miss: 0 → **Questionable** (plays next week, healthy
+  after it), 1–3 → **Out**, 4+ → **Injured reserve**. Each week (or playoff round) counts
+  down one game; lineups are rebuilt every week, so players step back in as they heal.
+- The dashboard's **Injury report** lists the franchise's injured players with the injury
+  and time remaining; roster, depth chart, and player pages show it too. Setting a
+  player to Healthy by hand clears an injury; the offseason heals everyone.
+- Injuries draw from their own random stream, so a game plays out exactly as it would
+  without them until someone actually gets hurt (still deterministic per seed).
+
 Still planned:
 
-- **Injuries:** occur in simulated games, weighted by Toughness; duration in weeks.
 - **Draft:** generated fictional draft classes with scouting fog.
 - **Trades:** AI evaluates value from OVR, age, contract, and positional need.
 

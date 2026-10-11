@@ -4,6 +4,8 @@ import {
   formatHeight,
   formatMoney,
   formatRecord,
+  injuryDetail,
+  injuryDuration,
   injuryLabel,
   ratingTier,
   yearsRemaining,
@@ -62,5 +64,21 @@ describe("ratingTier", () => {
     [59, "poor"],
   ])("%d is %s", (value, tier) => {
     expect(ratingTier(value)).toBe(tier);
+  });
+});
+
+describe("injuries", () => {
+  it("describes how long a player is out", () => {
+    expect(injuryDuration(0)).toBe("Questionable");
+    expect(injuryDuration(1)).toBe("Out 1 game");
+    expect(injuryDuration(3)).toBe("Out 3 games");
+    expect(injuryDuration(99)).toBe("Out for the season");
+  });
+
+  it("describes simulated and hand-set injuries", () => {
+    expect(injuryDetail({ injury_status: "out", injury: "Knee sprain", injury_weeks: 2 }))
+      .toBe("Knee sprain · Out 2 games");
+    expect(injuryDetail({ injury_status: "injured_reserve", injury: null })).toBe("IR");
+    expect(injuryDetail({ injury_status: "healthy" })).toBe("Healthy");
   });
 });

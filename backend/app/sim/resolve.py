@@ -40,6 +40,10 @@ class Offense:
     def line(self) -> list[SimPlayer]:
         return [*self.tackles, *self.guards, self.center]
 
+    @property
+    def all(self) -> list[SimPlayer]:
+        return [self.qb, self.rb, *self.wrs, self.te, *self.line]
+
 
 @dataclass
 class Defense:

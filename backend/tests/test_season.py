@@ -66,12 +66,13 @@ class TestSimulateWeek:
         assert dashboard["upcoming_games"][0]["week"] == 2
 
     def test_results_are_reproducible(self, client: TestClient, db: Session, season: Season):
+        from app.services.season import league_sim_teams, play_game
+        # Snapshot the rosters first: the week's injuries change them afterwards.
+        sim_teams = league_sim_teams(db, season.league_id)
         _simulate(client, season)
         first = {g.id: (g.home_score, g.away_score) for g in db.scalars(
             select(Game).where(Game.season_id == season.id, Game.week == 1))}
         # Re-simulating the same week with the same rosters gives identical results.
-        from app.services.season import league_sim_teams, play_game
-        sim_teams = league_sim_teams(db, season.league_id)
         for game in db.scalars(select(Game).where(Game.season_id == season.id, Game.week == 1)):
             db.execute(TeamGameStats.__table__.delete().where(TeamGameStats.game_id == game.id))
             db.execute(PlayerGameStats.__table__.delete().where(

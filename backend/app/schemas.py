@@ -85,6 +85,8 @@ class PlayerSummary(BaseModel):
     potential: int
     development_trait: str
     injury_status: str
+    injury: str | None = None  # from a simulated game
+    injury_weeks: int = 0  # games still to miss (99: rest of the season)
     retired_year: int | None = None
     contract: ContractOut | None
     key_ratings: dict[str, int]
@@ -324,6 +326,18 @@ class GameDetail(BaseModel):
     players: list[PlayerGameLine]
     scoring_plays: list[PlayOut]
     plays: list[PlayOut]
+    injuries: list["GameInjury"] = []
+
+
+class GameInjury(BaseModel):
+    player_id: int
+    team_id: int
+    name: str
+    position: str
+    injury: str
+    weeks: int  # games to miss (0: questionable; 99: season-ending)
+    quarter: int
+    clock: str
 
 
 class StandingRow(BaseModel):
@@ -568,4 +582,5 @@ class Dashboard(BaseModel):
     position_groups: list[PositionGroupSummary]
     expiring_contracts: int
     alerts: list[Alert]
+    injury_report: list[PlayerSummary] = []
     offseason: OffseasonRecap | None = None  # shown until the first game of the season

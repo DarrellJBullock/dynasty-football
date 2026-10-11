@@ -4,10 +4,10 @@ import { SimControls } from "@/components/season/SimControls";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
-import { formatMoney, formatPhase, formatRecord, ratingTier, TIER_BAR } from "@/lib/format";
+import { formatMoney, formatPhase, formatRecord, injuryDetail, injuryLabel, ratingTier, TIER_BAR } from "@/lib/format";
 import { gameLabel, OUTCOME_STYLES, resultFor } from "@/lib/games";
 import { OffseasonRecap } from "./OffseasonRecap";
-import type { Alert, Dashboard, Game, PositionGroupSummary, TeamSummary } from "@/lib/types";
+import type { Alert, Dashboard, Game, PlayerSummary, PositionGroupSummary, TeamSummary } from "@/lib/types";
 
 export function DashboardView({ data }: { data: Dashboard }) {
   const { franchise, team, record } = data;
@@ -80,6 +80,9 @@ export function DashboardView({ data }: { data: Dashboard }) {
           </Panel>
           <Panel title="Front office">
             <Alerts alerts={data.alerts} />
+          </Panel>
+          <Panel title="Injury report">
+            <InjuryReport players={data.injury_report ?? []} />
           </Panel>
         </div>
       </div>
@@ -348,6 +351,29 @@ function Alerts({ alerts }: { alerts: Alert[] }) {
         <li key={alert.message} className="flex items-start gap-3 text-sm">
           <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${ALERT_STYLES[alert.level]}`} />
           <span className="text-chalk/90">{alert.message}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function InjuryReport({ players }: { players: PlayerSummary[] }) {
+  if (!players.length) return <p className="text-sm text-mist">Everyone is healthy.</p>;
+  return (
+    <ul className="space-y-2" aria-label="Injured players">
+      {players.map((player) => (
+        <li key={player.id} className="flex items-center gap-3 text-sm">
+          <span className="w-8 shrink-0 rounded bg-rose-500/15 text-center text-[10px] font-semibold uppercase text-rose-300">
+            {injuryLabel(player.injury_status)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <Link href={`/players/${player.id}`} className="block truncate hover:text-gold">
+              <span className="mr-1.5 text-xs text-mist">{player.position}</span>
+              {player.full_name}
+            </Link>
+            <div className="truncate text-xs text-mist">{injuryDetail(player)}</div>
+          </div>
+          <OvrBadge value={player.overall} />
         </li>
       ))}
     </ul>

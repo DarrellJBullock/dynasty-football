@@ -76,6 +76,8 @@ export interface PlayerSummary {
   potential: number;
   development_trait: DevelopmentTrait;
   injury_status: InjuryStatus;
+  injury?: string | null; // from a simulated game
+  injury_weeks?: number; // games still to miss (99: rest of the season)
   retired_year?: number | null; // last season played
   contract: Contract | null;
   key_ratings: Record<string, number>;
@@ -179,6 +181,7 @@ export interface Dashboard {
   position_groups: PositionGroupSummary[];
   expiring_contracts: number;
   alerts: Alert[];
+  injury_report?: PlayerSummary[];
   offseason?: OffseasonRecap | null; // shown until the first game of the season
 }
 
@@ -353,6 +356,18 @@ export interface GameDetail {
   players: PlayerGameLine[];
   scoring_plays: PlayOut[];
   plays: PlayOut[];
+  injuries?: GameInjury[];
+}
+
+export interface GameInjury {
+  player_id: number;
+  team_id: number;
+  name: string;
+  position: Position;
+  injury: string;
+  weeks: number; // games to miss (0: questionable; 99: season-ending)
+  quarter: number;
+  clock: string;
 }
 
 export interface LeaderRow {

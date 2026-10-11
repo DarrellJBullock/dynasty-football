@@ -30,6 +30,7 @@ def describe(play: "PlayRecord", names: dict[int, str], teams: dict[str, "SimTea
 
     parts: list[str] = []
     tackled_by: list[int] = []
+    injuries: list[str] = []
     for e in play.events:
         t = e["t"]
         if t == "kickoff":
@@ -77,6 +78,8 @@ def describe(play: "PlayRecord", names: dict[int, str], teams: dict[str, "SimTea
                          + ("good" if e["good"] else "no good"))
         elif t == "two_point":
             parts.append("Two-point conversion " + ("succeeds" if e["good"] else "fails"))
+        elif t == "injury":
+            injuries.append(f"{name(e['player'])} ({e['team']}) is injured: {e['injury']}")
         elif t == "penalty":
             label = PENALTY_NAMES.get(e["kind"], e["kind"])
             parts.append(f"PENALTY on {e['team']}: {label}, {e['yards']} yards"
@@ -93,4 +96,5 @@ def describe(play: "PlayRecord", names: dict[int, str], teams: dict[str, "SimTea
         text += ". Turnover on downs"
     elif play.result.get("first_down") and play.result.get("type") != "penalty":
         text += ". First down"
-    return text + ("" if text.endswith(".") else ".")
+    text += "" if text.endswith(".") else "."
+    return " ".join([text, *(f"{injury}." for injury in injuries)])

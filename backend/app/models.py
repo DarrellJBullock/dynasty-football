@@ -120,6 +120,9 @@ class Player(Base):
     potential: Mapped[int] = mapped_column(Integer)
     development_trait: Mapped[str] = mapped_column(String(12), default="normal")
     injury_status: Mapped[str] = mapped_column(String(20), default="healthy")
+    # Set by simulated games: what it is and how many more games the player misses.
+    injury: Mapped[str | None] = mapped_column(String(40))
+    injury_weeks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     retired_year: Mapped[int | None] = mapped_column(Integer)  # last season played
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

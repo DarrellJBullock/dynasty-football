@@ -50,7 +50,7 @@ Each milestone ends with working software, green tests, and updated docs.
 - [ ] Draft: generated classes, scouting, draft day
 - [ ] Trades with AI valuation
 - [x] Player development, aging, retirement
-- [ ] Injuries from simulated games
+- [x] Injuries from simulated games (injury report, recovery countdown, game-page list)
 - [ ] Records and history (season archives, awards)
 
 ## M4 — 3D engine foundation
