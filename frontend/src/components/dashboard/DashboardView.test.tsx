@@ -24,6 +24,8 @@ describe("DashboardView", () => {
     const card = screen.getByRole("region", { name: "Next game" });
     expect(within(card).getByText("Albuquerque Roadrunners")).toBeInTheDocument();
     expect(within(card).getByText("Week 1 · Home")).toBeInTheDocument();
+    const coach = within(card).getByRole("link", { name: "Coach this game" });
+    expect(coach.getAttribute("href")).toMatch(/^\/games\/\d+\/coach$/);
   });
 
   it("shows cap space and roster count", () => {

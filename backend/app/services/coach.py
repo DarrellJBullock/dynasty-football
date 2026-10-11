@@ -88,6 +88,11 @@ def _replay(coached: CoachedGame, calls: list[CoachCall] | None = None,
                   playoff=game.stage == "playoff", neutral=game.neutral_site)
 
 
+def live_plays(coached: CoachedGame) -> list[dict]:
+    """The plays of a game in progress, up to the next call."""
+    return [p.to_dict() for p in _replay(coached).plays]
+
+
 def _finish(db: Session, coached: CoachedGame, outcome: CoachedReplay) -> None:
     if outcome.result is not None and coached.status == "in_progress":
         record_result(db, coached.game, outcome.result)

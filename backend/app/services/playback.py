@@ -35,6 +35,15 @@ def _sim_team(db: Session, team: Team) -> SimTeam:
                           load_overrides(db, [team.id])[team.id])
 
 
+def _live_plays(db: Session, game: Game) -> list[dict]:
+    """A game the user is coaching isn't stored until the final whistle: its plays so far
+    come from replaying the calls made."""
+    from app.services import coach  # (coach builds on the season services)
+
+    coached = coach.coached_game(db, game)
+    return coach.live_plays(coached) if coached and coached.status == "in_progress" else []
+
+
 def _approximate(offense: SimTeam, defense: SimTeam, play: dict) -> Personnel:
     package = (play.get("defense") or {}).get("package", "base")
     return Personnel(offense=[p.id for p in resolve.offense_lineup(offense)],
@@ -44,7 +53,7 @@ def _approximate(offense: SimTeam, defense: SimTeam, play: dict) -> Personnel:
 
 
 def game_playback(db: Session, game: Game) -> GamePlayback:
-    log = game.play_log or []
+    log = game.play_log or _live_plays(db, game)
     sides = {"home": game.home_team, "away": game.away_team}
     by_abbreviation = {t.abbreviation: t for t in sides.values()}
     sim_teams: dict[int, SimTeam] = {}

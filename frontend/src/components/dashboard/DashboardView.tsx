@@ -236,6 +236,9 @@ function NextGameCard({ game, teamId }: { game?: Game; teamId: number }) {
             {opponent.full_name}
           </div>
         </div>
+        <Link href={`/games/${game.id}/coach`} className="btn btn-primary ml-auto shrink-0 px-3 py-1 text-xs">
+          Coach this game
+        </Link>
       </div>
     </StatCard>
   );

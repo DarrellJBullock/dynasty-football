@@ -207,6 +207,10 @@ Interactive docs: `http://localhost:8000/docs`.
   re-renders nothing. `components/watch/WatchView.tsx` is the Watch page: one request loads
   the game (`/api/games/{id}/playback`) and every play is choreographed in the browser
   (~20 ms a game), so stepping and scrubbing are instant.
+  `components/coach/CoachView.tsx` is Coach Mode's call screen (`/games/[id]/coach`;
+  `/coach` redirects to the franchise's next game): each call posts to the coach API,
+  then reloads the game's playback (which, for a game in progress, is the replay so far)
+  and `PlayReel` plays the new plays in 3D.
 
 ## Testing
 
@@ -217,6 +221,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend API | pytest + TestClient | every endpoint incl. 404/409/422 paths |
 | Backend roster import | pytest | readers per format and bad files, header/position aliases, heights, rating fill/caps, errors vs warnings, preview/commit modes, skip-invalid, templates round-trip; export → re-import is lossless in every format |
 | Backend leagues | pytest | spec validation, templates, creation (generated/empty rosters, custom identities, schedules for small leagues, determinism), franchise switching, team edits, protected delete |
+| Coach Mode UI | Vitest + Testing Library + Playwright | start, the playbook opening on the AI's pick, calling a play from another tab, Call it with a timeout (disabled while the clock is stopped), defensive personnel, the AI taking a play / drive / the rest of the game (with a confirm), the final screen, errors, hiding 3D, a game already played; the Dashboard's Coach this game link; Playwright coaches the franchise's game from Play Game to the box score |
 | Coach Mode | pytest | a coached game stops at the first call, plays to the end on the AI's suggestions and replays exactly, partial replays are prefixes of the full game, the user's offensive and defensive calls (and package) are the calls made, a timeout saves the runoff, autopilot finishes the game, team snapshots play identically; call validation; the API: next game, start (and resume), wrong-side and unknown calls refused, AI play/drive/game, the week blocked while in progress, the finished game stored like a simulated one and left alone when the week is simmed (its injuries settled), only the franchise's next game coachable, roster moves don't change a game in progress |
 | Playbooks | pytest | plays are complete engine calls, concept tables name real plays and shells, AI choices match the coarse call, concepts break even against the AI's mix, every snap is a named call, concepts change outcomes (Smash vs Cover 2 / Cover 4, runs vs two-high / single-high), plays steer the QB's target, the playbook API, play names on game detail and playback |
 | Simulation | pytest | determinism, score/clock/down invariants, box-score consistency, overtime rules, Coach seam, AI 4th-down/kneel calls, depth-chart lineups, calibration targets, rating sensitivity |
