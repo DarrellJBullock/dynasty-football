@@ -4,13 +4,13 @@
 in the new season's `offseason_log`:
 
 1. Aging and development (growth toward potential, decline past 30); injuries heal.
-2. Retirements.
+2. Retirements (and the tail of an overcrowded free-agent pool).
 3. Expiring contracts: AI teams re-sign at market value while the cap allows (keeping room
    to fill the roster); fading depth veterans aren't re-signed. The franchise's players
    re-signed during the offseason window (services/contracts.py) stay; the rest leave.
 4. The positions each team lost are recorded; the free-agent pool is topped up.
 5. A new season with a fresh schedule, opening with free agency (services/free_agency.py):
-   teams refill those spots in the market, and with undrafted rookies when it closes.
+   teams refill those spots in the market, then in the draft (services/draft.py).
 """
 
 import hashlib
@@ -24,11 +24,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.domain.contracts import market_salary
 from app.domain.development import contract_years, develop, retirement_chance
 from app.domain.positions import ROSTER_MAX, ROSTER_TEMPLATE, Position
-from app.domain.ratings import clamp_rating
 from app.models import Contract, Franchise, Player, Season, Team
 from app.seed.generator import (
     FREE_AGENT_COUNT,
-    _development_trait,
     _schedule,
     make_player,
 )
@@ -41,11 +39,10 @@ if TYPE_CHECKING:
     from app.schemas import OffseasonRecap
 
 ROSTER_SPOT_RESERVE = 1_000_000  # cap room kept per open roster spot while re-signing
-ROOKIE_TARGET = (60, 5)  # mean, sd of a rookie's OVR
-ROOKIE_UPSIDE = (14, 8)  # mean, sd of potential above OVR
 VETERAN_KEEP = (30, 70)  # teams let expiring players this old and below this OVR walk
-FREE_AGENT_FLOOR = 64  # teams prefer an undrafted rookie to a free agent below this OVR
+FREE_AGENT_FLOOR = 64  # AI teams don't bid on free agents below this OVR
 FREE_AGENT_TARGET = (62, 5)
+FREE_AGENT_POOL_MAX = 250  # unsigned players kept from one offseason to the next
 RECAP_MOVERS = 5
 
 
@@ -76,7 +73,8 @@ def advance(db: Session, season: Season) -> Season:
 
     players = list(db.scalars(
         select(Player)
-        .where(Player.league_id == league.id, Player.retired_year.is_(None))
+        .where(Player.league_id == league.id, Player.retired_year.is_(None),
+               Player.is_prospect.is_(False))
         .options(selectinload(Player.ratings), selectinload(Player.contracts))
         .order_by(Player.id)))
 
@@ -105,6 +103,13 @@ def advance(db: Session, season: Season) -> Season:
                 lost[player.team_id].append(player.position)
                 _leave_team(db, player)
             player.retired_year = season.year
+    # Nobody signs a crowded pool's tail: past FREE_AGENT_POOL_MAX, the least valuable
+    # unsigned players (lowest OVR, older first) leave football.
+    pool = sorted((p for p in players if p.team_id is None and p.retired_year is None),
+                  key=lambda p: (-(p.overall - max(0, p.age - 28) * 2), p.id))
+    for player in pool[FREE_AGENT_POOL_MAX:]:
+        log["retired"].append({"player": player.id, "team": None})
+        player.retired_year = season.year
 
     # 3. Expiring contracts.
     teams = list(db.scalars(select(Team).where(Team.league_id == league.id).order_by(Team.id)))
@@ -146,7 +151,7 @@ def advance(db: Session, season: Season) -> Season:
                 roster.remove(player)
         payrolls[team.id] = payroll
 
-    # 4. Spots to refill in free agency (and with rookies when it closes).
+    # 4. Spots to refill in free agency and the draft.
     log["lost"] = {str(team_id): positions for team_id, positions in lost.items()}
     db.flush()
 
@@ -177,15 +182,6 @@ def _sign(player: Player, team: Team, year: int, salary: int, years: int) -> Non
                                      salary=salary))
 
 
-def _rookie(rng: random.Random, league, position: Position, taken: set[int]) -> Player:
-    rookie = make_player(rng, league, position, round(rng.gauss(*ROOKIE_TARGET)),
-                         taken_numbers=taken, age=rng.randint(21, 23))
-    rookie.years_pro = 0
-    rookie.potential = clamp_rating(rookie.overall + max(2, rng.gauss(*ROOKIE_UPSIDE)))
-    rookie.development_trait = _development_trait(rng, rookie.potential)
-    return rookie
-
-
 def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":
     """What the offseason before `season` meant for one team (plus notable retirements)."""
     from app.schemas import OffseasonRecap, RecapMove, RecapRetirement, RecapSigning
@@ -196,7 +192,8 @@ def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":
         return None
     ids = {e["player"] for key in ("retired", "departed", "re_signed", "signed")
            for e in log[key]}
-    ids |= set(log["rookies"]) | {int(k) for k in log["development"]}
+    drafted = [e["player"] for e in log.get("drafted", []) if e["team"] == team_id]
+    ids |= set(log["rookies"]) | set(drafted) | {int(k) for k in log["development"]}
     players = {p.id: p for p in db.scalars(
         select(Player).where(Player.id.in_(ids))
         .options(selectinload(Player.ratings), selectinload(Player.contracts)))}
@@ -222,8 +219,8 @@ def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":
         departed=[player_summary(p) for p in mine("departed")],
         re_signed=signings("re_signed"),
         signed=signings("signed"),
-        rookies=[player_summary(players[pid]) for pid in log["rookies"]
-                 if players[pid].team_id == team_id],
+        rookies=[player_summary(players[pid]) for pid in [*drafted, *log["rookies"]]
+                 if players[pid].team_id == team_id],  # draft picks, then undrafted
         risers=[RecapMove(player=player_summary(p), before=b, after=a)
                 for p, b, a in risers[:RECAP_MOVERS]],
         decliners=[RecapMove(player=player_summary(p), before=b, after=a)

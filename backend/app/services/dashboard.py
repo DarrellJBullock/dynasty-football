@@ -66,7 +66,7 @@ def _position_groups(roster: list[Player],
 def _alerts(roster: list[Player], cap_space: int, expiring: int,
             groups: list[PositionGroupSummary],
             lineup: dict[Position, list[Player]], offseason: bool = False,
-            free_agency_day: int | None = None) -> list[Alert]:
+            free_agency_day: int | None = None, phase: str = "") -> list[Alert]:
     alerts: list[Alert] = []
     missing = unfilled_slots(lineup)
     if missing and sum(missing.values()) == sum(STARTERS.values()):
@@ -92,6 +92,13 @@ def _alerts(roster: list[Player], cap_space: int, expiring: int,
     if injured:
         alerts.append(Alert(level="warning",
                             message=f"{len(injured)} player(s) on the injury report."))
+    if phase == "draft":
+        alerts.append(Alert(level="warning",
+                            message="The draft is live: make your picks on the Draft page."))
+    if phase == "preseason" and len(roster) > ROSTER_MAX:
+        alerts.append(Alert(level="critical",
+                            message=f"Cut your roster to {ROSTER_MAX} (it has {len(roster)}) "
+                                    "before the season starts."))
     if free_agency_day:
         alerts.append(Alert(level="warning",
                             message=f"Free agency, day {free_agency_day} of {MARKET_DAYS}: make "
@@ -157,10 +164,10 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
         alerts=_alerts(roster, detail.cap_space, expiring, groups, lineup,
                        offseason=season.phase == "offseason",
                        free_agency_day=season.free_agency_day
-                       if season.phase == "free_agency" else None),
+                       if season.phase == "free_agency" else None, phase=season.phase),
         injury_report=[player_summary(p) for p in sorted(
             (p for p in roster if p.injury_status != "healthy"),
             key=lambda p: (-p.injury_weeks, -p.overall, p.id))],
         offseason=recap(db, season, team.id)
-        if season.phase in ("free_agency", "preseason") else None,
+        if season.phase in ("free_agency", "draft", "preseason") else None,
     )

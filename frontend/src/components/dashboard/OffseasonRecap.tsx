@@ -26,7 +26,10 @@ export function OffseasonRecap({ recap }: { recap: Recap }) {
         </Column>
         <Column title="New arrivals" empty="No new players.">
           {recap.signed.map((s) => <SigningRow key={s.player.id} signing={s} tag="FA" />)}
-          {recap.rookies.map((p) => <PlayerRow key={p.id} player={p} note="Rookie" />)}
+          {recap.rookies.map((p) => (
+            <PlayerRow key={p.id} player={p}
+              note={p.draft_pick ? `Draft R${p.draft_round} #${p.draft_pick}` : "Undrafted rookie"} />
+          ))}
         </Column>
         <Column title="Gone" empty="Nobody left.">
           {recap.retired.map((p) => <PlayerRow key={p.id} player={p} note="Retired" />)}

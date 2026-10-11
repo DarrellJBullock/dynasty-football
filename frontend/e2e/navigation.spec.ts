@@ -19,6 +19,7 @@ test("sidebar reaches every page", async ({ page }) => {
     ["Depth Chart", "Hartford Ironclads"],
     ["Contracts", "Contracts"],
     ["Free Agency", "Free Agency"],
+    ["Draft", /^\d{4} Draft$/],
     ["League", "Dynasty Football League"],
     ["My Leagues", "Leagues & franchises"],
     ["Dashboard", "Ironclads"],

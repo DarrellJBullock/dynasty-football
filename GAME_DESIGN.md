@@ -206,7 +206,9 @@ offseason in one deterministic step and opens the next season in free agency:
   age four years slower. Injuries heal.
 - **Retirement:** from 30, rising with age (2% at 30, 28% at 34, 70% at 37; everyone by
   40). Stars hang on longer, fringe players leave sooner, and unsigned veterans are the
-  likeliest to go. Retired players keep their pages and stats.
+  likeliest to go. Unsigned players under 66 OVR leave football half the time, and past
+  250 unsigned players the least valuable rest retire, so the pool stays a market rather
+  than a graveyard. Retired players keep their pages and stats.
 - **Contracts:** the franchise keeps whoever it re-signed on the Contracts page (see
   Re-signing); its other expiring players leave. AI teams re-sign theirs at market
   value, best first, while the cap allows — keeping room to fill the roster — but let
@@ -238,11 +240,38 @@ A five-day market between the rollover and the preseason, on the **Free Agency**
   92%, and 80% on the last day — and otherwise waits. Offers are ranked by money (salary
   against his price for that length, so unwanted lengths cost more) with a small pull
   toward stronger teams (±1% per OVR point of team strength).
-- **Play free agency day N** plays one day; **Finish free agency** plays the rest. When
-  the market closes, every spot a team still lost goes to an undrafted rookie (age 21–23,
-  ~60 OVR with upside, minimum salary) — the placeholder until the draft — and the
-  preseason begins. Games can't be simulated during free agency, and free agents can't
-  be signed instantly; outside it they sign instantly at their asking price.
+- **Play free agency day N** plays one day; **Finish free agency** plays the rest; then
+  the draft opens. Games can't be simulated during free agency, and free agents can't be
+  signed instantly; outside it they sign instantly at their asking price.
+
+### Draft
+
+Seven rounds after free agency, on the **Draft** page.
+
+- **Classes:** about 288 fictional college prospects (age 21–23) per class — nine per
+  team — generated deterministically for each league and year the first time they're
+  needed. Quality falls with class rank (projected ~69 OVR at the top to ~51 at the
+  bottom) and the best prospects have the most upside.
+- **Scouting fog:** until scouted, a prospect shows a projected OVR range (±4 around a
+  projection that can be several points off) and a noisy potential grade (A+ to D).
+  Each class gives the franchise **25 scouting reports**; a report reveals his true OVR
+  and potential. Next year's class can be scouted all season; this year's through the
+  draft.
+- **Order:** worst first by last season — non-playoff teams by record (then point
+  differential), then playoff teams by how far they went; the champion picks last. The
+  same order every round.
+- **Draft day:** **Sim to my pick** lets AI teams pick until you're on the clock; draft
+  from the board, or **Finish draft** to auto-pick for you (by your scouting and need).
+  AI teams value prospects by their own imperfect read of OVR and potential, plus a
+  bonus at positions they still need.
+- **Rookie deals:** four years on a slotted scale — about $10M a year for the first pick,
+  falling steeply to the minimum around pick 100.
+- **After the draft:** spots teams still lost go to undrafted prospects (by position, then
+  best left), then to veteran free agents on one-year minimum deals; the rest of the
+  class becomes free agents. AI teams cut down to 53 (lowest-rated first) and, if rookie
+  deals put them over the cap, release their most overpaid veterans. Your roster can be
+  over 53 after the draft: cut down on the roster page or **Auto-cut to 53** before week
+  1 — the season won't start until you do.
 
 ## Injuries
 
@@ -269,7 +298,6 @@ Players get hurt in simulated games:
 
 Still planned:
 
-- **Draft:** generated fictional draft classes with scouting fog.
 - **Trades:** AI evaluates value from OVR, age, contract, and positional need.
 
 ## Custom data: roster import & export

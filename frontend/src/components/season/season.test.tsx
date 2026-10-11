@@ -12,7 +12,8 @@ const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, api: { simulate: vi.fn(), advance: vi.fn(), playFreeAgency: vi.fn() } };
+  return { ...actual, api: { simulate: vi.fn(), advance: vi.fn(), playFreeAgency: vi.fn(),
+    playDraft: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -116,6 +117,24 @@ describe("SimControls in free agency", () => {
     expect(mocked.playFreeAgency).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Confirm: finish free agency" }));
     expect(mocked.playFreeAgency).toHaveBeenCalledWith(6, "end");
+  });
+});
+
+describe("SimControls during the draft", () => {
+  const drafting = { ...season, id: 6, year: 2027, phase: "draft", current_week: 1 };
+
+  it("sims to the franchise's pick, or finishes after confirmation", async () => {
+    mocked.playDraft.mockResolvedValue({ season: drafting, picks: [] });
+    render(<SimControls season={drafting} teamId={team.id} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sim to my pick" }));
+    expect(mocked.playDraft).toHaveBeenCalledWith(6, "my_pick");
+    expect(await screen.findByRole("status")).toHaveTextContent("you're on the clock");
+
+    mocked.playDraft.mockResolvedValue({ season: { ...drafting, phase: "preseason" }, picks: [] });
+    await userEvent.click(screen.getByRole("button", { name: "Finish draft" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: finish the draft (auto-pick for me)" }));
+    expect(mocked.playDraft).toHaveBeenLastCalledWith(6, "end");
+    expect(await screen.findByText("The draft is complete")).toBeInTheDocument();
   });
 });
 

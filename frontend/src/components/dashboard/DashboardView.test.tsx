@@ -81,7 +81,7 @@ describe("DashboardView", () => {
     expect(within(recap).getByRole("group", { name: "Re-signed" })).toHaveTextContent("$12.5M × 3");
     const arrivals = within(recap).getByRole("group", { name: "New arrivals" });
     expect(arrivals).toHaveTextContent("FA · $1.2M × 2");
-    expect(arrivals).toHaveTextContent("Rookie");
+    expect(arrivals).toHaveTextContent("Undrafted rookie");
     expect(within(recap).getByRole("group", { name: "Gone" })).toHaveTextContent("Left in free agency");
     const development = within(recap).getByRole("group", { name: "Development" });
     expect(development).toHaveTextContent("+6");

@@ -9,9 +9,11 @@ from app.schemas import (
     NegotiationResult,
     PlayerDetail,
     PlayerUpdate,
+    ProspectRow,
     ReSignOffer,
 )
 from app.services import contracts as contract_service
+from app.services import draft as draft_service
 from app.services import free_agency as free_agency_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail
@@ -68,3 +70,10 @@ def make_offer(offer: ReSignOffer, player: Player = Depends(get_player),
 def withdraw_offer(player: Player = Depends(get_player), db: Session = Depends(get_db)):
     with roster_errors(db):
         free_agency_service.withdraw_offer(db, player)
+
+
+@router.post("/{player_id}/scout", response_model=ProspectRow)
+def scout(player: Player = Depends(get_player), db: Session = Depends(get_db)):
+    """Spend a scouting report on a draft prospect: reveals his true OVR and potential."""
+    with roster_errors(db):
+        return draft_service.scout(db, player)

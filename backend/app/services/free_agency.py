@@ -9,8 +9,8 @@ The new season opens in phase "free_agency" (services/offseason.advance). Each m
    their asking for the day (domain/free_agency.DEMAND); otherwise they wait.
 3. Unsigned AI offers are replaced by fresh bids for the next day.
 
-After the last day the market closes: any spot a team still lost is filled with an
-undrafted rookie (placeholder until the draft) and the season moves to the preseason.
+After the last day the market closes and the draft opens (services/draft.py); spots
+teams still lost are filled from the draft and its undrafted prospects.
 Deterministic per league, year, and day.
 """
 
@@ -36,7 +36,6 @@ from app.services.errors import RosterError
 from app.services.offseason import (
     FREE_AGENT_FLOOR,
     ROSTER_SPOT_RESERVE,
-    _rookie,
     _sign,
 )
 from app.services.season import season_view
@@ -83,7 +82,7 @@ class _Market:
                                      .order_by(Team.id)))
         players = db.scalars(
             select(Player).where(Player.league_id == self.league.id,
-                                 Player.retired_year.is_(None))
+                                 Player.retired_year.is_(None), Player.is_prospect.is_(False))
             .options(selectinload(Player.ratings), selectinload(Player.contracts))
             .order_by(Player.overall.desc(), Player.id))
         self.rosters: dict[int, list[Player]] = defaultdict(list)
@@ -242,34 +241,17 @@ def _resolve_day(db: Session, market: _Market) -> list[dict]:
 
 
 def _close(db: Session, market: _Market) -> None:
-    """Expire what's left, fill every still-lost spot with an undrafted rookie, and move
-    on to the preseason."""
+    """Expire what's left and open the draft (services/draft.py)."""
+    from app.services import draft  # (it builds on this module)
+
     season = market.season
     for offer in db.scalars(select(FreeAgentOffer).where(
             FreeAgentOffer.season_id == season.id, FreeAgentOffer.status == "pending")):
         offer.status = "expired"
-    rng = market_rng(market.league.id, season.year, 0)
-    rookies = market.log.setdefault("rookies", [])
-    for team in market.teams:
-        roster = market.rosters[team.id]
-        for position in list(market.lost(team.id)):
-            if len(roster) >= ROSTER_MAX:
-                break
-            taken = {p.jersey_number for p in roster}
-            with db.no_autoflush:
-                rookie = _rookie(rng, market.league, Position(position), taken)
-                rookie.team = team
-                _sign(rookie, team, season.year, MIN_SALARY, rng.randint(3, 4))
-                db.add(rookie)
-            roster.append(rookie)
-            market.payrolls[team.id] += MIN_SALARY
-            market.lost(team.id).remove(position)
-            db.flush()
-            rookies.append(rookie.id)
-    season.phase = "preseason"
     season.free_agency_day = 0
     market.save_log()
     db.flush()
+    draft.open_draft(db, season)
 
 
 def play_days(db: Session, season: Season, until: str) -> list[dict]:

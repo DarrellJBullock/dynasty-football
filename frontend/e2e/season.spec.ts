@@ -119,8 +119,36 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   await controls.getByRole("button", { name: "Finish free agency" }).click();
   await controls.getByRole("button", { name: "Confirm: finish free agency" }).click();
 
+  // The draft: scout the top prospect, sim to our pick, take him, then let it finish.
+  await navigate(page, "Draft");
+  const status = page.getByRole("status", { name: "Draft status" });
+  await expect(status).toContainText(/On the clock|You're on the clock/);
+  const board = page.getByRole("region", { name: "Prospects" });
+  const scout = board.getByRole("button", { name: /^Scout / }).first();
+  const scoutedName = (await scout.getAttribute("aria-label"))!.replace(/^Scout /, "");
+  await scout.click();
+  // Scouted: his exact rating replaces the range (and the board re-sorts).
+  await expect(board.getByRole("button", { name: `Scout ${scoutedName}` })).toHaveCount(0);
+  const draftControls = page.getByRole("group", { name: "Draft" });
+  await draftControls.getByRole("button", { name: "Sim to my pick" }).click();
+  await expect(status).toContainText("You're on the clock");
+  const choice = board.getByRole("row").nth(1);
+  const name = (await choice.getByRole("button", { name: /^Draft / }).getAttribute("aria-label"))!
+    .replace(/^Draft /, "");
+  await choice.getByRole("button", { name: /^Draft / }).click();
+  await expect(page.getByRole("region", { name: "Your picks" })).toContainText(name);
+  await draftControls.getByRole("button", { name: "Finish draft" }).click();
+  await draftControls.getByRole("button", { name: "Confirm: finish the draft (auto-pick for me)" }).click();
+  await expect(status).toHaveText("The draft is complete.");
+  const cutDown = page.getByRole("region", { name: "Roster cut-down" });
+  if (await cutDown.isVisible()) {
+    await cutDown.getByRole("button", { name: /^Auto-cut to/ }).click();
+    await expect(cutDown).toHaveCount(0);
+  }
+
   await navigate(page, "Dashboard");
   await expect(recap.getByRole("group", { name: "New arrivals" })).toContainText("FA ·");
+  await expect(recap.getByRole("group", { name: "New arrivals" })).toContainText("Draft R1");
   await expect(overview.getByText("0-0", { exact: true })).toBeVisible();
 
   await overview.getByRole("button", { name: "Sim week 1" }).click();

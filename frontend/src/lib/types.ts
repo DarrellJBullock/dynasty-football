@@ -79,6 +79,9 @@ export interface PlayerSummary {
   injury?: string | null; // from a simulated game
   injury_weeks?: number; // games still to miss (99: rest of the season)
   retired_year?: number | null; // last season played
+  draft_year?: number | null;
+  draft_round?: number | null;
+  draft_pick?: number | null; // overall
   contract: Contract | null;
   key_ratings: Record<string, number>;
 }
@@ -529,3 +532,50 @@ export interface FreeAgencyResult {
 }
 
 export type FreeAgencyUntil = "next_day" | "end";
+
+/** A draft prospect as the franchise sees him: a projection until scouted. */
+export interface ProspectRow {
+  id: number;
+  full_name: string;
+  position: Position;
+  age: number;
+  college: string;
+  height_in: number;
+  weight_lb: number;
+  projected: number;
+  low: number;
+  high: number;
+  grade: string; // potential, A+ to D
+  scouted: boolean;
+  overall: number | null; // the truth, once scouted
+  potential: number | null;
+}
+
+export interface DraftPickOut {
+  round: number;
+  number: number;
+  pick_in_round: number;
+  team: TeamSummary;
+  player: PlayerSummary | null;
+}
+
+export interface DraftOut {
+  season: Season;
+  year: number;
+  status: "upcoming" | "live" | "complete";
+  picks: DraftPickOut[];
+  on_the_clock: number | null;
+  my_team_id: number | null;
+  my_next_pick: number | null;
+  prospects: ProspectRow[];
+  scouting_left: number;
+  roster_count: number;
+  roster_max: number;
+}
+
+export interface DraftResult {
+  season: Season;
+  picks: DraftPickOut[];
+}
+
+export type DraftUntil = "my_pick" | "end";

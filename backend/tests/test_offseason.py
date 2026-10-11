@@ -134,9 +134,10 @@ class TestRollover:
         assert all(p.age == before[p.id][0] + 1 for p in players if p.id in before)
 
         signed = {e["player"] for e in log["signed"]}
+        drafted = {e["player"] for e in log["drafted"]}
         rookies = [p for p in players
                    if p.id not in before and p.team_id is not None and p.id not in signed]
-        assert {p.id for p in rookies} == set(log["rookies"])
+        assert rookies and {p.id for p in rookies} <= set(log["rookies"]) | drafted
         assert all(p.years_pro == 0 and 21 <= p.age <= 23 for p in rookies)
 
         rosters = Counter(p.team_id for p in players if p.team_id is not None)
@@ -196,9 +197,10 @@ class TestRollover:
         assert recap["from_year"] == season.year and recap["year"] == new_season.year
         mine = {e["player"] for e in log["re_signed"] if e["team"] == franchise.team_id}
         assert {r["player"]["id"] for r in recap["re_signed"]} == mine
-        arrivals = {r["player"]["id"] for r in recap["signed"]} | {
-            p["id"] for p in recap["rookies"]}
-        assert len(arrivals) == len(recap["retired"]) + len(recap["departed"])
+        # The franchise's draft picks come first among its rookies, in pick order.
+        picks = [p["draft_pick"] for p in recap["rookies"] if p["draft_pick"]]
+        assert picks and picks == sorted(picks)
+        assert all(p["team_id"] == franchise.team_id for p in recap["rookies"])
         assert all(r["after"] > r["before"] for r in recap["risers"])
         assert all(r["after"] < r["before"] for r in recap["decliners"])
         assert len(recap["league_retirements"]) == 5
@@ -209,7 +211,8 @@ class TestRollover:
         assert client.get("/api/franchise/dashboard").json()["offseason"] is None
 
 
-def test_full_season_then_next_year(client: TestClient, league: League, season: Season):
+def test_full_season_then_next_year(client: TestClient, league: League, season: Season,
+                                    franchise: Franchise):
     """Play a whole season through the API, roll over, and play the new season's week 1."""
     sim = f"/api/seasons/{season.id}/simulate"
     client.post(sim, json={"until": "end_of_regular_season"})
@@ -220,7 +223,10 @@ def test_full_season_then_next_year(client: TestClient, league: League, season: 
     early = client.post(f"/api/seasons/{new_id}/simulate", json={"until": "next_week"})
     assert early.status_code == 409 and "free agency" in early.json()["detail"]
     market = client.post(f"/api/seasons/{new_id}/free-agency", json={"until": "end"}).json()
-    assert market["season"]["phase"] == "preseason"
+    assert market["season"]["phase"] == "draft"
+    draft = client.post(f"/api/seasons/{new_id}/draft", json={"until": "end"}).json()
+    assert draft["season"]["phase"] == "preseason" and len(draft["picks"]) == 7 * 32
+    client.post(f"/api/teams/{franchise.team_id}/cut-down")
 
     standings = client.get(f"/api/leagues/{league.id}/standings").json()
     assert all(r["wins"] + r["losses"] + r["ties"] == 0 for d in standings for r in d["rows"])
@@ -261,5 +267,7 @@ def test_league_talent_is_stable_across_offseasons(client: TestClient, db: Sessi
                     contracts.negotiate(db, player, ReSignOffer(**terms.model_dump()))
         season = rollover(db, season)
         ovr, age = summary()
-        assert abs(ovr - start_ovr) < 1.5
+        # The generated league starts a little below the draft's equilibrium (its backups
+        # are weaker than the rookies who replace them), so allow an early rise of ~1.5.
+        assert abs(ovr - start_ovr) < 2.0
         assert abs(age - start_age) < 2

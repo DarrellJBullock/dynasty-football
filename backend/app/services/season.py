@@ -4,7 +4,7 @@ import dataclasses
 import hashlib
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.depth_chart import UNAVAILABLE
@@ -109,6 +109,18 @@ def _play_week(db: Session, season: Season, games: list[Game],
     injuries.after_week(db, season.league_id, hurt)
 
 
+def _check_franchise_roster(db: Session, season: Season) -> None:
+    """The franchise must be down to 53 (the draft can take it over) before week 1."""
+    from app.domain.positions import ROSTER_MAX
+    from app.services.free_agency import franchise_team_id
+
+    team_id = franchise_team_id(db, season.league_id)
+    count = db.scalar(select(func.count(Player.id)).where(Player.team_id == team_id)) or 0
+    if count > ROSTER_MAX:
+        raise RosterError(f"Cut your roster to {ROSTER_MAX} (it has {count}) before the "
+                          "season starts.")
+
+
 def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int, list[Game]]:
     """Play the next week (or playoff round), the rest of the regular season, or the rest of
     the playoffs. Returns (weeks/rounds simulated, games played)."""
@@ -118,6 +130,10 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
         raise RosterError("The season is complete.")
     if season.phase == "free_agency":
         raise RosterError("Finish free agency before the season starts.")
+    if season.phase == "draft":
+        raise RosterError("Finish the draft before the season starts.")
+    if season.phase == "preseason":
+        _check_franchise_roster(db, season)
     if request.until == "end_of_regular_season" and regular_done:
         raise RosterError("The regular season is complete.")
     if request.until == "end_of_playoffs" and not regular_done:

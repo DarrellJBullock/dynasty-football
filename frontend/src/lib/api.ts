@@ -3,11 +3,15 @@ import type {
   PlayoffsOut,
   LeadersOut,
   ContractTerms,
+  DraftOut,
+  DraftResult,
+  DraftUntil,
   FreeAgencyOut,
   FreeAgencyResult,
   FreeAgencyUntil,
   NegotiationResult,
   PlayerSeasonStats,
+  ProspectRow,
   TeamContracts,
   Season,
   TeamSeasonRow,
@@ -146,6 +150,13 @@ export const api = {
     request<void>(`/players/${playerId}/offer`, { method: "DELETE" }),
   playFreeAgency: (seasonId: number, until: FreeAgencyUntil) =>
     post<FreeAgencyResult>(`/seasons/${seasonId}/free-agency`, { until }),
+  draft: (leagueId: number) => request<DraftOut>(`/leagues/${leagueId}/draft`),
+  scout: (playerId: number) => post<ProspectRow>(`/players/${playerId}/scout`),
+  draftPick: (leagueId: number, playerId: number) =>
+    post<DraftResult>(`/leagues/${leagueId}/draft/pick`, { player_id: playerId }),
+  playDraft: (seasonId: number, until: DraftUntil) =>
+    post<DraftResult>(`/seasons/${seasonId}/draft`, { until }),
+  cutDown: (teamId: number) => post<PlayerSummary[]>(`/teams/${teamId}/cut-down`),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {

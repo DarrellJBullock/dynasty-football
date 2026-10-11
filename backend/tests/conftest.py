@@ -13,7 +13,7 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -88,11 +88,17 @@ def franchise(db: Session) -> Franchise:
 
 
 def rollover(db: Session, season):
-    """Finish `season`'s offseason: roll over and play free agency to the end (the
-    franchise makes no offers). Returns the new season, in the preseason."""
-    from app.services import free_agency, offseason
+    """Finish `season`'s offseason: roll over, play free agency and the draft to the end
+    (the franchise makes no offers and auto-picks), and cut the franchise to 53. Returns
+    the new season, in the preseason."""
+    from app.models import Franchise as FranchiseModel
+    from app.services import draft, free_agency, offseason
 
     season.phase = "offseason"
     new_season = offseason.advance(db, season)
     free_agency.play_days(db, new_season, "end")
+    draft.play(db, new_season, "end")
+    franchise = db.scalar(select(FranchiseModel).where(
+        FranchiseModel.league_id == new_season.league_id))
+    draft.cut_down(db, franchise.team)
     return new_season

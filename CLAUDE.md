@@ -27,7 +27,7 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
   src/app/        routes: / (dashboard), /roster, /depth-chart, /schedule, /games/[id],
-                  /playoffs, /contracts, /free-agency,
+                  /playoffs, /contracts, /free-agency, /draft,
                   /stats, /players/[id], /league, /leagues, /leagues/new
   src/components/ UI by feature (dashboard, roster, league, field, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers

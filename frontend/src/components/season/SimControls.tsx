@@ -6,7 +6,7 @@ import { useState } from "react";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
 import { describeResult, gameLabel } from "@/lib/games";
-import type { FreeAgencyUntil, Game, Season, SimulateUntil } from "@/lib/types";
+import type { DraftUntil, FreeAgencyUntil, Game, Season, SimulateUntil } from "@/lib/types";
 
 /**
  * Season controls: sim the next week (or playoff round) or the rest of the regular season /
@@ -63,6 +63,9 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
 
   if (season.phase === "free_agency") {
     return <FreeAgencyControls season={season} />;
+  }
+  if (season.phase === "draft") {
+    return <DraftControls season={season} />;
   }
 
   if (season.champion) {
@@ -181,6 +184,60 @@ function FreeAgencyControls({ season }: { season: Season }) {
         </button>
       )}
       <Link href="/free-agency" className="text-sm text-gold hover:underline">Free agents →</Link>
+      {summary && <span role="status" className="text-sm text-chalk">{summary}</span>}
+      {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
+    </div>
+  );
+}
+
+/** The draft: let AI teams pick until the franchise is up, or finish it. */
+function DraftControls({ season }: { season: Season }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<DraftUntil | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function play(until: DraftUntil) {
+    setBusy(until);
+    setConfirming(false);
+    setError(null);
+    try {
+      const result = await api.playDraft(season.id, until);
+      setSummary(result.season.phase === "draft"
+        ? `${result.picks.length} pick(s) made · you're on the clock`
+        : "The draft is complete");
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Draft">
+      <button type="button" className="btn btn-primary" disabled={busy !== null}
+        onClick={() => play("my_pick")}>
+        {busy === "my_pick" ? "Picking…" : "Sim to my pick"}
+      </button>
+      {confirming ? (
+        <>
+          <button type="button" className="btn btn-ghost" disabled={busy !== null}
+            onClick={() => play("end")}>
+            Confirm: finish the draft (auto-pick for me)
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button type="button" className="btn btn-ghost" disabled={busy !== null}
+          onClick={() => setConfirming(true)}>
+          {busy === "end" ? "Finishing…" : "Finish draft"}
+        </button>
+      )}
+      <Link href="/draft" className="text-sm text-gold hover:underline">Draft board →</Link>
       {summary && <span role="status" className="text-sm text-chalk">{summary}</span>}
       {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
     </div>
