@@ -148,10 +148,17 @@ def test_coaching_a_game(client: TestClient, db: Session, season: Season, franch
     state = client.post(f"/api/games/{game_id}/coach").json()
     db.commit()
     assert state["status"] == "in_progress" and state["team"]["id"] == franchise.team_id
-    assert state["situation"]["quarter"] == 1 and state["plays"][0]["type"] == "kickoff"
     assert _next_game(client)["coaching"] is True
     # Starting again picks up where we were.
     assert client.post(f"/api/games/{game_id}/coach").json()["calls"] == 0
+    if state["situation"]["role"] == "kickoff":  # we kick off: our first decision
+        assert state["plays"] == [] and state["situation"]["suggestion"] == "normal"
+        assert state["situation"]["suggestion_name"] == "Kick it deep"
+        bad = client.post(f"/api/games/{game_id}/coach/call", json={"play": "smash"})
+        assert bad.status_code == 422 and "normal" in bad.json()["detail"]
+        state = client.post(f"/api/games/{game_id}/coach/call", json={"play": "normal"}).json()
+        db.commit()
+    assert state["situation"]["quarter"] == 1 and state["plays"][0]["type"] == "kickoff"
 
     # Calls must fit the situation.
     role = state["situation"]["role"]
@@ -159,17 +166,18 @@ def test_coaching_a_game(client: TestClient, db: Session, season: Season, franch
     response = client.post(f"/api/games/{game_id}/coach/call", json={"play": wrong})
     assert response.status_code == 422
     right = "smash" if role == "offense" else "cover2"
+    calls = state["calls"]
     after = client.post(f"/api/games/{game_id}/coach/call", json={"play": right}).json()
     db.commit()
-    assert after["calls"] == 1 and after["new_plays"] >= 1
+    assert after["calls"] == calls + 1 and after["new_plays"] >= 1
     assert len(after["plays"]) == len(state["plays"]) + after["new_plays"]
 
     # The AI can take a play, or the drive.
     one = client.post(f"/api/games/{game_id}/coach/auto", json={"scope": "play"}).json()
-    assert one["calls"] == 2
+    assert one["calls"] == calls + 2
     drive = client.post(f"/api/games/{game_id}/coach/auto", json={"scope": "drive"}).json()
     db.commit()
-    assert drive["calls"] > 2 and drive["status"] == "in_progress"
+    assert drive["calls"] > calls + 2 and drive["status"] == "in_progress"
 
     # The week can't be simulated while the game is in progress.
     blocked = client.post(f"/api/seasons/{season.id}/simulate", json={"until": "next_week"})

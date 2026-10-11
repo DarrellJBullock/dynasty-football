@@ -432,9 +432,10 @@ Coach your team's game instead of simulating it: **Play Game** in the sidebar (o
   don't change the game in progress.
 - **Calls:** before every snap you call the play from the playbook: an offensive play
   when you have the ball, a defensive call (and optionally the personnel package) when
-  you don't. The AI's suggested call is always shown. Kicking decisions (punt, field goal)
-  are offensive plays; extra points, kickoffs and two-point tries stay with the AI until
-  the special-teams update.
+  you don't. The AI's suggested call is always shown. On 4th down, Punt and Field Goal
+  are offensive plays (or go for it with any other play).
+- **Kicking decisions:** when you kick off, kick it deep, squib it, or try an onside kick;
+  after your touchdown, kick the extra point or go for two.
 - **Timeouts:** call one with your play while the clock is running to save the runoff.
 - **Hand it off:** let the AI call the next play, the rest of the drive, or the rest of
   the game.
@@ -448,6 +449,20 @@ Coach your team's game instead of simulating it: **Play Game** in the sidebar (o
 - **The week:** simulating the week plays your game with the AI if you haven't started
   it. A game you've started has to be finished (or handed to the AI) first. A finished
   game counts like any other: standings, stats, records, and its injuries.
+
+## Special teams
+
+- **Kickoffs** from the kicking team's 35: a deep kick (usually a touchback at the 30,
+  otherwise a return to about the 27), a **squib** (low and bouncing: fielded short and
+  returned to about the 32, no touchback), or an **onside kick** (10–13 yards, then a
+  scramble for the ball: the kicking team gets it back about one time in eight, more
+  with an accurate kicker and surer hands than the other side's; otherwise the other
+  team starts near midfield).
+- **The AI** kicks onside when trailing by 16 or less in the last four minutes, and
+  squibs with 20 seconds or less left in a half. It goes for two late in the 4th when
+  that ties the game or pulls within a field goal.
+- **Punts and field goals** are 4th-down plays from the playbook; extra points are
+  automatic unless you go for two.
 
 ## Simulation & 3D gameplay
 

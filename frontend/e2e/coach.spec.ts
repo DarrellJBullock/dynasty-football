@@ -9,18 +9,27 @@ test("coaches the franchise's game: calls plays, hands the rest to the AI, lands
   await page.getByRole("button", { name: "Start coaching" }).click();
 
   const call = page.getByRole("region", { name: "Your call" });
-  await expect(call.getByRole("heading", { name: /^Your (offense|defense)$/ })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Last play" }).locator("canvas")).toBeVisible();
+  const heading = call.getByRole("heading", { name: /^(Your (offense|defense|kickoff)|After the touchdown)$/ });
+  await expect(heading).toBeVisible();
   const log = page.getByRole("complementary", { name: "Play-by-play" }).getByRole("listitem");
-  await expect(log).toHaveCount(1); // the opening kickoff
 
-  // Take the AI's suggestion, then pick a play ourselves.
+  // Take the AI's suggestion (if we kick off first, that's the kickoff decision).
+  const before = await log.count();
   await call.getByRole("button", { name: "Call it" }).click();
-  await expect(log).toHaveCount(2);
-  const tab = call.getByRole("tab").first();
-  await tab.click();
+  await expect.poll(() => log.count()).toBeGreaterThan(before);
+  await expect(page.getByRole("region", { name: "Last play" }).locator("canvas")).toBeVisible();
+
+  // Then pick a play ourselves from the playbook (taking the AI's word on any kick first).
+  const tabs = call.getByRole("tab");
+  for (let i = 0; i < 3 && !(await tabs.first().isVisible()); i++) {
+    const count = await log.count();
+    await call.getByRole("button", { name: "Call it" }).click();
+    await expect.poll(() => log.count()).toBeGreaterThan(count);
+  }
+  await tabs.first().click();
+  const plays = await log.count();
   await call.getByRole("list", { name: "Plays" }).getByRole("button").first().click();
-  await expect.poll(() => log.count()).toBeGreaterThan(2);
+  await expect.poll(() => log.count()).toBeGreaterThan(plays);
 
   // Hand the AI the rest of the game.
   await call.getByRole("button", { name: "The rest of the game" }).click();

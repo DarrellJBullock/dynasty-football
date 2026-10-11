@@ -23,6 +23,20 @@ const DEFENSE_TABS: { key: DefensivePlay["category"]; label: string }[] = [
   { key: "situational", label: "Situational" },
 ];
 const PACKAGES: Package[] = ["base", "nickel", "dime"];
+const HEADINGS: Record<CoachSituation["role"], string> = {
+  offense: "Your offense", defense: "Your defense", kickoff: "Your kickoff", conversion: "After the touchdown",
+};
+const KICK_CHOICES: Record<"kickoff" | "conversion", { key: string; label: string; note: string }[]> = {
+  kickoff: [
+    { key: "normal", label: "Kick it deep", note: "Usually a touchback; otherwise they return it." },
+    { key: "squib", label: "Squib kick", note: "Low and bouncing: no touchback, but no long return either." },
+    { key: "onside", label: "Onside kick", note: "Try to get it back (about one in eight); a short field if it fails." },
+  ],
+  conversion: [
+    { key: "kick", label: "Extra point", note: "Almost automatic: one point." },
+    { key: "two", label: "Go for two", note: "One play from the 2, about half the time: two points." },
+  ],
+};
 const REEL_LENGTH = 4; // after letting the AI call a stretch, show only its last few plays
 
 function ordinal(n: number): string {
@@ -91,6 +105,7 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
     onStart={() => run(() => api.startCoaching(game.id))} />;
 
   const { situation } = state;
+  const kicking = situation?.role === "kickoff" || situation?.role === "conversion";
   const mine = state.side;
   const theirs = mine === "home" ? "away" : "home";
   const teams = { home: game.home, away: game.away };
@@ -115,14 +130,20 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
           {situation ? (
             <section className="panel space-y-4 p-4" aria-label="Your call">
               <header className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="font-display text-xl font-bold uppercase">
-                  {situation.role === "offense" ? "Your offense" : "Your defense"}
-                </h2>
-                <p className="text-sm text-mist" data-testid="situation">
-                  {situation.offense} {ordinal(situation.down)} &amp;{" "}
-                  {situation.ball_on + situation.distance >= 100 ? "Goal" : situation.distance} at{" "}
-                  {situation.spot}
-                </p>
+                <h2 className="font-display text-xl font-bold uppercase">{HEADINGS[situation.role]}</h2>
+                {kicking ? (
+                  <p className="text-sm text-mist" data-testid="situation">
+                    {situation.role === "conversion" ? "Touchdown! " : ""}
+                    {quarterLabel(situation.quarter)} {situation.clock} · score{" "}
+                    {situation.score[mine]}–{situation.score[theirs]}
+                  </p>
+                ) : (
+                  <p className="text-sm text-mist" data-testid="situation">
+                    {situation.offense} {ordinal(situation.down)} &amp;{" "}
+                    {situation.ball_on + situation.distance >= 100 ? "Goal" : situation.distance} at{" "}
+                    {situation.spot}
+                  </p>
+                )}
               </header>
 
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-gold/[0.06] px-3 py-2 text-sm">
@@ -136,12 +157,17 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
                 </button>
               </div>
 
-              <PlaybookGrid role={situation.role} playbook={playbook} tab={tab} setTab={setTab}
-                suggestion={situation.suggestion} busy={busy}
-                onCall={(play) => run(() => api.coachCall(game.id, {
-                  play, timeout, package: situation.role === "defense" && pkg !== "auto" ? pkg : null }))} />
+              {situation.role === "kickoff" || situation.role === "conversion" ? (
+                <KickChoices role={situation.role} suggestion={situation.suggestion} busy={busy}
+                  onCall={(play) => run(() => api.coachCall(game.id, { play }))} />
+              ) : (
+                <PlaybookGrid role={situation.role} playbook={playbook} tab={tab} setTab={setTab}
+                  suggestion={situation.suggestion} busy={busy}
+                  onCall={(play) => run(() => api.coachCall(game.id, {
+                    play, timeout, package: situation.role === "defense" && pkg !== "auto" ? pkg : null }))} />
+              )}
 
-              <div className="flex flex-wrap items-center gap-4 border-t border-white/5 pt-3 text-sm">
+              {!kicking && <div className="flex flex-wrap items-center gap-4 border-t border-white/5 pt-3 text-sm">
                 {situation.role === "defense" && (
                   <div role="radiogroup" aria-label="Personnel" className="flex items-center gap-1">
                     <span className="mr-1 text-xs text-mist">Personnel</span>
@@ -162,7 +188,7 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
                   Call a timeout first ({situation.timeouts[mine]} left)
                   {!situation.clock_running && <span className="text-mist/60">· clock stopped</span>}
                 </label>
-              </div>
+              </div>}
 
               <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3" role="group"
                 aria-label="Let the AI call">
@@ -280,6 +306,30 @@ function ScoreBug({ state, teams }: { state: CoachState; teams: { home: Game["ho
         )}
       </div>
     </section>
+  );
+}
+
+function KickChoices({ role, suggestion, busy, onCall }: {
+  role: "kickoff" | "conversion"; suggestion: string; busy: boolean; onCall: (choice: string) => void;
+}) {
+  return (
+    <ul className="grid gap-2 sm:grid-cols-3" aria-label={role === "kickoff" ? "Kickoff" : "Conversion"}>
+      {KICK_CHOICES[role].map((c) => (
+        <li key={c.key}>
+          <button type="button" disabled={busy}
+            aria-label={`${c.label}${c.key === suggestion ? " (AI pick)" : ""}`}
+            className={`h-full w-full rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-50 ${
+              c.key === suggestion ? "border-gold/50 bg-gold/[0.07]" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.07]"}`}
+            onClick={() => onCall(c.key)}>
+            <span className="flex items-center justify-between gap-2">
+              <span className="font-semibold">{c.label}</span>
+              {c.key === suggestion && <span className="text-[10px] font-semibold uppercase text-gold">AI pick</span>}
+            </span>
+            <span className="mt-1 block text-xs leading-snug text-mist/80">{c.note}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 

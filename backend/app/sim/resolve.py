@@ -437,6 +437,35 @@ def resolve_field_goal(kicker: SimPlayer, distance: int, rng: random.Random, t: 
     return {"t": "field_goal", "kicker": kicker.id, "distance": distance, "good": good}
 
 
+def _hands(team: SimTeam) -> float:
+    """The hands team's catching: the receivers, tight end and back."""
+    players = [*team.at(P.WR, 3), team.one(P.TE), team.one(P.RB)]
+    return sum(p.r("catching") for p in players) / len(players)
+
+
+def resolve_onside(kicker: SimPlayer, kicking: SimTeam, receiving: SimTeam, rng: random.Random,
+                   t: Tuning) -> tuple[bool, int, dict]:
+    """An onside kick: about 10–13 yards, then a scramble for the ball. Returns (the
+    kicking team recovered, the kicking team's yard line where it was recovered, event)."""
+    chance = sigmoid(t.onside_base + t.onside_kick_k * kicker.r("kick_accuracy")
+                     + t.onside_hands_k * (_hands(kicking) - _hands(receiving)))
+    recovered = rng.random() < chance
+    spot = 35 + rng.randint(10, 13)
+    team = kicking if recovered else receiving
+    recoverer = rng.choice([*team.at(P.WR, 3), team.one(P.TE), team.one(P.RB)])
+    return recovered, spot, {"t": "kickoff", "kicker": kicker.id, "touchback": False,
+                             "return": 100 - spot, "kind": "onside", "recovered": recovered,
+                             "recovered_by": recoverer.id}
+
+
+def resolve_squib(kicker: SimPlayer, rng: random.Random, t: Tuning) -> tuple[int, dict]:
+    """A low, bouncing kick the return team can't take back far. Returns (receiving team's
+    ball_on, event)."""
+    spot = max(15, min(45, round(rng.gauss(t.squib_return_spot, t.squib_sd))))
+    return spot, {"t": "kickoff", "kicker": kicker.id, "touchback": False, "return": spot,
+                  "kind": "squib"}
+
+
 def resolve_extra_point(kicker: SimPlayer, rng: random.Random, t: Tuning) -> dict:
     good = rng.random() < field_goal_probability(33, kicker, t)
     return {"t": "extra_point", "kicker": kicker.id, "good": good}

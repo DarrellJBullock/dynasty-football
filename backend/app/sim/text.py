@@ -33,7 +33,14 @@ def describe(play: "PlayRecord", names: dict[int, str], teams: dict[str, "SimTea
     injuries: list[str] = []
     for e in play.events:
         t = e["t"]
-        if t == "kickoff":
+        if t == "kickoff" and e.get("kind") == "onside":
+            parts.append(f"{name(e['kicker'])} onside kick, "
+                         + (f"RECOVERED by {name(e['recovered_by'])} for the kicking team."
+                            if e["recovered"] else
+                            f"recovered by {name(e['recovered_by'])} of the receiving team."))
+        elif t == "kickoff" and e.get("kind") == "squib":
+            parts.append(f"{name(e['kicker'])} squib kicks, returned to the {e['return']}.")
+        elif t == "kickoff":
             parts.append(f"{name(e['kicker'])} kicks off"
                          + (" for a touchback." if e["touchback"]
                             else f", returned to the {e['return']}."))

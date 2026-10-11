@@ -127,6 +127,13 @@ class Tuning:
     punt_return_mean: float = 9.0
     kickoff_touchback: float = 0.62
     kickoff_return_spot: float = 27.0
+    # Onside kicks: recovery odds sigmoid(base + k·kicker accuracy + k·(hands difference)),
+    # about one in eight; squibs bounce to the receivers' 15–45 and can't be returned far.
+    onside_base: float = -2.0
+    onside_kick_k: float = 0.35
+    onside_hands_k: float = 0.3
+    squib_return_spot: float = 32.0
+    squib_sd: float = 5.0
 
     # Injuries: per-snap chance for each player on the field (scaled by toughness), and the
     # multiplier for players in contact (ball carriers, tacklers, sacked QBs).

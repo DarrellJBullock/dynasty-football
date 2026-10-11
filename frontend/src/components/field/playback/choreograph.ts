@@ -1004,6 +1004,8 @@ function scrimmage(play: PlaybackPlay, stage: Stage, offenseTeam: TeamSummary,
 
 function kickoff(play: PlaybackPlay, stage: Stage, kicking: TeamSummary, receiving: TeamSummary): number {
   const kick = find(play.events, "kickoff")!;
+  if (kick.kind === "onside") return onsideKick(stage, kick, kicking, receiving);
+  const squib = kick.kind === "squib";
   const cover = kickUnit(stage, "offense", kicking, [
     { role: "K", u: -7, v: 0, prefs: ["K"], id: kick.kicker },
     ...[-22, -17, -12, -7, -3, 3, 7, 12, 17, 22].map((v, i) => ({ role: `L${i + 1}`, u: -5, v, prefs: COVER })),
@@ -1022,13 +1024,40 @@ function kickoff(play: PlaybackPlay, stage: Stage, kicking: TeamSummary, receivi
   stage.rest(0, tee);
   kicker.pose(0.4, "run").hold(0.4).to(tKick, stage.P(-0.3, 0));
   kicker.pose(tKick - 0.2, "kick", { span: 0.4, face: stage.face(1) });
-  stage.moment(tKick, "kick", `${kicker.info.name} kicks off`);
+  stage.moment(tKick, "kick", `${kicker.info.name} ${squib ? "squib kicks" : "kicks off"}`);
   for (const actor of cover.actors.slice(1)) {
     actor.pose(0.6, "run").hold(0.6).to(tKick, stage.P(0, stage.v(actor.end)));
   }
 
-  const landU = kick.touchback ? stage.range(66, 71) : stage.range(58, 63);
   const landV = stage.range(-6, 6);
+  if (squib) {
+    // A low line drive that skips along the turf; the returner picks it up on the move.
+    const fieldU = Math.max(65 - kick.return + stage.range(3, 8), 40);
+    const bounce = stage.P(fieldU - 6, landV);
+    const tBounce = tKick + 1.3;
+    const tFielded = tBounce + 0.7;
+    returner.pose(0.8, "run").hold(tKick).to(tFielded, stage.P(fieldU, landV));
+    returner.pose(tFielded - 0.3, "catch", { face: stage.face(-1) });
+    stage.fly(tKick, tBounce, tee, [bounce.x, bounce.y, BALL_REST], 1.4);
+    stage.fly(tBounce, tFielded, [bounce.x, bounce.y, BALL_REST], returner, 0.7);
+    stage.hold(tFielded, returner);
+    stage.moment(tFielded, "catch", `${returner.info.name} fields the squib`);
+    returner.pose(tFielded + 0.15, "carry");
+    const tEnd = returner.run(tFielded + 0.15, stage.P(65 - kick.return, stage.inside(landV + stage.range(-6, 6))), 0.9);
+    const end = returner.end;
+    const tackler = cover.actors.slice(1).reduce((best, a) =>
+      Math.abs(a.end.y - end.y) < Math.abs(best.end.y - end.y) ? a : best);
+    tackler.pose(tKick, "run").to(tEnd - 0.6, stage.toward(end, tackler.end, 3));
+    tackle(stage, returner, [tackler], tEnd);
+    flowTo(stage, cover.actors.slice(1), tKick, end, tEnd + 0.3);
+    pursue(kicker, tKick + 0.4, end, tEnd, 10);
+    for (const actor of ret.actors.slice(1)) {
+      actor.pose(tKick, "run");
+      pursue(actor, tKick + 0.2, stage.P(stage.u(end) + 4, stage.v(actor.end) * 0.6), tEnd, 3);
+    }
+    return tEnd;
+  }
+  const landU = kick.touchback ? stage.range(66, 71) : stage.range(58, 63);
   returner.pose(0.8, "run").hold(0.8).to(tLand, stage.P(landU, landV));
   returner.pose(tLand - 0.35, "catch", { face: stage.face(-1) });
   stage.fly(tKick, tLand, tee, returner, 22);
@@ -1056,6 +1085,57 @@ function kickoff(play: PlaybackPlay, stage: Stage, kicking: TeamSummary, receivi
                          stage.v(actor.end) * 0.7);
     actor.pose(tKick, "run").pose(actor.run(tKick + 0.2, spot, 0.8), "block", { face: stage.face(1) });
   }
+  return tEnd;
+}
+
+/** An onside kick: a short hop off the tee, both teams crash the ball, and someone falls on
+ * it about 10–13 yards downfield. */
+function onsideKick(stage: Stage, kick: Event<"kickoff">, kicking: TeamSummary,
+                    receiving: TeamSummary): number {
+  const recovered = kick.recovered === true;
+  const lanes = [-20, -15, -11, -8, -5, 5, 8, 11, 15, 20];
+  const side = stage.pick([-1, 1]);
+  const cover = kickUnit(stage, "offense", kicking, [
+    { role: "K", u: -5, v: side * -1, prefs: ["K"], id: kick.kicker },
+    ...lanes.map((v, i) => ({ role: `L${i + 1}`, u: -1, v: v * 0.6 + side * 3, prefs: ["WR", "CB", "RB", "TE", "SS"],
+                              id: recovered && i === 6 ? kick.recovered_by : null })),
+  ], 1);
+  const hands = kickUnit(stage, "defense", receiving, [
+    ...[-14, -7, -2, 2, 7, 14].map((v, i) => ({ role: `H${i + 1}`, u: 11, v: v + side * 2,
+                                                prefs: ["WR", "TE", "RB", "CB"],
+                                                id: !recovered && i === 3 ? kick.recovered_by : null })),
+    ...[-9, -3, 3, 9].map((v, i) => ({ role: `B${i + 1}`, u: 17, v, prefs: ["WR", "RB", "CB", "TE"] })),
+    { role: "KR", u: 38, v: 0, prefs: ["RB", "WR", "CB"], id: kick.returner },
+  ], -1);
+  const kicker = cover.role.K;
+  const tKick = 1.4;
+  const tBall = tKick + 1.1;
+  const at = stage.P(65 - kick.return, stage.inside(side * stage.range(5, 9)));
+  const tee: Vec3 = [stage.los, stage.ballY, 0.2];
+  const hop: Vec3 = [stage.P(4, 0).x, (tee[1] + at.y) / 2, BALL_REST];
+  stage.rest(0, tee);
+  kicker.pose(0.5, "run").hold(0.5).to(tKick, stage.P(-0.3, 0));
+  kicker.pose(tKick - 0.2, "kick", { span: 0.4, face: stage.face(1) });
+  stage.moment(tKick, "kick", `${kicker.info.name} onside kick`);
+  stage.fly(tKick, tKick + 0.45, tee, hop, 0.25);
+  stage.fly(tKick + 0.45, tBall + 0.15, hop, [at.x, at.y, BALL_REST], 1.6); // the big hop
+
+  const recoverer = stage.byId(kick.recovered_by) ?? (recovered ? cover.role.L7 : hands.role.H4);
+  stage.busy.add(recoverer);
+  recoverer.pose(tKick, "run").hold(tKick).to(tBall - 0.15, stage.toward(at, recoverer.end, 1.2));
+  recoverer.pose(tBall - 0.2, "dive").to(tBall + 0.15, at).pose(tBall + 0.4, "down");
+  stage.hold(tBall + 0.15, recoverer);
+  const team = recovered ? "the kicking team" : "the receiving team";
+  stage.moment(tBall + 0.15, recovered ? "turnover" : "catch",
+               `${recoverer.info.name} recovers for ${team}${recovered ? "!" : ""}`);
+  // Everyone else crashes the ball and piles in.
+  const tEnd = tBall + 0.7;
+  for (const actor of [...cover.actors.slice(1), ...hands.actors]) {
+    if (actor === recoverer) continue;
+    actor.pose(tKick, "run");
+    pursue(actor, tKick, at, tEnd, stage.range(0.8, 4));
+  }
+  pursue(kicker, tKick + 0.3, at, tEnd, 6);
   return tEnd;
 }
 

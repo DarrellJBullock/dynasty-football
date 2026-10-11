@@ -17,8 +17,9 @@ from app.sim.teams import SimTeam
 from app.sim.text import describe
 from app.sim.tuning import DEFAULT_TUNING, Tuning
 
-# 1.1: in-game injuries; 1.2: personnel and returners in play logs; 1.3: named plays
-SIM_VERSION = "1.3"
+# 1.1: in-game injuries; 1.2: personnel and returners in play logs; 1.3: named plays;
+# 1.4: onside kicks and squibs, and kicking decisions by the coach (Coach Mode)
+SIM_VERSION = "1.4"
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 
@@ -239,15 +240,27 @@ class _Game:
     def kickoff(self, kicking: Side) -> None:
         if self.over:
             return
+        kind = self.coaches[kicking].kickoff_call(self.s, kicking)
         kicker = self.teams[kicking].one(P.K)
-        spot, event = rs.resolve_kickoff(kicker, self.rng, self.t)
-        event["returner"] = self.returner(other(kicking)).id
+        receiving = other(kicking)
+        recovered = False
+        if kind == "onside":
+            recovered, spot, event = rs.resolve_onside(kicker, self.teams[kicking],
+                                                       self.teams[receiving], self.rng, self.t)
+        elif kind == "squib":
+            spot, event = rs.resolve_squib(kicker, self.rng, self.t)
+        else:
+            spot, event = rs.resolve_kickoff(kicker, self.rng, self.t)
+        event["returner"] = self.returner(receiving).id
         before = self.s.clock
         self.clock_running = False
         if not event["touchback"]:
-            self.tick(5, during_play=True)
+            self.tick(3 if kind == "onside" else 5, during_play=True)
         self.record(kicking, None, None, {"type": "kickoff"}, [event], before, situation=False)
-        self.give_ball(other(kicking), spot)
+        if recovered:
+            self.give_ball(kicking, spot)
+        else:
+            self.give_ball(receiving, spot if kind != "onside" else 100 - spot)
 
     def returner(self, side: Side):
         """Who fields kicks: the second running back (a stand-in if there isn't one)."""
@@ -259,9 +272,7 @@ class _Game:
         if self.over:
             return
         kicker = self.teams[side].one(P.K)
-        margin_after = s.score[side] - s.score[other(side)]
-        go_for_two = s.quarter == 4 and s.game_seconds_left <= 300 and margin_after in (-2, -5)
-        if go_for_two:
+        if self.coaches[side].conversion_call(s, side) == "two":
             good = self.rng.random() < 0.47
             event = {"t": "two_point", "good": good}
             if good:

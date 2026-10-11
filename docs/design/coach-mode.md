@@ -55,7 +55,13 @@ replay reaches the same point, the AI's calls and every random draw included.
   teams are snapshotted at the start (`teams.team_to_dict`), so roster moves mid-game
   don't change the replay. **Engine changes that alter the order of random draws change
   how an in-progress coached game replays**, so ship them with a `SIM_VERSION` bump and
-  expect in-progress coached games to be restarted.
+  expect in-progress coached games to be restarted. A game whose calls no longer fit
+  the engine is refused with a clear message (409), and `DELETE /api/games/{id}/coach`
+  abandons it.
+- *Special teams (as built):* the engine asks the kicking team's coach for the kickoff
+  (`kickoff_call`: normal, squib, onside) and the scoring team's for the conversion
+  (`conversion_call`: kick, two). They're decisions between snaps, recorded in order
+  with the user's plays (roles `kickoff` and `conversion`).
 - The user can hand any snap, the rest of the drive, or the rest of the game to the AI.
 
 ## 4. Playbooks

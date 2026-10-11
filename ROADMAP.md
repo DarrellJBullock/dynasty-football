@@ -85,7 +85,9 @@ Each milestone ends with working software, green tests, and updated docs.
       formation, routes and run scheme — pulling guards, pitches, play-action fakes,
       boots, screens — and each defensive call's zones, man matchups and blitzers, drawn
       in 3D)
-- [ ] Special teams: field goals, punts, kickoffs
+- [x] Special teams: onside kicks and squibs (engine, AI, play-by-play, 3D); in Coach Mode
+      the kickoff (deep, squib, onside) and the conversion (extra point or two) are yours;
+      4th down (go, punt, field goal) is a playbook call
 - [x] Coach Mode engine and API (a coached game is replayed from the user's calls; start,
       call, timeouts, "let the AI call" a play / drive / game; week-simulation rules)
 - [x] Coach Mode UI (Play Game in the sidebar and Coach this game on the Dashboard; the

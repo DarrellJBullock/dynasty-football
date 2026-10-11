@@ -25,7 +25,15 @@ from app.services.season import (
     season_view,
 )
 from app.services.serializers import game_out, team_summary
-from app.sim.coaching import CoachCall, CoachedReplay, Situation, check_call, replay
+from app.sim.coaching import (
+    CHOICE_NAMES,
+    CoachCall,
+    CoachedReplay,
+    OutOfStep,
+    Situation,
+    check_call,
+    replay,
+)
 from app.sim.playbook import DEFENSE_BY_KEY, OFFENSE_BY_KEY
 from app.sim.teams import team_from_dict, team_to_dict
 from app.sim.text import spot_label
@@ -81,11 +89,16 @@ def _replay(coached: CoachedGame, calls: list[CoachCall] | None = None,
     game = coached.game
     season = game.season
     seed = game_seed(season.league_id, season.year, game.week, game.id)
-    return replay(team_from_dict(coached.teams["home"]), team_from_dict(coached.teams["away"]),
-                  seed, coached.side,
-                  calls if calls is not None else [CoachCall.from_dict(c) for c in coached.calls],
-                  autopilot=coached.autopilot if autopilot is None else autopilot,
-                  playoff=game.stage == "playoff", neutral=game.neutral_site)
+    if calls is None:
+        calls = [CoachCall.from_dict(c) for c in coached.calls]
+    try:
+        return replay(team_from_dict(coached.teams["home"]), team_from_dict(coached.teams["away"]),
+                      seed, coached.side, calls,
+                      autopilot=coached.autopilot if autopilot is None else autopilot,
+                      playoff=game.stage == "playoff", neutral=game.neutral_site)
+    except OutOfStep as exc:
+        raise RosterError("This game was started on an older version of the game engine and "
+                          "can't be continued. Abandon it to play or simulate it again.") from exc
 
 
 def live_plays(coached: CoachedGame) -> list[dict]:
@@ -126,13 +139,14 @@ def _situation(s: Situation, abbreviations: dict[str, str]) -> CoachSituation:
     offense = abbreviations[s.possession]
     defense = abbreviations["away" if s.possession == "home" else "home"]
     minutes, seconds = divmod(max(0, s.clock), 60)
-    named = (OFFENSE_BY_KEY if s.role == "offense" else DEFENSE_BY_KEY).get(s.suggestion)
+    plays = DEFENSE_BY_KEY if s.role == "defense" else OFFENSE_BY_KEY
+    names = {**{key: p.name for key, p in plays.items()}, **CHOICE_NAMES}
     return CoachSituation(
         role=s.role, quarter=s.quarter, clock=f"{minutes}:{seconds:02d}", seconds=s.clock,
         clock_running=s.clock_running, possession=s.possession, offense=offense, down=s.down,
         distance=s.distance, ball_on=s.ball_on, spot=spot_label(s.ball_on, offense, defense),
         score=s.score, timeouts=s.timeouts, suggestion=s.suggestion,
-        suggestion_name=named.name if named else s.suggestion,
+        suggestion_name=names.get(s.suggestion, s.suggestion),
         suggested_package=s.suggested_package)
 
 
@@ -160,6 +174,13 @@ def call(db: Session, coached: CoachedGame | None, play: str, package: str | Non
     after = _replay(coached)
     db.flush()
     return state(db, coached, after, new_plays=len(after.plays) - len(before.plays))
+
+
+def abandon(db: Session, coached: CoachedGame | None) -> None:
+    """Stop coaching a game in progress: it's played (or simulated) from the start again."""
+    coached = _in_progress(coached)
+    db.delete(coached)
+    db.flush()
 
 
 def auto(db: Session, coached: CoachedGame | None, scope: AutoScope) -> CoachStateOut:
