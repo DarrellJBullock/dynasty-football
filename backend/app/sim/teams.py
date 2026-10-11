@@ -132,3 +132,26 @@ def build_sim_team(
                    unavailable={p.id for p in roster if not is_available(p)})
     team.start_game()
     return team
+
+
+def team_to_dict(team: SimTeam) -> dict:
+    """A JSON-safe snapshot of a team going into a game (rosters, depth, who's out), so a
+    game can be replayed later exactly as it started, whatever has changed since."""
+    return {
+        "id": team.id, "abbreviation": team.abbreviation, "name": team.name,
+        "players": [{"id": p.id, "name": p.name, "position": p.position, "overall": p.overall,
+                     "ratings": dict(p.ratings)} for p in team.players.values()],
+        "depth": {slot.value: [p.id for p in players] for slot, players in team.depth.items()},
+        "unavailable": sorted(team.unavailable),
+    }
+
+
+def team_from_dict(data: dict) -> SimTeam:
+    players = {p["id"]: SimPlayer(id=p["id"], name=p["name"], position=p["position"],
+                                  overall=p["overall"], ratings=p["ratings"])
+               for p in data["players"]}
+    depth = {Position(slot): [players[pid] for pid in ids] for slot, ids in data["depth"].items()}
+    team = SimTeam(id=data["id"], abbreviation=data["abbreviation"], name=data["name"],
+                   depth=depth, players=players, unavailable=set(data["unavailable"]))
+    team.start_game()
+    return team

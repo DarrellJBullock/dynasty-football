@@ -12,6 +12,9 @@ import type {
   FreeAgencyUntil,
   GamePlayback,
   Playbook,
+  CoachCallIn,
+  CoachState,
+  NextGame,
   HistoryOut,
   NegotiationResult,
   PlayerSeasonStats,
@@ -175,6 +178,12 @@ export const api = {
   career: (playerId: number) => request<CareerOut>(`/players/${playerId}/career`),
   playback: (gameId: number) => request<GamePlayback>(`/games/${gameId}/playback`),
   playbook: () => request<Playbook>("/playbook"),
+  nextGame: () => request<NextGame>("/franchise/next-game"),
+  coachState: (gameId: number) => request<CoachState>(`/games/${gameId}/coach`),
+  startCoaching: (gameId: number) => post<CoachState>(`/games/${gameId}/coach`),
+  coachCall: (gameId: number, call: CoachCallIn) => post<CoachState>(`/games/${gameId}/coach/call`, call),
+  coachAuto: (gameId: number, scope: "play" | "drive" | "game") =>
+    post<CoachState>(`/games/${gameId}/coach/auto`, { scope }),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {

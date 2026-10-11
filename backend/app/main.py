@@ -2,6 +2,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    coach,
     depth_chart,
     franchise,
     history,
@@ -34,7 +35,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     for module in (franchise, leagues, teams, depth_chart, roster_import, players, season,
-                   stats, trades, history, playbook):
+                   stats, trades, history, playbook, coach):
         api.include_router(module.router)
     api.include_router(franchise.franchises_router)
     app.include_router(api)

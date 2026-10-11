@@ -8,13 +8,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.depth_chart import UNAVAILABLE
-from app.models import Game, Player, PlayerGameStats, Season, Team, TeamGameStats
+from app.models import CoachedGame, Game, Player, PlayerGameStats, Season, Team, TeamGameStats
 from app.schemas import SeasonOut, SimulateRequest
 from app.services import injuries, playoffs
 from app.services.errors import RosterError
 from app.services.serializers import season_out, team_summary
 from app.services.teams import load_overrides
-from app.sim.engine import SIM_VERSION, simulate_game
+from app.sim.engine import SIM_VERSION, GameResult, simulate_game
 from app.sim.stats import box_score
 from app.sim.teams import SimTeam, build_sim_team
 
@@ -68,11 +68,17 @@ def play_game(db: Session, game: Game, sim_teams: dict[int, SimTeam], league_id:
     seed = game_seed(league_id, year, game.week, game.id)
     result = simulate_game(sim_teams[game.home_team_id], sim_teams[game.away_team_id], seed,
                            playoff=game.stage == "playoff", neutral=game.neutral_site)
+    record_result(db, game, result)
+    return result.injuries
+
+
+def record_result(db: Session, game: Game, result: GameResult) -> None:
+    """Store a finished game: score, play log, and the box score derived from it."""
     game.home_score = result.home_score
     game.away_score = result.away_score
     game.overtime = result.overtime
     game.status = "final"
-    game.seed = seed
+    game.seed = result.seed
     game.sim_version = SIM_VERSION
     game.play_log = [play.to_dict() for play in result.plays]
 
@@ -84,7 +90,6 @@ def play_game(db: Session, game: Game, sim_teams: dict[int, SimTeam], league_id:
         db.add(PlayerGameStats(game_id=game.id, player_id=player_id,
                                team_id=team_ids[box.player_team[player_id]],
                                **dataclasses.asdict(line)))
-    return result.injuries
 
 
 def refresh_availability(db: Session, league_id: int, sim_teams: dict[int, SimTeam]) -> None:
@@ -98,13 +103,26 @@ def refresh_availability(db: Session, league_id: int, sim_teams: dict[int, SimTe
         sim_teams[team_id].unavailable.add(player_id)
 
 
-def _play_week(db: Session, season: Season, games: list[Game],
-               sim_teams: dict[int, SimTeam]) -> None:
+def _play_week(db: Session, season: Season, games: list[Game], sim_teams: dict[int, SimTeam],
+               stage: str, week: int | None = None) -> None:
     """Play one week (or playoff round) with this week's lineups, then update injuries:
-    players hurt this week miss the coming weeks, earlier injuries count down."""
+    players hurt this week miss the coming weeks, earlier injuries count down. A game the
+    user coached to the end is already played; its injuries count with its week."""
+    in_progress = db.scalar(select(CoachedGame).where(
+        CoachedGame.game_id.in_([g.id for g in games]), CoachedGame.status == "in_progress"))
+    if in_progress:
+        raise RosterError("Finish the game you're coaching (or let the AI finish it) before "
+                          "simulating the week.")
+    coached = [c for c in db.scalars(select(CoachedGame).join(Game).where(
+        Game.season_id == season.id, Game.stage == stage, CoachedGame.status == "final"))
+        if stage == "playoff" or c.game.week == week]
+    hurt = [e for c in coached for play in c.game.play_log or [] for e in play["events"]
+            if e["t"] == "injury"]
+    for c in coached:
+        c.status = "settled"
     refresh_availability(db, season.league_id, sim_teams)
-    hurt = [e for game in games
-            for e in play_game(db, game, sim_teams, season.league_id, season.year)]
+    hurt += [e for game in games
+             for e in play_game(db, game, sim_teams, season.league_id, season.year)]
     db.flush()
     injuries.after_week(db, season.league_id, hurt)
 
@@ -150,7 +168,7 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
             games = list(db.scalars(select(Game).where(
                 Game.season_id == season.id, Game.week == week, Game.stage == "regular",
                 Game.status == "scheduled").order_by(Game.id)))
-            _play_week(db, season, games, sim_teams)
+            _play_week(db, season, games, sim_teams, "regular", week)
             played += games
             season.current_week = week + 1
             steps += 1
@@ -161,7 +179,7 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
 
     while season.phase == "playoffs":
         games = playoffs.next_round_games(db, season)
-        _play_week(db, season, games, sim_teams)
+        _play_week(db, season, games, sim_teams, "playoff")
         played += games
         playoffs.finish_round(db, season)
         steps += 1

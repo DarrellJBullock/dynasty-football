@@ -326,6 +326,27 @@ class Game(Base):
     away_team: Mapped[Team] = relationship(foreign_keys=[away_team_id])
 
 
+class CoachedGame(Base):
+    """A game the user is coaching (Coach Mode): their calls so far, replayed from the
+    kickoff by the engine, and both teams as they were at the start, so later roster moves
+    don't change a game in progress."""
+
+    __tablename__ = "coached_games"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey("games.id", ondelete="CASCADE"),
+                                         unique=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    side: Mapped[str] = mapped_column(String(4))  # home | away
+    calls: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    teams: Mapped[dict] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    autopilot: Mapped[bool] = mapped_column(default=False)  # the AI calls the rest
+    status: Mapped[str] = mapped_column(String(12), default="in_progress")  # | final
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    game: Mapped[Game] = relationship()
+
+
 class PlayoffSeed(Base):
     """A team's seed in its conference's bracket, fixed when the regular season ends."""
 

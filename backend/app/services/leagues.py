@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Award,
+    CoachedGame,
     Conference,
     Contract,
     DeadMoney,
@@ -96,6 +97,8 @@ def delete_league(db: Session, league: League) -> None:
         delete(Trade).where(Trade.league_id == league.id),
         delete(PlayerGameStats).where(PlayerGameStats.player_id.in_(player_ids)),
         delete(TeamGameStats).where(TeamGameStats.team_id.in_(team_ids)),
+        delete(CoachedGame).where(CoachedGame.game_id.in_(
+            select(Game.id).where(Game.season_id.in_(season_ids)))),
         delete(Game).where(Game.season_id.in_(season_ids)),
         delete(Franchise).where(Franchise.league_id == league.id),
         delete(Player).where(Player.league_id == league.id),

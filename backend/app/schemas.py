@@ -1092,3 +1092,52 @@ class DefensivePlayOut(BaseModel):
 class PlaybookOut(BaseModel):
     offense: list[OffensivePlayOut]
     defense: list[DefensivePlayOut]
+
+
+# ---------- coach mode ----------
+
+class CoachSituation(BaseModel):
+    role: Literal["offense", "defense"]  # which call the user makes
+    quarter: int
+    clock: str  # before any runoff, e.g. "2:05"
+    seconds: int
+    clock_running: bool  # time runs off before the snap unless a timeout is called
+    possession: Literal["home", "away"]
+    offense: str  # abbreviation with the ball
+    down: int
+    distance: int
+    ball_on: int  # yards from the offense's own goal line
+    spot: str  # broadcast yard line, e.g. "HFD 25"
+    score: dict[str, int]
+    timeouts: dict[str, int]
+    suggestion: str  # the AI's call (a playbook key)
+    suggestion_name: str
+    suggested_package: Literal["base", "nickel", "dime"] | None
+
+
+class CoachStateOut(BaseModel):
+    game: "GameOut"
+    team: TeamSummary  # the team the user coaches
+    side: Literal["home", "away"]
+    status: Literal["in_progress", "final"]
+    autopilot: bool  # the AI is calling the rest of the game
+    calls: int  # calls made so far
+    situation: CoachSituation | None  # None once the game is over
+    plays: list[PlayOut]
+    new_plays: int  # how many of `plays` the last request played
+    season: "SeasonOut"
+
+
+class CoachCallIn(BaseModel):
+    play: str  # a playbook key: an offensive play on offense, a defensive call on defense
+    package: Literal["base", "nickel", "dime"] | None = None  # defense only
+    timeout: bool = False  # call a timeout before the snap
+
+
+class CoachAutoIn(BaseModel):
+    scope: Literal["play", "drive", "game"]
+
+
+class NextGameOut(BaseModel):
+    game: "GameOut | None"  # the franchise's game this week, if it hasn't been played
+    coaching: bool  # the user has started coaching it

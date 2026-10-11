@@ -156,13 +156,27 @@ class _Game:
         s = self.s
         if not self.clock_running:
             return
-        if AICoach._hurry(s) and s.timeouts[s.offense] > 0:
-            s.timeouts[s.offense] -= 1
-            self.clock_running = False
-        elif (s.quarter >= 4 and not s.in_overtime and s.margin > 0
-              and s.game_seconds_left <= 180 and s.timeouts[s.defense] > 0):
-            s.timeouts[s.defense] -= 1
-            self.clock_running = False
+        for side in (s.offense, s.defense):
+            if s.timeouts[side] > 0 and self.coaches[side].timeout(s, side):
+                s.timeouts[side] -= 1
+                self.clock_running = False
+                return
+
+    def huddle(self) -> None:
+        """Before each snap, a coach who calls plays himself (Coach Mode) gets the
+        situation: the clock before any runoff, and whether it's running."""
+        s = self.s
+        for side, role in ((s.offense, "offense"), (s.defense, "defense")):
+            huddle = getattr(self.coaches[side], "huddle", None)
+            if huddle:
+                huddle(s, role, self.clock_running, self.teams[s.offense],
+                       self.teams[s.defense], self.rng)
+
+    def snap_done(self) -> None:
+        for coach in self.coaches.values():
+            done = getattr(coach, "snap_done", None)
+            if done:
+                done()
 
     def end_period(self) -> None:
         s = self.s
@@ -266,6 +280,7 @@ class _Game:
         if s.clock <= 0:
             self.end_period()
             return
+        self.huddle()
         self.pending_elapsed = 0
         self.warning_during_play = False
         self.maybe_timeout()
@@ -295,6 +310,7 @@ class _Game:
                          situation, clock_before, clock_stops=False)
         else:
             self.scrimmage(side, call, situation, clock_before)
+        self.snap_done()
 
     def punt(self, side: Side, call: PlayCall, situation, clock_before: int) -> None:
         punter = self.teams[side].one(P.P)
