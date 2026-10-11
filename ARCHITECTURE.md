@@ -181,6 +181,12 @@ Interactive docs: `http://localhost:8000/docs`.
   posts, stands with an instanced crowd in team colors, light towers, lighting, and the
   line-of-scrimmage / first-down overlays; `CameraRig.tsx` eases between presets
   (overview orbit, sideline, end zone, all-22). The dashboard shows it with camera buttons.
+  `components/field/players/` holds the players: `poses.ts` (joint angles for each pose,
+  blending, a distance-driven run cycle, builds from height and weight), `formations.ts`
+  (alignments in the play log's personnel order), `kit.ts` (home/away uniforms with
+  readable numbers), `PlayerFigure.tsx` (the jointed low-poly figure and the football, each
+  posed every frame by a *driver* function, so 22 players animate without React
+  re-renders), and `Lineup.tsx` (both teams in stance, used on the dashboard).
 
 ## Testing
 
@@ -205,6 +211,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | History | pytest | award scoring and winners (MVP win bonus, rookies, minimum games), summaries; awards decided with the champion, once, and backfilled; season archive (champion and runner-up from the final, franchise record and result); records match the season leaders; career totals match season stats; careers and rookies across seasons |
 | Playback | pytest | every scrimmage play records 11 + 11 players from the right rosters (and everyone its events name), kicks name a returner, stand-in ids map to positions; the playback API types every event, resolves every player to the right team, rebuilds approximate lineups for old logs, handles unplayed and missing games |
 | 3D field | Vitest | field geometry (lines, numbers, pro hashes, direction), camera presets (framing, both directions, clamping, orbit), the field painter against a recording canvas, camera buttons; Playwright switches cameras on the dashboard |
+| 3D players | Vitest | every pose valid, the run cycle (period, opposed legs and arms), carry and throw, leaning arms reach forward, blending, builds and hip heights, formations (order, packages, sides, both directions), uniforms (home/away, readable numbers), skin tones |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

@@ -24,7 +24,8 @@ export function DashboardView({ data }: { data: Dashboard }) {
         } as React.CSSProperties
       }
     >
-      <Hero data={data} awayColor={opponent?.primary_color ?? "#3a4a5e"} />
+      <Hero data={data} awayColor={opponent?.primary_color ?? "#3a4a5e"}
+        awayAccent={opponent?.secondary_color ?? "#e5e7eb"} />
 
       {data.offseason && <OffseasonRecap recap={data.offseason} />}
 
@@ -107,7 +108,9 @@ export function DashboardView({ data }: { data: Dashboard }) {
   );
 }
 
-function Hero({ data, awayColor }: { data: Dashboard; awayColor: string }) {
+function Hero({ data, awayColor, awayAccent }: {
+  data: Dashboard; awayColor: string; awayAccent: string;
+}) {
   const { franchise, team, record } = data;
   const units: [string, number][] = [
     ["Offense", team.ratings.offense],
@@ -178,6 +181,7 @@ function Hero({ data, awayColor }: { data: Dashboard; awayColor: string }) {
             homeColor={team.primary_color}
             homeAccent={team.secondary_color}
             awayColor={awayColor}
+            awayAccent={awayAccent}
             nickname={team.nickname}
             abbreviation={team.abbreviation}
           />
