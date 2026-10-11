@@ -35,7 +35,7 @@ const playbook: Playbook = {
 
 const game = { id: 7, week: 3, home: team, away: opponent, home_score: null, away_score: null,
   status: "scheduled", overtime: false, stage: "regular" as const, round_name: null, neutral_site: false };
-const season = { id: 1, year: 2026, phase: "regular_season", current_week: 3, weeks: 17,
+const season = { id: 1, league_id: 1, year: 2026, phase: "regular_season", current_week: 3, weeks: 17,
   regular_season_complete: false, next_round: null, free_agency_day: null, champion: null };
 
 function situation(overrides: Partial<CoachSituation> = {}): CoachSituation {

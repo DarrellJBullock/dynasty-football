@@ -12,11 +12,13 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
     false,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -531,3 +533,34 @@ class Franchise(Base):
 
     league: Mapped[League] = relationship()
     team: Mapped[Team] = relationship()
+
+
+ACTIVE_JOB_STATUSES = ("queued", "running")
+ACTIVE_JOB = "status IN ('queued', 'running')"  # (for the partial index)
+
+
+class Job(Base):
+    """A long simulation run in the background by a worker (`app.worker`): what to do, how
+    far it's got, and how it ended. One active (queued or running) job per league; while
+    there is one, the league's other changes wait."""
+
+    __tablename__ = "jobs"
+    __table_args__ = (Index("uq_jobs_active_league", "league_id", unique=True,
+                            postgresql_where=text(ACTIVE_JOB), sqlite_where=text(ACTIVE_JOB)),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    kind: Mapped[str] = mapped_column(String(32))  # see services/jobs.KINDS
+    # queued | running | done | failed | cancelled
+    status: Mapped[str] = mapped_column(String(12), default="queued", index=True)
+    progress: Mapped[int] = mapped_column(Integer, default=0)  # steps done ...
+    total: Mapped[int] = mapped_column(Integer, default=1)  # ... of this many
+    label: Mapped[str] = mapped_column(String(80), default="Waiting to start")
+    cancel_requested: Mapped[bool] = mapped_column(default=False, server_default=false())
+    result: Mapped[dict | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    error: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

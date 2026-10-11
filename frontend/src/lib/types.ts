@@ -113,6 +113,7 @@ export type PlayerUpdate = Partial<
 
 export interface Season {
   id: number;
+  league_id: number;
   year: number;
   phase: string;
   /** Next week to be played; weeks + 1 once the regular season is done. */
@@ -124,6 +125,29 @@ export interface Season {
   champion: TeamSummary | null;
   /** Market day to play next, during free agency. */
   free_agency_day?: number | null;
+  /** A background sim running in this league, if any. */
+  active_job?: Job | null;
+}
+
+export type JobKind = "sim_regular_season" | "sim_playoffs" | "advance_offseason" |
+  "finish_free_agency" | "finish_draft";
+
+/** A background sim (`schemas.JobOut`): how far it's got, and once it's over, what it did. */
+export interface Job {
+  id: number;
+  league_id: number;
+  kind: JobKind;
+  status: "queued" | "running" | "done" | "failed" | "cancelled";
+  progress: number;
+  total: number;
+  /** The step just done ("Week 9 of 17"), or what's starting. */
+  label: string;
+  /** Stops between weeks, rounds or days when asked. */
+  cancellable: boolean;
+  cancel_requested: boolean;
+  /** The matching synchronous endpoint's response (SimulationResult, Season, ...). */
+  result: unknown;
+  error: string | null;
 }
 
 export interface Game {

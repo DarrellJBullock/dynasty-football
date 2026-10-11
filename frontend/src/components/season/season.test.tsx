@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
-import type { Game, GameDetail, PlayOut, Season } from "@/lib/types";
+import type { Game, GameDetail, Job, PlayOut, Season } from "@/lib/types";
 import { opponent, team } from "@/test/fixtures";
 import { GameView } from "./GameView";
 import { ScheduleView } from "./ScheduleView";
@@ -12,12 +12,12 @@ const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, api: { simulate: vi.fn(), advance: vi.fn(), playFreeAgency: vi.fn(),
-    playDraft: vi.fn() } };
+  return { ...actual, api: { simulate: vi.fn(), playFreeAgency: vi.fn(), playDraft: vi.fn(),
+    startJob: vi.fn(), job: vi.fn(), cancelJob: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
-const season: Season = { id: 5, year: 2026, phase: "regular_season", current_week: 3, weeks: 17,
+const season: Season = { id: 5, league_id: 1, year: 2026, phase: "regular_season", current_week: 3, weeks: 17,
   regular_season_complete: false,
   next_round: null, champion: null };
 
@@ -26,6 +26,14 @@ function game(overrides: Partial<Game> = {}): Game {
     status: "final", overtime: false, stage: "regular", round_name: null, neutral_site: false,
     ...overrides };
 }
+
+function job(overrides: Partial<Job> = {}): Job {
+  return { id: 40, league_id: 1, kind: "sim_regular_season", status: "queued", progress: 0,
+    total: 15, label: "Simulating the season", cancellable: true, cancel_requested: false,
+    result: null, error: null, ...overrides };
+}
+
+const POLL = { timeout: 3000 }; // the progress is polled every half second
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -43,17 +51,73 @@ describe("SimControls", () => {
     expect(router.refresh).toHaveBeenCalled();
   });
 
-  it("asks for confirmation before simming the rest of the season", async () => {
-    mocked.simulate.mockResolvedValue({ weeks_simulated: 15, games_simulated: 240,
-      season: { ...season, current_week: 18, regular_season_complete: true },
-      franchise_games: [game({ week: 17 })] });
+  it("asks for confirmation, then sims the rest of the season in the background", async () => {
+    mocked.startJob.mockResolvedValue(job());
+    mocked.job.mockResolvedValueOnce(job({ status: "running", progress: 2, label: "Week 4 of 17" }))
+      .mockResolvedValue(job({ status: "done", progress: 15, label: "Week 17 of 17",
+        result: { weeks_simulated: 15, games_simulated: 240,
+          season: { ...season, current_week: 18, regular_season_complete: true },
+          franchise_games: [game({ week: 17 })] } }));
     render(<SimControls season={season} teamId={team.id} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Sim to end of season" }));
-    expect(mocked.simulate).not.toHaveBeenCalled();
+    expect(mocked.startJob).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Confirm: sim weeks 3–17" }));
-    expect(mocked.simulate).toHaveBeenCalledWith(5, "end_of_regular_season");
-    expect(await screen.findByRole("status")).toHaveTextContent("Simulated 15 weeks");
+    expect(mocked.startJob).toHaveBeenCalledWith(1, "sim_regular_season");
+    const bar = screen.getByRole("progressbar", { name: "Simulation progress" });
+    expect(bar).toHaveAttribute("aria-valuenow", "0");
+    expect(bar).toHaveAttribute("aria-valuemax", "15");
+    expect(screen.getByRole("button", { name: "Sim week 3" })).toBeDisabled();
+    await waitFor(() => expect(bar).toHaveAttribute("aria-valuenow", "2"), POLL);
+    expect(screen.getByText("Week 4 of 17")).toBeInTheDocument();
+
+    expect(await screen.findByRole("status", {}, POLL)).toHaveTextContent(
+      "Simulated 15 weeks · Last game: W 26-17 vs Roadrunners");
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops a background sim after the week it's on", async () => {
+    mocked.startJob.mockResolvedValue(job({ status: "running", progress: 1, label: "Week 3 of 17" }));
+    mocked.cancelJob.mockResolvedValue(job({ status: "running", progress: 1, label: "Week 3 of 17",
+      cancel_requested: true }));
+    mocked.job.mockResolvedValue(job({ status: "cancelled", progress: 2, label: "Week 4 of 17",
+      cancel_requested: true }));
+    render(<SimControls season={season} teamId={team.id} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sim to end of season" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: sim weeks 3–17" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+    expect(mocked.cancelJob).toHaveBeenCalledWith(40);
+    expect(screen.getByText("Stopping after this one…")).toBeInTheDocument();
+    expect(await screen.findByRole("status", {}, POLL)).toHaveTextContent("Stopped after Week 4 of 17");
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("shows why a background sim failed, or couldn't start", async () => {
+    mocked.startJob.mockResolvedValueOnce(job({ status: "failed",
+      error: "Cut your roster to 53 (it has 60) before the season starts." }));
+    render(<SimControls season={season} teamId={team.id} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sim to end of season" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: sim weeks 3–17" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cut your roster to 53");
+
+    mocked.startJob.mockRejectedValueOnce(new ApiError(409, "A simulation is already running in this league."));
+    await userEvent.click(screen.getByRole("button", { name: "Sim to end of season" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: sim weeks 3–17" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("already running");
+  });
+
+  it("picks up a sim already running in the league", async () => {
+    mocked.job.mockResolvedValue(job({ status: "done", progress: 15, result: {
+      weeks_simulated: 15, games_simulated: 240, season, franchise_games: [] } }));
+    render(<SimControls season={{ ...season, active_job: job({ status: "running", progress: 6,
+      label: "Week 8 of 17" }) }} teamId={team.id} />);
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "6");
+    expect(screen.getByText("Week 8 of 17")).toBeInTheDocument();
+    await waitFor(() => expect(router.refresh).toHaveBeenCalled(), POLL);
+    expect(mocked.job).toHaveBeenCalledWith(40);
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
   it("shows errors", async () => {
@@ -76,21 +140,23 @@ describe("SimControls", () => {
     expect(mocked.simulate).toHaveBeenCalledWith(5, "next_week");
     expect(await screen.findByRole("status")).toHaveTextContent("Wild Card: W 26-17 vs Roadrunners");
 
+    mocked.startJob.mockResolvedValue(job({ kind: "sim_playoffs", status: "running", total: 3 }));
     await userEvent.click(screen.getByRole("button", { name: "Sim rest of playoffs" }));
     await userEvent.click(screen.getByRole("button", { name: "Confirm: sim to a champion" }));
-    expect(mocked.simulate).toHaveBeenLastCalledWith(5, "end_of_playoffs");
+    expect(mocked.startJob).toHaveBeenCalledWith(1, "sim_playoffs");
   });
 
   it("shows the champion and starts free agency after confirmation", async () => {
-    mocked.advance.mockResolvedValue({ ...season, id: 6, year: 2027, phase: "preseason", current_week: 1 });
+    mocked.startJob.mockResolvedValue(job({ kind: "advance_offseason", status: "done", total: 1,
+      progress: 1, cancellable: false, result: { ...season, id: 6, year: 2027, phase: "free_agency" } }));
     render(<SimControls season={{ ...season, phase: "offseason", current_week: 21,
       regular_season_complete: true, champion: opponent }} teamId={team.id} />);
     expect(screen.getByText(/2026 champion: Albuquerque Roadrunners/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Start free agency" }));
-    expect(mocked.advance).not.toHaveBeenCalled();
+    expect(mocked.startJob).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Confirm: run the offseason" }));
-    expect(mocked.advance).toHaveBeenCalledWith(5);
+    expect(mocked.startJob).toHaveBeenCalledWith(1, "advance_offseason");
     await waitFor(() => expect(router.refresh).toHaveBeenCalled());
   });
 });
@@ -109,14 +175,21 @@ describe("SimControls in free agency", () => {
     expect(router.refresh).toHaveBeenCalled();
   });
 
-  it("finishes the market after confirmation", async () => {
-    mocked.playFreeAgency.mockResolvedValue({ season: { ...market, phase: "preseason" },
-      signings: [], mine: [] });
+  it("finishes the market in the background after confirmation", async () => {
+    mocked.startJob.mockResolvedValue(job({ kind: "finish_free_agency", total: 4 }));
+    mocked.job.mockResolvedValue(job({ kind: "finish_free_agency", status: "done", total: 4,
+      progress: 4, label: "Day 5 of 5",
+      result: { season: { ...market, phase: "draft" }, signings: [{}, {}], mine: [] } }));
     render(<SimControls season={market} teamId={team.id} />);
     await userEvent.click(screen.getByRole("button", { name: "Finish free agency" }));
-    expect(mocked.playFreeAgency).not.toHaveBeenCalled();
+    expect(mocked.startJob).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Confirm: finish free agency" }));
-    expect(mocked.playFreeAgency).toHaveBeenCalledWith(6, "end");
+    expect(mocked.startJob).toHaveBeenCalledWith(1, "finish_free_agency");
+    expect(within(screen.getByRole("group", { name: "Free agency" })).getByRole("progressbar"))
+      .toBeInTheDocument();
+    expect(await screen.findByRole("status", {}, POLL)).toHaveTextContent(
+      "Free agency: 2 signing(s) league-wide · none of yours");
+    expect(router.refresh).toHaveBeenCalled();
   });
 });
 
@@ -130,11 +203,16 @@ describe("SimControls during the draft", () => {
     expect(mocked.playDraft).toHaveBeenCalledWith(6, "my_pick");
     expect(await screen.findByRole("status")).toHaveTextContent("you're on the clock");
 
-    mocked.playDraft.mockResolvedValue({ season: { ...drafting, phase: "preseason" }, picks: [] });
+    mocked.startJob.mockResolvedValue(job({ kind: "finish_draft", total: 1, cancellable: false }));
+    mocked.job.mockResolvedValue(job({ kind: "finish_draft", status: "done", total: 1, progress: 1,
+      cancellable: false, result: { season: { ...drafting, phase: "preseason" }, picks: [] } }));
     await userEvent.click(screen.getByRole("button", { name: "Finish draft" }));
     await userEvent.click(screen.getByRole("button", { name: "Confirm: finish the draft (auto-pick for me)" }));
-    expect(mocked.playDraft).toHaveBeenLastCalledWith(6, "end");
-    expect(await screen.findByText("The draft is complete")).toBeInTheDocument();
+    expect(mocked.startJob).toHaveBeenCalledWith(1, "finish_draft");
+    // The draft finishes as one step: no Stop.
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Stop" })).not.toBeInTheDocument();
+    expect(await screen.findByText("The draft is complete", {}, POLL)).toBeInTheDocument();
   });
 });
 

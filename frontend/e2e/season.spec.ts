@@ -48,13 +48,17 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   await expect(page.getByText(/if the season ended today/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Bracket" })).toHaveCount(0);
 
+  // The season sims in the background: leave it running and find it on the Dashboard.
   await page.goto("/schedule");
   await page.getByRole("button", { name: "Sim to end of season" }).click();
   await page.getByRole("button", { name: "Confirm: sim weeks 1–17" }).click();
-  await expect(page.getByRole("button", { name: "Sim Wild Card" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("status")).toContainText("Simulated 17 weeks");
-
+  await expect(page.getByRole("main").getByRole("progressbar", { name: "Simulation progress" })).toBeVisible();
   await navigate(page, "Dashboard");
+  const simulation = page.getByRole("region", { name: "Franchise overview" });
+  await expect(simulation.getByRole("progressbar", { name: "Simulation progress" })).toBeVisible();
+  await expect(simulation.getByRole("button", { name: "Sim Wild Card" })).toBeVisible({ timeout: 30_000 });
+  await expect(simulation.getByRole("status")).toContainText("Simulated 17 weeks");
+
   const seasonCard = page.getByRole("region", { name: "Season" });
   const record = (await seasonCard.locator(".stat-number").textContent())!;
   expect(wins(record)).toBe(17);
@@ -125,6 +129,7 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   await expect(controls.getByRole("status")).toContainText("you signed");
   await controls.getByRole("button", { name: "Finish free agency" }).click();
   await controls.getByRole("button", { name: "Confirm: finish free agency" }).click();
+  await expect(controls).toBeHidden({ timeout: 30_000 }); // the market closes; the draft opens
 
   // The draft: scout the top prospect, sim to our pick, take him, then let it finish.
   await navigate(page, "Draft");

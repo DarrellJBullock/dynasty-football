@@ -20,7 +20,7 @@ function prospect(id: number, overrides: Partial<ProspectRow> = {}): ProspectRow
     overall: null, potential: null, ...overrides };
 }
 
-const season = { id: 6, year: 2027, phase: "regular_season", current_week: 5, weeks: 17,
+const season = { id: 6, league_id: 1, year: 2027, phase: "regular_season", current_week: 5, weeks: 17,
   regular_season_complete: false, next_round: null, champion: null };
 
 const upcoming: DraftOut = {

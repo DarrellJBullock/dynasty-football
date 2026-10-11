@@ -6,37 +6,39 @@ import { useState } from "react";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
 import { describeResult, gameLabel } from "@/lib/games";
-import type { DraftUntil, FreeAgencyUntil, Game, Season, SimulateUntil } from "@/lib/types";
+import type {
+  DraftResult, DraftUntil, FreeAgencyResult, FreeAgencyUntil, Game, Job, JobKind, Season,
+  SimulateUntil, SimulationResult,
+} from "@/lib/types";
+import { JobProgress } from "./JobProgress";
+import { useJob } from "./useJob";
 
 /**
  * Season controls: sim the next week (or playoff round) or the rest of the regular season /
  * playoffs; shows the franchise's latest result. Once a champion is crowned, runs the
- * offseason into free agency, whose market days are played from here too.
+ * offseason into free agency, whose market days are played from here too. The long sims
+ * run as background jobs (`useJob`) with a progress bar; a single week, market day or pick
+ * is a plain request.
  */
 export function SimControls({ season, teamId }: { season: Season; teamId: number }) {
   const router = useRouter();
   const [busy, setBusy] = useState<SimulateUntil | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [latest, setLatest] = useState<{ game: Game; label: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [advancing, setAdvancing] = useState(false);
+  const run = useJob(season.active_job, finished);
+  const working = busy !== null || run.job !== null;
 
-  async function simulate(until: SimulateUntil) {
-    setBusy(until);
-    setConfirming(false);
+  async function simulateWeek() {
+    setBusy("next_week");
     setError(null);
+    setNotice(null);
     try {
-      const result = await api.simulate(season.id, until);
+      const result = await api.simulate(season.id, "next_week");
       const game = result.franchise_games.at(-1);
-      if (game) {
-        const label = until === "next_week"
-          ? `${gameLabel(game)}: ${describeResult(game, teamId)}`
-          : `Simulated ${result.weeks_simulated} ${until === "end_of_playoffs" ? "rounds" : "weeks"} · ` +
-            `Last game: ${describeResult(game, teamId)}`;
-        setLatest({ game, label });
-      } else if (until !== "end_of_regular_season") {
-        setLatest(null); // eliminated or on a bye: nothing of ours this round
-      }
+      // Eliminated or on a bye: nothing of ours this round.
+      setLatest(game ? { game, label: `${gameLabel(game)}: ${describeResult(game, teamId)}` } : null);
       // Results change standings, records, brackets and schedules on every page.
       router.refresh();
     } catch (e) {
@@ -46,20 +48,39 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
     }
   }
 
-  async function advance() {
-    setAdvancing(true);
+  async function startJob(kind: JobKind) {
     setConfirming(false);
     setError(null);
+    setNotice(null);
     try {
-      await api.advance(season.id);
-      setLatest(null);
-      router.refresh();
+      await run.start(season.league_id, kind);
     } catch (e) {
       setError((e as Error).message);
-    } finally {
-      setAdvancing(false);
     }
   }
+
+  function finished(job: Job) {
+    if (job.status === "failed") {
+      setError(job.error ?? "The simulation failed.");
+    } else if (job.status === "cancelled") {
+      setLatest(null);
+      setNotice(job.progress ? `Stopped after ${job.label}` : "Stopped");
+    } else if (job.kind === "advance_offseason") {
+      setLatest(null);
+    } else {
+      const result = job.result as SimulationResult;
+      const game = result.franchise_games.at(-1);
+      if (game) {
+        setLatest({ game, label: `Simulated ${result.weeks_simulated} ` +
+          `${job.kind === "sim_playoffs" ? "rounds" : "weeks"} · Last game: ${describeResult(game, teamId)}` });
+      } else if (job.kind === "sim_playoffs") {
+        setLatest(null);
+      }
+    }
+    router.refresh();
+  }
+
+  const progress = run.job && <JobProgress job={run.job} onStop={run.cancel} />;
 
   if (season.phase === "free_agency") {
     return <FreeAgencyControls season={season} />;
@@ -75,9 +96,10 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
           <TeamCrest team={season.champion} size={20} />
           {season.year} champion: {season.champion.full_name}
         </span>
-        {confirming ? (
+        {progress || (confirming ? (
           <>
-            <button type="button" className="btn btn-primary" disabled={advancing} onClick={advance}>
+            <button type="button" className="btn btn-primary" disabled={working}
+              onClick={() => startJob("advance_offseason")}>
               Confirm: run the offseason
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
@@ -85,13 +107,14 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
             </button>
           </>
         ) : (
-          <button type="button" className="btn btn-primary" disabled={advancing}
+          <button type="button" className="btn btn-primary" disabled={working}
             onClick={() => setConfirming(true)}>
-            {advancing ? "Running offseason…" : "Start free agency"}
+            Start free agency
           </button>
-        )}
+        ))}
         <Link href="/playoffs" className="text-gold hover:underline">Bracket →</Link>
         {latest && <ResultLink game={latest.game} label={latest.label} />}
+        {notice && <span role="status" className="text-sm text-chalk">{notice}</span>}
         {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
       </div>
     );
@@ -99,7 +122,7 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
 
   const inPlayoffs = season.regular_season_complete;
   const nextLabel = inPlayoffs ? `Sim ${season.next_round ?? "next round"}` : `Sim week ${season.current_week}`;
-  const restUntil: SimulateUntil = inPlayoffs ? "end_of_playoffs" : "end_of_regular_season";
+  const restKind: JobKind = inPlayoffs ? "sim_playoffs" : "sim_regular_season";
   const restLabel = inPlayoffs ? "Sim rest of playoffs" : "Sim to end of season";
   const confirmLabel = inPlayoffs
     ? "Confirm: sim to a champion"
@@ -107,14 +130,13 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
 
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label="Simulation">
-      <button type="button" className="btn btn-primary" disabled={busy !== null}
-        onClick={() => simulate("next_week")}>
+      <button type="button" className="btn btn-primary" disabled={working} onClick={simulateWeek}>
         {busy === "next_week" ? "Simulating…" : nextLabel}
       </button>
-      {confirming ? (
+      {progress || (confirming ? (
         <>
-          <button type="button" className="btn btn-ghost" disabled={busy !== null}
-            onClick={() => simulate(restUntil)}>
+          <button type="button" className="btn btn-ghost" disabled={working}
+            onClick={() => startJob(restKind)}>
             {confirmLabel}
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
@@ -122,37 +144,41 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
           </button>
         </>
       ) : (
-        <button type="button" className="btn btn-ghost" disabled={busy !== null}
+        <button type="button" className="btn btn-ghost" disabled={working}
           onClick={() => setConfirming(true)}>
-          {busy === restUntil ? "Simulating…" : restLabel}
+          {restLabel}
         </button>
-      )}
+      ))}
       {inPlayoffs && <Link href="/playoffs" className="text-sm text-gold hover:underline">Bracket →</Link>}
       {latest && <ResultLink game={latest.game} label={latest.label} />}
+      {notice && <span role="status" className="text-sm text-chalk">{notice}</span>}
       {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
     </div>
   );
 }
 
-/** Free agency: play the next market day, or the rest of the market. */
+/** Free agency: play the next market day, or the rest of the market (a background job). */
 function FreeAgencyControls({ season }: { season: Season }) {
   const router = useRouter();
   const [busy, setBusy] = useState<FreeAgencyUntil | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const run = useJob(season.active_job, finished);
+  const working = busy !== null || run.job !== null;
   const day = season.free_agency_day ?? 1;
 
-  async function play(until: FreeAgencyUntil) {
-    setBusy(until);
-    setConfirming(false);
+  function report(when: string, result: FreeAgencyResult) {
+    const names = result.mine.map((s) => s.player.full_name);
+    setSummary(`${when}: ${result.signings.length} signing(s) league-wide` +
+      (names.length ? ` · you signed ${names.join(", ")}` : " · none of yours"));
+  }
+
+  async function playDay() {
+    setBusy("next_day");
     setError(null);
     try {
-      const result = await api.playFreeAgency(season.id, until);
-      const names = result.mine.map((s) => s.player.full_name);
-      const when = until === "next_day" ? `Day ${day}` : "Free agency";
-      setSummary(`${when}: ${result.signings.length} signing(s) league-wide` +
-        (names.length ? ` · you signed ${names.join(", ")}` : " · none of yours"));
+      report(`Day ${day}`, await api.playFreeAgency(season.id, "next_day"));
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -161,16 +187,31 @@ function FreeAgencyControls({ season }: { season: Season }) {
     }
   }
 
+  async function finish() {
+    setConfirming(false);
+    setError(null);
+    try {
+      await run.start(season.league_id, "finish_free_agency");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  function finished(job: Job) {
+    if (job.status === "failed") setError(job.error ?? "Free agency failed.");
+    else if (job.status === "cancelled") setSummary(job.progress ? `Stopped after ${job.label}` : "Stopped");
+    else report("Free agency", job.result as FreeAgencyResult);
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Free agency">
-      <button type="button" className="btn btn-primary" disabled={busy !== null}
-        onClick={() => play("next_day")}>
+      <button type="button" className="btn btn-primary" disabled={working} onClick={playDay}>
         {busy === "next_day" ? "Playing…" : `Play free agency day ${day}`}
       </button>
-      {confirming ? (
+      {run.job ? <JobProgress job={run.job} onStop={run.cancel} /> : confirming ? (
         <>
-          <button type="button" className="btn btn-ghost" disabled={busy !== null}
-            onClick={() => play("end")}>
+          <button type="button" className="btn btn-ghost" disabled={working} onClick={finish}>
             Confirm: finish free agency
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
@@ -178,9 +219,9 @@ function FreeAgencyControls({ season }: { season: Season }) {
           </button>
         </>
       ) : (
-        <button type="button" className="btn btn-ghost" disabled={busy !== null}
+        <button type="button" className="btn btn-ghost" disabled={working}
           onClick={() => setConfirming(true)}>
-          {busy === "end" ? "Finishing…" : "Finish free agency"}
+          Finish free agency
         </button>
       )}
       <Link href="/free-agency" className="text-sm text-gold hover:underline">Free agents →</Link>
@@ -190,20 +231,21 @@ function FreeAgencyControls({ season }: { season: Season }) {
   );
 }
 
-/** The draft: let AI teams pick until the franchise is up, or finish it. */
+/** The draft: let AI teams pick until the franchise is up, or finish it (a background job). */
 function DraftControls({ season }: { season: Season }) {
   const router = useRouter();
   const [busy, setBusy] = useState<DraftUntil | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const run = useJob(season.active_job, finished);
+  const working = busy !== null || run.job !== null;
 
-  async function play(until: DraftUntil) {
-    setBusy(until);
-    setConfirming(false);
+  async function simToMyPick() {
+    setBusy("my_pick");
     setError(null);
     try {
-      const result = await api.playDraft(season.id, until);
+      const result = await api.playDraft(season.id, "my_pick");
       setSummary(result.season.phase === "draft"
         ? `${result.picks.length} pick(s) made · you're on the clock`
         : "The draft is complete");
@@ -215,16 +257,32 @@ function DraftControls({ season }: { season: Season }) {
     }
   }
 
+  async function finish() {
+    setConfirming(false);
+    setError(null);
+    try {
+      await run.start(season.league_id, "finish_draft");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  function finished(job: Job) {
+    if (job.status === "failed") setError(job.error ?? "The draft failed.");
+    else if (job.status === "done" && (job.result as DraftResult).season.phase !== "draft") {
+      setSummary("The draft is complete");
+    }
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Draft">
-      <button type="button" className="btn btn-primary" disabled={busy !== null}
-        onClick={() => play("my_pick")}>
+      <button type="button" className="btn btn-primary" disabled={working} onClick={simToMyPick}>
         {busy === "my_pick" ? "Picking…" : "Sim to my pick"}
       </button>
-      {confirming ? (
+      {run.job ? <JobProgress job={run.job} onStop={run.cancel} /> : confirming ? (
         <>
-          <button type="button" className="btn btn-ghost" disabled={busy !== null}
-            onClick={() => play("end")}>
+          <button type="button" className="btn btn-ghost" disabled={working} onClick={finish}>
             Confirm: finish the draft (auto-pick for me)
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
@@ -232,9 +290,9 @@ function DraftControls({ season }: { season: Season }) {
           </button>
         </>
       ) : (
-        <button type="button" className="btn btn-ghost" disabled={busy !== null}
+        <button type="button" className="btn btn-ghost" disabled={working}
           onClick={() => setConfirming(true)}>
-          {busy === "end" ? "Finishing…" : "Finish draft"}
+          Finish draft
         </button>
       )}
       <Link href="/draft" className="text-sm text-gold hover:underline">Draft board →</Link>

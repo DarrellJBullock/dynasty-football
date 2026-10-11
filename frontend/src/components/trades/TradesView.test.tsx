@@ -19,7 +19,7 @@ function playerAsset(id: number, name: string, value: number): TradeAssetOut {
 }
 
 const center: TradeCenter = {
-  season: { id: 5, year: 2026, phase: "regular_season", current_week: 4, weeks: 17,
+  season: { id: 5, league_id: 1, year: 2026, phase: "regular_season", current_week: 4, weeks: 17,
     regular_season_complete: false, next_round: null, champion: null },
   closed_reason: null, deadline_week: 10, draft_year: 2027,
   partners: [opponent, { ...opponent, id: 3, full_name: "Norfolk Squall", nickname: "Squall" }],

@@ -14,7 +14,7 @@ Prerequisites: Node 22+, Python 3.12+, Homebrew.
 ```bash
 brew install postgresql@17 && brew services start postgresql@17
 make setup          # deps, databases, migrations, sample league
-make dev-backend    # terminal 1 → http://localhost:8000/docs
+make dev-backend    # terminal 1 → http://localhost:8000/docs (and a background job worker)
 make dev-frontend   # terminal 2 → http://localhost:3000
 ```
 

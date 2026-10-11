@@ -1,4 +1,7 @@
-from fastapi import APIRouter, FastAPI
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
@@ -6,6 +9,7 @@ from app.api import (
     depth_chart,
     franchise,
     history,
+    jobs,
     leagues,
     playbook,
     players,
@@ -15,11 +19,24 @@ from app.api import (
     teams,
     trades,
 )
+from app.api.locks import league_unlocked
 from app.config import get_settings
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    stop = None
+    if get_settings().worker_embedded:
+        from app.worker import start_thread
+
+        stop = start_thread()
+    yield
+    if stop is not None:
+        stop.set()
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="Dynasty Football: Next Gen API", version="0.1.0")
+    app = FastAPI(title="Dynasty Football: Next Gen API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=get_settings().cors_origins,
@@ -34,10 +51,13 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    # Changes to a league wait while a background job simulates it (api/locks.py).
+    locked = [Depends(league_unlocked)]
     for module in (franchise, leagues, teams, depth_chart, roster_import, players, season,
                    stats, trades, history, playbook, coach):
-        api.include_router(module.router)
-    api.include_router(franchise.franchises_router)
+        api.include_router(module.router, dependencies=locked)
+    api.include_router(franchise.franchises_router, dependencies=locked)
+    api.include_router(jobs.router)
     app.include_router(api)
     return app
 

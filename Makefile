@@ -15,7 +15,7 @@ TEST_DB_NAME ?= dynasty_football_test
 E2E_DB_NAME ?= dynasty_football_e2e
 TEST_DATABASE_URL ?= postgresql+psycopg://localhost:5432/$(TEST_DB_NAME)
 
-.PHONY: help setup setup-backend setup-frontend db-start db-create migrate seed reseed \
+.PHONY: help setup setup-backend setup-frontend db-start db-create migrate seed reseed worker \
         dev-backend dev-frontend test test-backend test-backend-fast test-frontend lint build \
         e2e-setup e2e
 
@@ -50,8 +50,11 @@ seed: ## Create the sample fictional league (only if the DB is empty)
 reseed: ## Wipe all game data and regenerate the sample league
 	cd $(BACKEND) && .venv/bin/python -m app.seed --reset
 
-dev-backend: ## Run the API at http://localhost:8000 (docs at /docs)
-	cd $(BACKEND) && .venv/bin/uvicorn app.main:app --reload --port 8000
+dev-backend: ## Run the API at http://localhost:8000 (docs at /docs), with a job worker
+	cd $(BACKEND) && WORKER_EMBEDDED=1 .venv/bin/uvicorn app.main:app --reload --port 8000
+
+worker: ## Run a background job worker on its own (dev-backend already runs one)
+	cd $(BACKEND) && .venv/bin/python -m app.worker
 
 dev-frontend: ## Run the web app at http://localhost:3000
 	npm --prefix $(FRONTEND) run dev

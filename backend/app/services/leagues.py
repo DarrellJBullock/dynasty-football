@@ -18,6 +18,7 @@ from app.models import (
     Franchise,
     FreeAgentOffer,
     Game,
+    Job,
     League,
     Player,
     PlayerGameStats,
@@ -95,6 +96,7 @@ def delete_league(db: Session, league: League) -> None:
         delete(FreeAgentOffer).where(FreeAgentOffer.season_id.in_(season_ids)),
         delete(DraftPick).where(DraftPick.league_id == league.id),
         delete(Trade).where(Trade.league_id == league.id),
+        delete(Job).where(Job.league_id == league.id),
         delete(PlayerGameStats).where(PlayerGameStats.player_id.in_(player_ids)),
         delete(TeamGameStats).where(TeamGameStats.team_id.in_(team_ids)),
         delete(CoachedGame).where(CoachedGame.game_id.in_(
