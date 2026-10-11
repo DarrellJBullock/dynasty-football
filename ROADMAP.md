@@ -65,7 +65,9 @@ Each milestone ends with working software, green tests, and updated docs.
       the play log, playback API) — design: `docs/design/play-playback.md`
 - [x] Stadium, field, and lighting (canvas-painted field, goal posts, stands and crowd,
       light towers, line overlays; camera presets: overview, sideline, end zone, all-22)
-- [ ] Player models + core animations (stance, run, block, throw, catch, tackle)
+- [x] Player models + core animations (procedural low-poly figures sized by build, home and
+      away uniforms with numbers; stance, run/carry cycle, block, throw, catch, dive, down,
+      celebrate; formations for every defensive package)
 - [ ] Timeline playback of a single play
 
 ## M5 — Gameplay

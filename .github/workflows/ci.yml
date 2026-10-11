@@ -16,7 +16,7 @@ jobs:
   backend:
     name: Backend (lint, migrations, tests)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17
