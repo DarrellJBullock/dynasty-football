@@ -5,7 +5,7 @@ import { OvrBadge } from "@/components/ui/OvrBadge";
 import { Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatMoney, formatPhase, formatRecord, ratingTier, TIER_BAR } from "@/lib/format";
-import { OUTCOME_STYLES, resultFor } from "@/lib/games";
+import { gameLabel, OUTCOME_STYLES, resultFor } from "@/lib/games";
 import type { Alert, Dashboard, Game, PositionGroupSummary, TeamSummary } from "@/lib/types";
 
 export function DashboardView({ data }: { data: Dashboard }) {
@@ -213,7 +213,8 @@ function NextGameCard({ game, teamId }: { game?: Game; teamId: number }) {
   const home = game.home.id === teamId;
   const opponent = home ? game.away : game.home;
   return (
-    <StatCard label="Next game" footer={`Week ${game.week} · ${home ? "Home" : "Away"}`}>
+    <StatCard label="Next game"
+      footer={`${gameLabel(game)} · ${game.neutral_site ? "Neutral site" : home ? "Home" : "Away"}`}>
       <div className="flex items-center gap-3">
         <TeamCrest team={opponent} size={36} />
         <div className="min-w-0">
@@ -364,7 +365,7 @@ function Schedule({ games, team }: { games: Game[]; team: TeamSummary }) {
             >
               <TeamCrest team={opponent} size={28} />
               <div className="min-w-0">
-                <div className="eyebrow text-[10px]">Week {game.week}</div>
+                <div className="eyebrow text-[10px]">{gameLabel(game)}</div>
                 <div className="truncate text-sm font-medium">
                   {home ? "vs " : "@ "}
                   {opponent.nickname}

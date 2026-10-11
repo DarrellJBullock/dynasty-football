@@ -230,8 +230,11 @@ class Season(Base):
     # preseason | regular_season | playoffs | offseason
     phase: Mapped[str] = mapped_column(String(20), default="preseason")
     current_week: Mapped[int] = mapped_column(Integer, default=1)
+    champion_team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"))
 
     league: Mapped[League] = relationship(back_populates="seasons")
+    champion: Mapped["Team | None"] = relationship(foreign_keys=[champion_team_id])
     games: Mapped[list["Game"]] = relationship(
         back_populates="season", cascade="all, delete-orphan", order_by="Game.week"
     )
@@ -248,6 +251,10 @@ class Game(Base):
     home_score: Mapped[int | None] = mapped_column(Integer)
     away_score: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(12), default="scheduled")  # scheduled | final
+    stage: Mapped[str] = mapped_column(String(12), default="regular",
+                                       server_default="regular")  # regular | playoff
+    playoff_round: Mapped[int | None] = mapped_column(Integer)  # 1 = first playoff round
+    neutral_site: Mapped[bool] = mapped_column(default=False, server_default="false")
     overtime: Mapped[bool] = mapped_column(default=False, server_default="false")
     # Simulation provenance: replaying `seed` with `sim_version` reproduces `play_log`.
     seed: Mapped[int | None] = mapped_column(BigInteger)
@@ -257,6 +264,24 @@ class Game(Base):
     season: Mapped[Season] = relationship(back_populates="games")
     home_team: Mapped[Team] = relationship(foreign_keys=[home_team_id])
     away_team: Mapped[Team] = relationship(foreign_keys=[away_team_id])
+
+
+class PlayoffSeed(Base):
+    """A team's seed in its conference's bracket, fixed when the regular season ends."""
+
+    __tablename__ = "playoff_seeds"
+    __table_args__ = (UniqueConstraint("season_id", "team_id"),
+                      UniqueConstraint("season_id", "conference_id", "seed"))
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"),
+                                           index=True)
+    conference_id: Mapped[int] = mapped_column(ForeignKey("conferences.id", ondelete="CASCADE"))
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    seed: Mapped[int] = mapped_column(Integer)
+    division_winner: Mapped[bool] = mapped_column(default=False)
+
+    team: Mapped["Team"] = relationship()
 
 
 class PlayerGameStats(Base):

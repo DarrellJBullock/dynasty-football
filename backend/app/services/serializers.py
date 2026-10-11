@@ -1,5 +1,7 @@
 """ORM -> API schema conversion, kept in one place so routes stay thin."""
 
+from sqlalchemy.orm import object_session
+
 from app.domain.positions import group_of
 from app.domain.ratings import key_attributes
 from app.models import Contract, Game, League, Player, Season, Team
@@ -81,7 +83,13 @@ def player_detail(player: Player) -> PlayerDetail:
 
 
 def game_out(game: Game) -> GameOut:
+    round_name = None
+    if game.stage == "playoff":
+        from app.services.playoffs import round_name as playoff_round_name
+
+        round_name = playoff_round_name(object_session(game), game.season, game.playoff_round)
     return GameOut(id=game.id, week=game.week, home=team_summary(game.home_team),
                    away=team_summary(game.away_team), home_score=game.home_score,
                    away_score=game.away_score, status=game.status,
-                   overtime=bool(game.overtime))
+                   overtime=bool(game.overtime), stage=game.stage, round_name=round_name,
+                   neutral_site=bool(game.neutral_site))

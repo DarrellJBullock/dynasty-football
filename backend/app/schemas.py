@@ -224,6 +224,8 @@ class SeasonOut(BaseModel):
     current_week: int  # next week to be played; weeks + 1 once the regular season is done
     weeks: int
     regular_season_complete: bool
+    next_round: str | None = None  # name of the next playoff round to play, if any
+    champion: "TeamSummary | None" = None
 
 
 class GameOut(BaseModel):
@@ -235,10 +237,44 @@ class GameOut(BaseModel):
     away_score: int | None
     status: str
     overtime: bool = False
+    stage: Literal["regular", "playoff"] = "regular"
+    round_name: str | None = None  # playoff games: "Wild Card", "Championship", ...
+    neutral_site: bool = False
+
+
+class PlayoffSeedOut(BaseModel):
+    seed: int
+    team: TeamSummary
+    wins: int
+    losses: int
+    ties: int
+    division_winner: bool
+    eliminated: bool
+
+
+class PlayoffConference(BaseModel):
+    conference: str
+    seeds: list[PlayoffSeedOut]
+
+
+class PlayoffRound(BaseModel):
+    round: int
+    name: str
+    games: list[GameOut]  # empty until the round is scheduled
+
+
+class PlayoffsOut(BaseModel):
+    season: SeasonOut
+    # projected: regular season under way (seeds as of today) · in_progress · complete
+    status: Literal["projected", "in_progress", "complete"]
+    conferences: list[PlayoffConference]
+    rounds: list[PlayoffRound]
+    champion: TeamSummary | None
 
 
 class SimulateRequest(BaseModel):
-    until: Literal["next_week", "end_of_regular_season"] = "next_week"
+    # next_week: the next regular-season week, or the next playoff round once it's over.
+    until: Literal["next_week", "end_of_regular_season", "end_of_playoffs"] = "next_week"
 
 
 class SimulationResult(BaseModel):

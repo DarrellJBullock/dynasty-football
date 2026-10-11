@@ -112,6 +112,9 @@ export interface Season {
   current_week: number;
   weeks: number;
   regular_season_complete: boolean;
+  /** Name of the next playoff round to play ("Wild Card", ...), if any. */
+  next_round: string | null;
+  champion: TeamSummary | null;
 }
 
 export interface Game {
@@ -123,6 +126,9 @@ export interface Game {
   away_score: number | null;
   status: string;
   overtime: boolean;
+  stage: "regular" | "playoff";
+  round_name: string | null;
+  neutral_site: boolean;
 }
 
 export interface StandingRow {
@@ -273,7 +279,7 @@ export interface FranchiseListItem extends Franchise {
   team_count: number;
 }
 
-export type SimulateUntil = "next_week" | "end_of_regular_season";
+export type SimulateUntil = "next_week" | "end_of_regular_season" | "end_of_playoffs";
 
 export interface SimulationResult {
   weeks_simulated: number;
@@ -385,4 +391,33 @@ export interface TeamSeasonRow {
   rush_yds_allowed: number;
   takeaways: number;
   sacks: number;
+}
+
+export interface PlayoffSeed {
+  seed: number;
+  team: TeamSummary;
+  wins: number;
+  losses: number;
+  ties: number;
+  division_winner: boolean;
+  eliminated: boolean;
+}
+
+export interface PlayoffConference {
+  conference: string;
+  seeds: PlayoffSeed[];
+}
+
+export interface PlayoffRound {
+  round: number;
+  name: string;
+  games: Game[];
+}
+
+export interface PlayoffsOut {
+  season: Season;
+  status: "projected" | "in_progress" | "complete";
+  conferences: PlayoffConference[];
+  rounds: PlayoffRound[];
+  champion: TeamSummary | null;
 }

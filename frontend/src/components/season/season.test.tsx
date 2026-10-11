@@ -17,11 +17,13 @@ vi.mock("@/lib/api", async (importOriginal) => {
 const mocked = vi.mocked(api);
 
 const season: Season = { id: 5, year: 2026, phase: "regular_season", current_week: 3, weeks: 17,
-  regular_season_complete: false };
+  regular_season_complete: false,
+  next_round: null, champion: null };
 
 function game(overrides: Partial<Game> = {}): Game {
   return { id: 11, week: 3, home: team, away: opponent, home_score: 26, away_score: 17,
-    status: "final", overtime: false, ...overrides };
+    status: "final", overtime: false, stage: "regular", round_name: null, neutral_site: false,
+    ...overrides };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -60,9 +62,28 @@ describe("SimControls", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("complete");
   });
 
-  it("says when the regular season is over", () => {
-    render(<SimControls season={{ ...season, current_week: 18, regular_season_complete: true }} teamId={team.id} />);
-    expect(screen.getByText("Regular season complete")).toBeInTheDocument();
+  it("sims playoff rounds once the regular season is over", async () => {
+    const playoffs = { ...season, phase: "playoffs", current_week: 18, regular_season_complete: true,
+      next_round: "Wild Card" };
+    mocked.simulate.mockResolvedValue({ weeks_simulated: 1, games_simulated: 6,
+      season: { ...playoffs, next_round: "Divisional" },
+      franchise_games: [game({ week: 18, stage: "playoff", round_name: "Wild Card" })] });
+    render(<SimControls season={playoffs} teamId={team.id} />);
+
+    expect(screen.getByRole("link", { name: "Bracket →" })).toHaveAttribute("href", "/playoffs");
+    await userEvent.click(screen.getByRole("button", { name: "Sim Wild Card" }));
+    expect(mocked.simulate).toHaveBeenCalledWith(5, "next_week");
+    expect(await screen.findByRole("status")).toHaveTextContent("Wild Card: W 26-17 vs Roadrunners");
+
+    await userEvent.click(screen.getByRole("button", { name: "Sim rest of playoffs" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: sim to a champion" }));
+    expect(mocked.simulate).toHaveBeenLastCalledWith(5, "end_of_playoffs");
+  });
+
+  it("shows the champion once the season is over", () => {
+    render(<SimControls season={{ ...season, phase: "offseason", current_week: 21,
+      regular_season_complete: true, champion: opponent }} teamId={team.id} />);
+    expect(screen.getByText(/2026 champion: Albuquerque Roadrunners/)).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
@@ -77,7 +98,8 @@ describe("ScheduleView", () => {
     ] }} />);
 
     const weeks = screen.getByRole("navigation", { name: "Weeks" });
-    expect(within(weeks).getAllByRole("link")).toHaveLength(17);
+    expect(within(weeks).getAllByRole("link", { name: /^Wk/ })).toHaveLength(17);
+    expect(within(weeks).getByRole("link", { name: "Playoffs →" })).toHaveAttribute("href", "/playoffs");
     expect(within(weeks).getByRole("link", { name: "Wk 2" })).toHaveAttribute("aria-current", "page");
     const cards = within(screen.getByRole("region", { name: "Week 2 games" })).getAllByRole("link");
     expect(cards[0]).toHaveAccessibleName("Albuquerque Roadrunners at Hartford Ironclads");

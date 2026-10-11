@@ -4,12 +4,14 @@ import dataclasses
 import hashlib
 from collections import defaultdict
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import Game, Player, PlayerGameStats, Season, Team, TeamGameStats
-from app.schemas import SimulateRequest
+from app.schemas import SeasonOut, SimulateRequest
+from app.services import playoffs
 from app.services.errors import RosterError
+from app.services.serializers import season_out, team_summary
 from app.services.teams import load_overrides
 from app.sim.engine import SIM_VERSION, simulate_game
 from app.sim.stats import box_score
@@ -17,7 +19,20 @@ from app.sim.teams import SimTeam, build_sim_team
 
 
 def season_weeks(db: Session, season_id: int) -> int:
-    return db.scalar(select(func.max(Game.week)).where(Game.season_id == season_id)) or 0
+    """Regular-season weeks (playoff rounds are scheduled after them)."""
+    return playoffs.regular_week_count(db, season_id)
+
+
+def season_view(db: Session, season: Season) -> SeasonOut:
+    """SeasonOut with playoff context (next round name, champion)."""
+    out = season_out(season, season_weeks(db, season.id))
+    if season.phase == "playoffs":
+        upcoming = playoffs.next_round_games(db, season)
+        if upcoming:
+            out.next_round = playoffs.round_name(db, season, upcoming[0].playoff_round)
+    if season.champion_team_id:
+        out.champion = team_summary(db.get(Team, season.champion_team_id))
+    return out
 
 
 def game_seed(league_id: int, year: int, week: int, game_id: int) -> int:
@@ -49,7 +64,8 @@ def league_sim_teams(db: Session, league_id: int) -> dict[int, SimTeam]:
 def play_game(db: Session, game: Game, sim_teams: dict[int, SimTeam], league_id: int,
               year: int) -> None:
     seed = game_seed(league_id, year, game.week, game.id)
-    result = simulate_game(sim_teams[game.home_team_id], sim_teams[game.away_team_id], seed)
+    result = simulate_game(sim_teams[game.home_team_id], sim_teams[game.away_team_id], seed,
+                           playoff=game.stage == "playoff", neutral=game.neutral_site)
     game.home_score = result.home_score
     game.away_score = result.away_score
     game.overtime = result.overtime
@@ -69,24 +85,45 @@ def play_game(db: Session, game: Game, sim_teams: dict[int, SimTeam], league_id:
 
 
 def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int, list[Game]]:
-    """Play the next week (or every remaining regular-season week). Returns
-    (weeks simulated, games played)."""
+    """Play the next week (or playoff round), the rest of the regular season, or the rest of
+    the playoffs. Returns (weeks/rounds simulated, games played)."""
     weeks = season_weeks(db, season.id)
-    if season.current_week > weeks:
+    regular_done = season.current_week > weeks
+    if season.phase == "offseason":
+        raise RosterError("The season is complete.")
+    if request.until == "end_of_regular_season" and regular_done:
         raise RosterError("The regular season is complete.")
-    last_week = season.current_week if request.until == "next_week" else weeks
+    if request.until == "end_of_playoffs" and not regular_done:
+        raise RosterError("Finish the regular season before simming the playoffs.")
 
-    first_week = season.current_week
     sim_teams = league_sim_teams(db, season.league_id)
     played: list[Game] = []
-    if season.phase == "preseason":
-        season.phase = "regular_season"
-    for week in range(season.current_week, last_week + 1):
-        games = db.scalars(select(Game).where(Game.season_id == season.id, Game.week == week,
-                                              Game.status == "scheduled").order_by(Game.id))
-        for game in games:
+    steps = 0
+    if not regular_done:
+        last_week = season.current_week if request.until == "next_week" else weeks
+        if season.phase == "preseason":
+            season.phase = "regular_season"
+        for week in range(season.current_week, last_week + 1):
+            games = db.scalars(select(Game).where(
+                Game.season_id == season.id, Game.week == week, Game.stage == "regular",
+                Game.status == "scheduled").order_by(Game.id))
+            for game in games:
+                play_game(db, game, sim_teams, season.league_id, season.year)
+                played.append(game)
+            season.current_week = week + 1
+            steps += 1
+        db.flush()
+        if season.current_week > weeks:
+            playoffs.start(db, season)
+        return steps, played
+
+    while season.phase == "playoffs":
+        for game in playoffs.next_round_games(db, season):
             play_game(db, game, sim_teams, season.league_id, season.year)
             played.append(game)
-        season.current_week = week + 1
-    db.flush()
-    return last_week - first_week + 1, played
+        db.flush()
+        playoffs.finish_round(db, season)
+        steps += 1
+        if request.until == "next_week":
+            break
+    return steps, played

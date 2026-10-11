@@ -5,7 +5,8 @@ import { describeResult, formatPossession, resultFor } from "./games";
 
 function game(overrides: Partial<Game>): Game {
   return { id: 1, week: 3, home: team, away: opponent, home_score: null, away_score: null,
-    status: "scheduled", overtime: false, ...overrides };
+    status: "scheduled", overtime: false, stage: "regular", round_name: null, neutral_site: false,
+    ...overrides };
 }
 
 describe("resultFor", () => {

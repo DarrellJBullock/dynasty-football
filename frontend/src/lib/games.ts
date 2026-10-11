@@ -22,11 +22,16 @@ export function resultFor(game: Game, teamId: number): TeamResult {
   return { outcome, home, opponent: home ? game.away : game.home, pointsFor, pointsAgainst };
 }
 
+/** When a game happens: "Week 3", or the playoff round ("Wild Card"). */
+export function gameLabel(game: Game): string {
+  return game.round_name ?? `Week ${game.week}`;
+}
+
 /** "W 26-17 vs Roadrunners", "L 10-24 @ Squall (OT)" */
 export function describeResult(game: Game, teamId: number): string {
   const r = resultFor(game, teamId);
   const where = `${r.home ? "vs" : "@"} ${r.opponent.nickname}`;
-  if (!r.outcome) return `Week ${game.week} ${where}`;
+  if (!r.outcome) return `${gameLabel(game)} ${where}`;
   return `${r.outcome} ${r.pointsFor}-${r.pointsAgainst} ${where}${game.overtime ? " (OT)" : ""}`;
 }
 

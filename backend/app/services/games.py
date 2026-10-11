@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import Game, PlayerGameStats, Season, TeamGameStats
 from app.schemas import GameDetail, PlayerGameLine, PlayOut, ScheduleWeek
-from app.services.season import season_weeks
-from app.services.serializers import game_out, season_out
+from app.services.season import season_view, season_weeks
+from app.services.serializers import game_out
 from app.sim.stats import PlayerLine, TeamLine
 from app.sim.text import spot_label
 
@@ -20,7 +20,7 @@ def schedule_week(db: Session, season: Season, week: int | None) -> ScheduleWeek
         week = min(season.current_week, weeks) if weeks else 1
     games = db.scalars(select(Game).where(Game.season_id == season.id, Game.week == week)
                        .order_by(Game.id)).all()
-    return ScheduleWeek(season=season_out(season, weeks), week=week,
+    return ScheduleWeek(season=season_view(db, season), week=week,
                         games=[game_out(g) for g in games])
 
 

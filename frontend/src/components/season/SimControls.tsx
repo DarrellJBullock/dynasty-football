@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
-import { describeResult } from "@/lib/games";
+import { describeResult, gameLabel } from "@/lib/games";
 import type { Game, Season, SimulateUntil } from "@/lib/types";
 
-/** "Sim week N" / "Sim to end of season", with the franchise's latest result. */
+/**
+ * Season controls: sim the next week (or playoff round) or the rest of the regular season /
+ * playoffs; shows the franchise's latest result, and the champion once crowned.
+ */
 export function SimControls({ season, teamId }: { season: Season; teamId: number }) {
   const router = useRouter();
   const [busy, setBusy] = useState<SimulateUntil | null>(null);
@@ -24,11 +28,14 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
       const game = result.franchise_games.at(-1);
       if (game) {
         const label = until === "next_week"
-          ? `Week ${game.week}: ${describeResult(game, teamId)}`
-          : `Simulated ${result.weeks_simulated} weeks · Last game: ${describeResult(game, teamId)}`;
+          ? `${gameLabel(game)}: ${describeResult(game, teamId)}`
+          : `Simulated ${result.weeks_simulated} ${until === "end_of_playoffs" ? "rounds" : "weeks"} · ` +
+            `Last game: ${describeResult(game, teamId)}`;
         setLatest({ game, label });
+      } else if (until !== "end_of_regular_season") {
+        setLatest(null); // eliminated or on a bye: nothing of ours this round
       }
-      // Results change standings, records and schedules on every page.
+      // Results change standings, records, brackets and schedules on every page.
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -37,30 +44,39 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
     }
   }
 
-  if (season.regular_season_complete) {
+  if (season.champion) {
     return (
       <div className="flex flex-wrap items-center gap-3 text-sm" aria-label="Season status">
-        <span className="rounded-md bg-gold/10 px-2.5 py-1 font-display font-semibold uppercase tracking-wide text-gold">
-          Regular season complete
+        <span className="flex items-center gap-2 rounded-md bg-gold/10 px-2.5 py-1 font-display font-semibold uppercase tracking-wide text-gold">
+          <TeamCrest team={season.champion} size={20} />
+          {season.year} champion: {season.champion.full_name}
         </span>
-        <span className="text-mist">Playoffs arrive in a future update.</span>
+        <Link href="/playoffs" className="text-gold hover:underline">Bracket →</Link>
+        <span className="text-mist">Next season arrives in a future update.</span>
         {latest && <ResultLink game={latest.game} label={latest.label} />}
       </div>
     );
   }
 
-  const week = season.current_week;
+  const inPlayoffs = season.regular_season_complete;
+  const nextLabel = inPlayoffs ? `Sim ${season.next_round ?? "next round"}` : `Sim week ${season.current_week}`;
+  const restUntil: SimulateUntil = inPlayoffs ? "end_of_playoffs" : "end_of_regular_season";
+  const restLabel = inPlayoffs ? "Sim rest of playoffs" : "Sim to end of season";
+  const confirmLabel = inPlayoffs
+    ? "Confirm: sim to a champion"
+    : `Confirm: sim weeks ${season.current_week}–${season.weeks}`;
+
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label="Simulation">
       <button type="button" className="btn btn-primary" disabled={busy !== null}
         onClick={() => simulate("next_week")}>
-        {busy === "next_week" ? `Simulating week ${week}…` : `Sim week ${week}`}
+        {busy === "next_week" ? "Simulating…" : nextLabel}
       </button>
       {confirming ? (
         <>
           <button type="button" className="btn btn-ghost" disabled={busy !== null}
-            onClick={() => simulate("end_of_regular_season")}>
-            Confirm: sim weeks {week}–{season.weeks}
+            onClick={() => simulate(restUntil)}>
+            {confirmLabel}
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
             Cancel
@@ -69,9 +85,10 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
       ) : (
         <button type="button" className="btn btn-ghost" disabled={busy !== null}
           onClick={() => setConfirming(true)}>
-          {busy === "end_of_regular_season" ? "Simulating season…" : "Sim to end of season"}
+          {busy === restUntil ? "Simulating…" : restLabel}
         </button>
       )}
+      {inPlayoffs && <Link href="/playoffs" className="text-sm text-gold hover:underline">Bracket →</Link>}
       {latest && <ResultLink game={latest.game} label={latest.label} />}
       {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
     </div>
