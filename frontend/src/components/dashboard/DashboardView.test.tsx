@@ -42,6 +42,22 @@ describe("DashboardView", () => {
     expect(within(schedule).getByText("@ Roadrunners")).toBeInTheDocument();
   });
 
+  it("shows the injury report", () => {
+    const { rerender } = render(<DashboardView data={dashboard} />);
+    const panel = () => screen.getByRole("region", { name: "Injury report" });
+    expect(panel()).toHaveTextContent("Everyone is healthy.");
+    rerender(<DashboardView data={{ ...dashboard, injury_report: [
+      makePlayer({ id: 40, full_name: "Hurt Guy", injury_status: "injured_reserve",
+        injury: "High ankle sprain", injury_weeks: 5 }),
+      makePlayer({ id: 41, full_name: "Sore Guy", injury_status: "questionable",
+        injury: "Back spasms", injury_weeks: 0 }),
+    ] }} />);
+    const items = within(panel()).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("IR");
+    expect(items[0]).toHaveTextContent("High ankle sprain · Out 5 games");
+    expect(items[1]).toHaveTextContent("Back spasms · Questionable");
+  });
+
   it("shows the offseason recap before the first game", () => {
     const player = (id: number, full_name: string, overall = 70) =>
       makePlayer({ id, full_name, overall });

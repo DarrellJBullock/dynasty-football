@@ -3,6 +3,7 @@ import { TeamCrest } from "@/components/ui/TeamCrest";
 import { Panel } from "@/components/ui/Panel";
 import { formatPossession } from "@/lib/games";
 import { hasGroup, STAT_GROUPS } from "@/lib/stats";
+import { injuryDuration } from "@/lib/format";
 import type { GameDetail, PlayerGameLine, PlayOut, TeamSummary } from "@/lib/types";
 
 type Side = "home" | "away";
@@ -64,6 +65,30 @@ export function GameView({ detail }: { detail: GameDetail }) {
                 players={detail.players.filter((p) => p.team_id === teams[side].id)} />
             ))}
           </div>
+          {detail.injuries && detail.injuries.length > 0 && (
+            <Panel title="Injuries">
+              <ul className="space-y-1.5" aria-label="Injuries">
+                {detail.injuries.map((injury) => {
+                  const team = injury.team_id === teams.home.id ? teams.home : teams.away;
+                  return (
+                    <li key={`${injury.player_id}-${injury.quarter}-${injury.clock}`}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <span className="w-14 text-xs tabular-nums text-mist">
+                        {injury.quarter > 4 ? "OT" : `Q${injury.quarter}`} {injury.clock}
+                      </span>
+                      <span className="w-10 text-xs font-semibold text-mist">{team.abbreviation}</span>
+                      <Link href={`/players/${injury.player_id}`} className="hover:text-gold">
+                        <span className="mr-1.5 text-xs text-mist">{injury.position}</span>
+                        {injury.name}
+                      </Link>
+                      <span className="text-mist">{injury.injury}</span>
+                      <span className="text-xs text-rose-300">{injuryDuration(injury.weeks)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Panel>
+          )}
           <Panel title="Play-by-play">
             <PlayByPlay plays={detail.plays} teams={teams} />
           </Panel>

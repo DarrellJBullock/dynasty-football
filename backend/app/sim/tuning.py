@@ -77,5 +77,10 @@ class Tuning:
     kickoff_touchback: float = 0.62
     kickoff_return_spot: float = 27.0
 
+    # Injuries: per-snap chance for each player on the field (scaled by toughness), and the
+    # multiplier for players in contact (ball carriers, tacklers, sacked QBs).
+    injury_rate: float = 0.001
+    injury_contact_factor: float = 3.0
+
 
 DEFAULT_TUNING = Tuning()

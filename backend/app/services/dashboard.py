@@ -143,5 +143,8 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
         position_groups=groups,
         expiring_contracts=expiring,
         alerts=_alerts(roster, detail.cap_space, expiring, groups, lineup),
+        injury_report=[player_summary(p) for p in sorted(
+            (p for p in roster if p.injury_status != "healthy"),
+            key=lambda p: (-p.injury_weeks, -p.overall, p.id))],
         offseason=recap(db, season, team.id) if season.phase == "preseason" else None,
     )

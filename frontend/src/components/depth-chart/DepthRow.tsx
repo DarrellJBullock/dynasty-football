@@ -3,7 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { OvrBadge } from "@/components/ui/OvrBadge";
-import { injuryLabel } from "@/lib/format";
+import { injuryDetail, injuryLabel } from "@/lib/format";
 import type { RowStatus } from "@/lib/depthChart";
 import type { PlayerSummary, Position } from "@/lib/types";
 
@@ -71,7 +71,8 @@ export function DepthRow({
             </span>
           )}
           {player.injury_status !== "healthy" && (
-            <span className="rounded bg-rose-500/15 px-1.5 text-[10px] font-semibold uppercase text-rose-300">
+            <span title={injuryDetail(player)}
+              className="rounded bg-rose-500/15 px-1.5 text-[10px] font-semibold uppercase text-rose-300">
               {injuryLabel(player.injury_status)}
             </span>
           )}

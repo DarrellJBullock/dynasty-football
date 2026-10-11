@@ -157,6 +157,21 @@ describe("GameView", () => {
     expect(screen.getByText("Quarter 2")).toBeInTheDocument();
   });
 
+  it("lists injuries from the game", () => {
+    const { rerender } = render(<GameView detail={detail} />);
+    expect(screen.queryByRole("list", { name: "Injuries" })).not.toBeInTheDocument();
+    rerender(<GameView detail={{ ...detail, injuries: [
+      { player_id: 31, team_id: opponent.id, name: "Rod Banks", position: "WR", injury: "Torn ACL",
+        weeks: 99, quarter: 3, clock: "4:12" },
+    ] }} />);
+    const list = screen.getByRole("list", { name: "Injuries" });
+    expect(list).toHaveTextContent("Q3 4:12");
+    expect(list).toHaveTextContent("ABQ");
+    expect(list).toHaveTextContent("Torn ACL");
+    expect(list).toHaveTextContent("Out for the season");
+    expect(within(list).getByRole("link", { name: /Rod Banks/ })).toHaveAttribute("href", "/players/31");
+  });
+
   it("explains an unplayed game", () => {
     render(<GameView detail={{ ...detail, game: game({ status: "scheduled", home_score: null, away_score: null }),
       players: [], plays: [], scoring_plays: [], line_score: { home: [], away: [] }, team_stats: {} }} />);

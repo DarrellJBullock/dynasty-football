@@ -9,6 +9,7 @@ from app.models import Contract, Player, PlayerRatings, Team
 from app.schemas import PlayerCreate, PlayerUpdate, SigningRequest
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
+from app.services.injuries import heal
 from app.services.teams import current_season, load_roster, payroll
 
 DEFAULT_RATING = 50
@@ -106,6 +107,8 @@ def update_player(db: Session, player: Player, payload: PlayerUpdate) -> Player:
         if value is None:
             continue
         setattr(player, field, value.value if isinstance(value, Position) else value)
+    if changes.get("injury_status") == "healthy":
+        heal(player)
     for name, value in (payload.ratings or {}).items():
         setattr(player.ratings, name, value)
     _recalculate_overall(player)

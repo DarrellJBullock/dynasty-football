@@ -13,6 +13,8 @@ plays) and the **3D game** (M4–M6), so a watched game and a simulated game agr
 
 - Player-position physics or per-frame movement (the 3D client derives motion later; §8).
 - Injuries, fatigue-driven substitutions, and development (Milestone 3; hooks only).
+  *Update (M3): in-game injuries now exist — see `app/sim/injuries.py`, `SIM_VERSION`
+  1.1, and GAME_DESIGN.md "Injuries".*
 - A user-facing play-calling UI (Coach Mode is Milestone 5; the interface is designed now).
 
 ## 2. Recommendation: play-level resolution

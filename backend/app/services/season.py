@@ -7,9 +7,10 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.domain.depth_chart import UNAVAILABLE
 from app.models import Game, Player, PlayerGameStats, Season, Team, TeamGameStats
 from app.schemas import SeasonOut, SimulateRequest
-from app.services import playoffs
+from app.services import injuries, playoffs
 from app.services.errors import RosterError
 from app.services.serializers import season_out, team_summary
 from app.services.teams import load_overrides
@@ -62,7 +63,8 @@ def league_sim_teams(db: Session, league_id: int) -> dict[int, SimTeam]:
 
 
 def play_game(db: Session, game: Game, sim_teams: dict[int, SimTeam], league_id: int,
-              year: int) -> None:
+              year: int) -> list[dict]:
+    """Simulate and store one game; returns its injury events."""
     seed = game_seed(league_id, year, game.week, game.id)
     result = simulate_game(sim_teams[game.home_team_id], sim_teams[game.away_team_id], seed,
                            playoff=game.stage == "playoff", neutral=game.neutral_site)
@@ -82,6 +84,29 @@ def play_game(db: Session, game: Game, sim_teams: dict[int, SimTeam], league_id:
         db.add(PlayerGameStats(game_id=game.id, player_id=player_id,
                                team_id=team_ids[box.player_team[player_id]],
                                **dataclasses.asdict(line)))
+    return result.injuries
+
+
+def refresh_availability(db: Session, league_id: int, sim_teams: dict[int, SimTeam]) -> None:
+    """Re-read who is Out / IR (injuries change week to week; rosters don't mid-sim)."""
+    rows = db.execute(select(Player.id, Player.team_id).where(
+        Player.league_id == league_id, Player.team_id.is_not(None),
+        Player.injury_status.in_(UNAVAILABLE))).all()
+    for team in sim_teams.values():
+        team.unavailable = set()
+    for player_id, team_id in rows:
+        sim_teams[team_id].unavailable.add(player_id)
+
+
+def _play_week(db: Session, season: Season, games: list[Game],
+               sim_teams: dict[int, SimTeam]) -> None:
+    """Play one week (or playoff round) with this week's lineups, then update injuries:
+    players hurt this week miss the coming weeks, earlier injuries count down."""
+    refresh_availability(db, season.league_id, sim_teams)
+    hurt = [e for game in games
+            for e in play_game(db, game, sim_teams, season.league_id, season.year)]
+    db.flush()
+    injuries.after_week(db, season.league_id, hurt)
 
 
 def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int, list[Game]]:
@@ -104,12 +129,11 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
         if season.phase == "preseason":
             season.phase = "regular_season"
         for week in range(season.current_week, last_week + 1):
-            games = db.scalars(select(Game).where(
+            games = list(db.scalars(select(Game).where(
                 Game.season_id == season.id, Game.week == week, Game.stage == "regular",
-                Game.status == "scheduled").order_by(Game.id))
-            for game in games:
-                play_game(db, game, sim_teams, season.league_id, season.year)
-                played.append(game)
+                Game.status == "scheduled").order_by(Game.id)))
+            _play_week(db, season, games, sim_teams)
+            played += games
             season.current_week = week + 1
             steps += 1
         db.flush()
@@ -118,10 +142,9 @@ def simulate(db: Session, season: Season, request: SimulateRequest) -> tuple[int
         return steps, played
 
     while season.phase == "playoffs":
-        for game in playoffs.next_round_games(db, season):
-            play_game(db, game, sim_teams, season.league_id, season.year)
-            played.append(game)
-        db.flush()
+        games = playoffs.next_round_games(db, season)
+        _play_week(db, season, games, sim_teams)
+        played += games
         playoffs.finish_round(db, season)
         steps += 1
         if request.until == "next_week":

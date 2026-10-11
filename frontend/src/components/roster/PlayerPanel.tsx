@@ -12,6 +12,7 @@ import {
   formatAttribute,
   formatHeight,
   formatMoney,
+  injuryDetail,
   injuryLabel,
   yearsRemaining,
 } from "@/lib/format";
@@ -161,7 +162,7 @@ function PlayerCard({
           ["Weight", `${player.weight_lb} lb`],
           ["Potential", player.potential],
           ["Exp", player.years_pro ? `${player.years_pro} yr` : "Rookie"],
-          ["Status", injuryLabel(player.injury_status)],
+          ["Status", injuryDetail(player)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg bg-white/[0.03] px-2 py-2.5">
             <dt className="text-[10px] uppercase tracking-wider text-mist">{label}</dt>

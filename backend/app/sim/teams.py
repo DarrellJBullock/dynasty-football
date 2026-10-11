@@ -62,14 +62,28 @@ class SimTeam:
     id: int
     abbreviation: str
     name: str
-    # Available players in depth-chart order for every slot.
+    # Players in depth-chart order for every slot.
     depth: dict[Position, list[SimPlayer]]
     players: dict[int, SimPlayer] = field(default_factory=dict)
+    # Out / IR going into the game (refreshed between weeks), and hurt during this game.
+    unavailable: set[int] = field(default_factory=set)
+    injured: set[int] = field(default_factory=set)
+    sidelined: set[int] = field(default_factory=set)  # both of the above
+
+    def start_game(self) -> None:
+        """Reset in-game state; called by the engine at kickoff."""
+        self.injured = set()
+        self.sidelined = set(self.unavailable)
+        self.__dict__.pop("pass_lean", None)
+
+    def injure(self, player_id: int) -> None:
+        self.injured.add(player_id)
+        self.sidelined.add(player_id)
 
     def at(self, slot: Position, count: int, skip: Iterable[int] = ()) -> list[SimPlayer]:
-        """Top `count` players at a slot, skipping ids already on the field; replacement
-        players fill any shortfall so a play can always be run."""
-        used = set(skip)
+        """Top `count` players at a slot, skipping ids already on the field and anyone out
+        or hurt; replacement players fill any shortfall so a play can always be run."""
+        used = self.sidelined.union(skip)
         chosen = [p for p in self.depth.get(slot, []) if p.id not in used][:count]
         while len(chosen) < count:
             chosen.append(replacement(slot, len(chosen)))
@@ -105,14 +119,16 @@ def build_sim_team(
     overrides: Mapping[Position, Sequence[int]] | None = None,
 ) -> SimTeam:
     """Snapshot a roster: depth-chart order per slot (custom orders honoured, cross-listed
-    players included), unavailable (Out/IR) players removed."""
+    players included); unavailable (Out/IR) players are skipped when picking lineups."""
     chart = build_chart(roster, overrides or {})
     sim_players = {
         p.id: SimPlayer(id=p.id, name=short_name(p.first_name, p.last_name),
                         position=p.position, overall=p.overall, ratings=dict(ratings[p.id]))
         for p in roster
     }
-    depth = {slot: [sim_players[p.id] for p in players if is_available(p)]
-             for slot, players in chart.items()}
-    return SimTeam(id=team_id, abbreviation=abbreviation, name=name, depth=depth,
-                   players=sim_players)
+    depth = {slot: [sim_players[p.id] for p in players] for slot, players in chart.items()}
+    team = SimTeam(id=team_id, abbreviation=abbreviation, name=name, depth=depth,
+                   players=sim_players,
+                   unavailable={p.id for p in roster if not is_available(p)})
+    team.start_game()
+    return team

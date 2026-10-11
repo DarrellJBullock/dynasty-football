@@ -10,13 +10,14 @@ from dataclasses import dataclass, field
 
 from app.domain.positions import Position as P
 from app.sim import resolve as rs
+from app.sim.injuries import injury_details, roll_injuries
 from app.sim.playcalls import AICoach, Coach, PlayCall, field_goal_distance
 from app.sim.state import OT_SECONDS, QUARTER_SECONDS, GameState, Side, other
 from app.sim.teams import SimTeam
 from app.sim.text import describe
 from app.sim.tuning import DEFAULT_TUNING, Tuning
 
-SIM_VERSION = "1.0"
+SIM_VERSION = "1.1"  # 1.1: in-game injuries
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 
@@ -55,6 +56,11 @@ class GameResult:
     sim_version: str = SIM_VERSION
 
     @property
+    def injuries(self) -> list[dict]:
+        """Every injury event in the game, in order."""
+        return [e for play in self.plays for e in play.events if e["t"] == "injury"]
+
+    @property
     def winner(self) -> SimTeam | None:
         if self.home_score == self.away_score:
             return None
@@ -77,6 +83,11 @@ class _Game:
         self.seed = seed
         self.playoff = playoff
         self.rng = random.Random(seed)
+        # Injuries draw from their own stream so they never perturb play outcomes.
+        self.injury_rng = random.Random(f"injury:{seed}")
+        for team in self.teams.values():
+            team.start_game()
+        self.injury_base: dict[int, float] = {}
         ai = AICoach()
         self.coaches: dict[Side, Coach] = coaches or {"home": ai, "away": ai}
         self.t = tuning
@@ -321,6 +332,7 @@ class _Game:
             obvious = s.down >= 3 and s.distance >= 5
             outcome = rs.resolve_pass(call, dcall, off, deff, s.ball_on, edge, rng, t, obvious)
         rs.maybe_holding(outcome, off, rng, t)
+        self.injure(offense, defense, off.all, deff.all, outcome.events)
         self.tick(outcome.duration, during_play=True)
 
         penalty = outcome.penalty
@@ -357,6 +369,18 @@ class _Game:
         stops = outcome.clock_stops or (outcome.out_of_bounds and late)
         self.advance(side, outcome.yards, call, dcall.describe(), result, outcome.events,
                      situation, clock_before, stops)
+
+    def injure(self, offense: SimTeam, defense: SimTeam, off_players, def_players,
+                 events: list[dict]) -> None:
+        """Roll for injuries on a snap; the injured leave the game (the depth chart's next
+        man up takes over from the next snap)."""
+        for team, players in ((offense, off_players), (defense, def_players)):
+            for player in roll_injuries(self.injury_rng, players, events, self.t,
+                                        self.injury_base):
+                description, weeks = injury_details(self.injury_rng)
+                team.injure(player.id)
+                events.append({"t": "injury", "player": player.id, "team": team.abbreviation,
+                               "injury": description, "weeks": weeks})
 
     def turnover(self, side: Side, call, dcall, outcome: rs.Outcome, situation,
                  clock_before: int) -> None:

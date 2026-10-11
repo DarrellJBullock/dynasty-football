@@ -59,7 +59,7 @@ players.team_id NULL  = free agent
 | `leagues` | name, abbreviation, salary_cap |
 | `conferences`, `divisions` | name (+ abbreviation) |
 | `teams` | city, nickname, abbreviation (unique per league), primary/secondary colour, stadium |
-| `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status, retired_year? |
+| `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status, injury? (description), injury_weeks (games still to miss), retired_year? |
 | `player_ratings` | player_id PK + 24 attribute columns (0–99) |
 | `contracts` | player_id, team_id, start_year, years, salary, signing_bonus, is_active |
 | `seasons` | league_id, year (unique per league), phase (preseason → regular_season → playoffs → offseason), current_week, champion_team_id?, offseason_log (what the rollover into this season did; JSON) |
@@ -95,7 +95,7 @@ Design notes:
 | `POST /api/seasons/{id}/advance` | After the champion: run the offseason (aging, development, retirements, contracts, rookies) and create the next season |
 | `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
-| `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play |
+| `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play, injuries |
 | `GET /api/leagues/{id}/leaders?category=&limit=` | Season leaders: all categories (top 5) or one (up to 50) |
 | `GET /api/leagues/{id}/team-stats` | Every team's season totals, offense and defense (allowed) |
 | `GET /api/players/{id}/stats` | A player's season totals and game log |
@@ -170,6 +170,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Season stats | pytest | leaders equal summed box scores (and "long" columns are maxima), released players keep their last team, player totals equal the game log, team totals reconcile with standings and league-wide (yards gained = allowed, turnovers = takeaways) |
 | Playoffs | pytest | seed counts, pairing and reseeding, round names, each tiebreaker, division winners seeded first; full bracket to a neutral-site champion, offseason 409s, playoff games excluded from standings and stats, projected bracket, small one-conference leagues |
 | Offseason | pytest | growth/decline/retirement curves, contract lengths; rollover creates the next season and schedule, ages players, retires and refills (full rosters, under the cap, one active contract each), determinism, retired players leave free agency, dashboard recap, a full season → next season through the API, multi-year stability |
+| Injuries | pytest | contact and toughness odds, injury table ranges, injured players sit for the rest of the game, play outcomes unchanged before the first injury, determinism, status mapping, weekly countdown (hand-set statuses untouched), lineups skip the injured, dashboard report, game-page list, manual healing, offseason healing |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

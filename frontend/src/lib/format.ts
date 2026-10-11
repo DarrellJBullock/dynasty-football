@@ -63,6 +63,22 @@ export function injuryLabel(status: string): string {
   return status === "injured_reserve" ? "IR" : formatAttribute(status);
 }
 
+export const SEASON_ENDING_WEEKS = 99;
+
+/** How long an injury keeps a player out: "Questionable", "1 game", "3 games", "Season". */
+export function injuryDuration(weeks: number): string {
+  if (weeks >= SEASON_ENDING_WEEKS) return "Out for the season";
+  if (weeks <= 0) return "Questionable";
+  return `Out ${weeks} game${weeks === 1 ? "" : "s"}`;
+}
+
+/** "Knee sprain · Out 2 games", or just the status for injuries set by hand. */
+export function injuryDetail(player: { injury_status: string; injury?: string | null; injury_weeks?: number }): string {
+  if (player.injury_status === "healthy") return "Healthy";
+  if (!player.injury) return injuryLabel(player.injury_status);
+  return `${player.injury} · ${injuryDuration(player.injury_weeks ?? 0)}`;
+}
+
 /** Contract years remaining including the current season. */
 export function yearsRemaining(endYear: number, currentYear: number): number {
   return Math.max(0, endYear - currentYear + 1);
