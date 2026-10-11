@@ -57,7 +57,11 @@ describe("WatchView", () => {
     expect(screen.getByTestId("play-text")).toHaveTextContent("64 yards. TOUCHDOWN.");
     expect(screen.getByTestId("play-call")).toHaveTextContent("Four Verticals vs Cover 3");
     expect(screen.getByText(/Play 2 of 3 · HFD 2nd & 4 at HFD 36/)).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Score" })).toHaveTextContent("ABQ 0HFD 0Q1 15:00");
+    const bug = screen.getByRole("group", { name: "Score bug" });
+    expect(within(bug).getByTestId("bug-ABQ")).toHaveTextContent("ABQ0");
+    expect(within(bug).getByTestId("bug-HFD")).toHaveTextContent("HFD●0");
+    expect(within(bug).getByTestId("game-clock")).toHaveTextContent("15:00");
+    expect(within(bug).getByTestId("down")).toHaveTextContent("2nd & 4");
     const current = within(screen.getByRole("complementary", { name: "Plays" }))
       .getAllByRole("button").find((b) => b.getAttribute("aria-current") === "true");
     expect(current).toHaveTextContent("Quarles pass complete");
@@ -75,7 +79,7 @@ describe("WatchView", () => {
     await user.click(screen.getByRole("button", { name: /sacked/ }));
     expect(screen.getByText(/Approximate lineup/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next play ›" })).toBeDisabled();
-    expect(screen.getByRole("group", { name: "Score" })).toHaveTextContent("Q2 9:12");
+    expect(screen.getByRole("group", { name: "Score bug" })).toHaveTextContent("2nd9:12");
     await user.click(screen.getByRole("button", { name: "‹ Previous play" }));
     expect(window.location.search).toBe("?play=2");
     expect(scene.props!.clock.time).toBe(0);
@@ -98,7 +102,8 @@ describe("WatchView", () => {
     // Played to the end: the score updates and the button offers a replay from the start.
     await user.click(screen.getByRole("button", { name: "Play" }));
     tick(timeline.duration);
-    expect(screen.getByRole("group", { name: "Score" })).toHaveTextContent("HFD 6");
+    expect(screen.getByTestId("bug-HFD")).toHaveTextContent("HFD●6");
+    expect(screen.getByTestId("banner")).toHaveTextContent("Touchdown");
     expect(screen.getByRole("status")).toHaveTextContent("Whistle");
     expect(within(screen.getByRole("list", { name: "Moments" })).getByText("Touchdown, H. WR2!")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Replay" }));

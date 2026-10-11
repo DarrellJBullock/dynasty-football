@@ -101,7 +101,10 @@ Each milestone ends with working software, green tests, and updated docs.
 
 - [ ] Broadcast camera rigs, all-22, end zone
 - [ ] Instant replay with scrubbing
-- [ ] Score bug, down & distance, stat overlays
+- [x] Score bug and banners (team colors, scores, timeouts, possession, a running game
+      clock and the play clock, down and distance; FIRST DOWN, TOUCHDOWN, SACK, FLAG and
+      kick banners) on the Watch page and Coach Mode — design: `docs/design/broadcast.md`
+- [ ] Stat overlays (player stat lines, drive summaries, halftime and final cards)
 
 ## M7 — Platform
 

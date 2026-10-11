@@ -774,6 +774,8 @@ export interface PlaybackPlay {
   approximate: boolean;
   play_name?: string | null;
   defense_name?: string | null;
+  timeouts?: { home: number; away: number } | null; // at the snap (SIM_VERSION 1.5+)
+  seconds?: number | null; // game seconds the play ran
 }
 
 export interface PlaybackPlayer {

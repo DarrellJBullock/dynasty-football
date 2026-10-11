@@ -18,8 +18,9 @@ from app.sim.text import describe
 from app.sim.tuning import DEFAULT_TUNING, Tuning
 
 # 1.1: in-game injuries; 1.2: personnel and returners in play logs; 1.3: named plays;
-# 1.4: onside kicks and squibs, and kicking decisions by the coach (Coach Mode)
-SIM_VERSION = "1.4"
+# 1.4: onside kicks and squibs, and kicking decisions by the coach (Coach Mode);
+# 1.5: timeouts and play seconds in play logs (broadcast graphics)
+SIM_VERSION = "1.5"
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 
@@ -43,6 +44,10 @@ class PlayRecord:
     # Scrimmage plays: who was on the field, for 3D playback (offense 11, defense 11, and
     # the defensive package).
     personnel: dict | None = None
+    # For broadcast graphics (SIM_VERSION 1.5+): each side's timeouts left at the snap,
+    # and the game seconds the play itself ran (the clock at the snap minus at the whistle).
+    timeouts: dict[str, int] | None = None
+    seconds: int | None = None
 
     def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}
@@ -491,7 +496,8 @@ class _Game:
             offense=self.teams[side].abbreviation, side=side, down=down, distance=distance,
             ball_on=ball_on, call=call.describe() if call else None, defense=dcall,
             result=result, events=events, elapsed=self.pending_elapsed,
-            score=dict(s.score), personnel=self.personnel,
+            score=dict(s.score), personnel=self.personnel, timeouts=dict(s.timeouts),
+            seconds=max(0, clock_before - s.clock),
         )
         self.personnel = None
         if wiped:

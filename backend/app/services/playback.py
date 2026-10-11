@@ -94,7 +94,8 @@ def game_playback(db: Session, game: Game) -> GamePlayback:
             defense=record["defense"], result=record["result"], events=record["events"],
             elapsed=record["elapsed"], score=record["score"], text=record["text"],
             personnel=lineup, approximate=rebuilt, play_name=offense_name(record["call"]),
-            defense_name=defense_name(record["defense"])))
+            defense_name=defense_name(record["defense"]), timeouts=record.get("timeouts"),
+            seconds=record.get("seconds")))
 
     return GamePlayback(game=game_out(game), sim_version=game.sim_version,
                         approximate=approximate, players=_players(db, team_of), plays=plays)
