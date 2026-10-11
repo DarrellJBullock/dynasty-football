@@ -1,6 +1,7 @@
 import { expect, navigate, test } from "./support/fixtures";
 
 test("watches a play in 3D from the play-by-play, then steps through the game", async ({ page }) => {
+  test.slow(); // 3D on CI renders in software: every click waits on a busy frame loop
   await page.goto("/");
   const overview = page.getByRole("region", { name: "Franchise overview" });
   await overview.getByRole("button", { name: "Sim week 1" }).click();
@@ -40,6 +41,7 @@ test("watches a play in 3D from the play-by-play, then steps through the game", 
 });
 
 test("watches a game from the schedule, straight through or just the highlights", async ({ page }) => {
+  test.slow(); // 3D on CI renders in software: every click waits on a busy frame loop
   await page.goto("/");
   const overview = page.getByRole("region", { name: "Franchise overview" });
   await overview.getByRole("button", { name: "Sim week 1" }).click();
