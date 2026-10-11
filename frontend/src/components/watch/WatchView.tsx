@@ -7,6 +7,7 @@ import { choreographGame } from "@/components/field/playback/choreograph";
 import { PlayClock } from "@/components/field/playback/clock";
 import { CAMERA_PRESETS, type CameraPreset } from "@/components/field/layout";
 import { callLabel, formatSpot } from "@/lib/games";
+import { highlightIndexes } from "@/lib/highlights";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
@@ -43,16 +44,27 @@ function situation(play: PlaybackPlay, playback: GamePlayback): string {
  * The 3D viewer for one game: a play at a time, with play/pause, a scrubber marked with
  * the play's moments, speed, previous/next, auto-advance through the game, and cameras.
  */
-export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlayback; initialPlay?: number }) {
+export function WatchView({ playback, initialPlay, initialAuto = false, initialHighlights = false }: {
+  playback: GamePlayback;
+  initialPlay?: number;
+  initialAuto?: boolean; // play straight through
+  initialHighlights?: boolean; // only the highlights
+}) {
   const plays = playback.plays;
   const choreographed = useMemo(() => choreographGame(playback), [playback]);
-  const [index, setIndex] = useState(() => Math.max(0, plays.findIndex((p) => p.n === initialPlay)));
+  const highlightList = useMemo(() => highlightIndexes(plays), [plays]);
+  const [highlights, setHighlights] = useState(initialHighlights && highlightList.length > 0);
+  const [index, setIndex] = useState(() => {
+    const requested = plays.findIndex((p) => p.n === initialPlay);
+    if (requested >= 0) return requested;
+    return initialHighlights && highlightList.length ? highlightList[0] : 0;
+  });
   const [time, setTime] = useState(0);
   const [playing, setPlayingState] = useState(true);
   const [speed, setSpeedState] = useState(1);
   const [camera, setCamera] = useState<CameraPreset>("sideline");
   const [follow, setFollow] = useState(true);
-  const [auto, setAuto] = useState(false);
+  const [auto, setAuto] = useState(initialAuto);
   const [clock] = useState(() => new PlayClock());
   const shown = useRef(0);
 
@@ -67,15 +79,38 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
     setPlayingState(value);
   }, [clock]);
 
-  const goTo = useCallback((next: number) => {
-    if (next < 0 || next >= plays.length) return;
+  // The plays being stepped through: all of them, or just the highlights.
+  const reel = highlights ? highlightList : null;
+  const neighbor = useCallback((from: number, step: 1 | -1): number | null => {
+    if (!reel) {
+      const next = from + step;
+      return next >= 0 && next < plays.length ? next : null;
+    }
+    const candidates = step === 1 ? reel.filter((i) => i > from) : reel.filter((i) => i < from).reverse();
+    return candidates[0] ?? null;
+  }, [plays.length, reel]);
+
+  const goTo = useCallback((next: number | null) => {
+    if (next === null || next < 0 || next >= plays.length) return;
     clock.seek(0);
     shown.current = 0;
     setIndex(next);
     setTime(0);
     setPlaying(true);
-    window.history.replaceState(null, "", `?play=${plays[next].n}`);
-  }, [clock, plays, setPlaying]);
+  }, [clock, plays.length, setPlaying]);
+
+  // Keep the URL in step, so the address bar links back to exactly this.
+  useEffect(() => {
+    const n = plays[index]?.n;
+    if (n === undefined) return;
+    window.history.replaceState(null, "",
+      `?play=${n}${highlights ? "&highlights=1" : ""}${auto ? "&auto=1" : ""}`);
+  }, [auto, highlights, index, plays]);
+
+  const toggleHighlights = (on: boolean) => {
+    setHighlights(on);
+    if (on && !highlightList.includes(index)) goTo(highlightList.find((i) => i > index) ?? highlightList[0]);
+  };
 
   const onTick = useCallback((t: number, justEnded: boolean) => {
     if (justEnded) setPlayingState(false);
@@ -106,12 +141,14 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
     setSpeedState(value);
   };
 
-  // Play the drive: on to the next play after a short pause.
+  // Straight through: on to the next play (or highlight) after a short pause.
+  const next = neighbor(index, 1);
+  const previous = neighbor(index, -1);
   useEffect(() => {
-    if (!auto || !ended || index >= plays.length - 1) return;
-    const timer = setTimeout(() => goTo(index + 1), AUTO_ADVANCE_PAUSE);
+    if (!auto || !ended || next === null) return;
+    const timer = setTimeout(() => goTo(next), AUTO_ADVANCE_PAUSE);
     return () => clearTimeout(timer);
-  }, [auto, ended, index, plays.length, goTo]);
+  }, [auto, ended, next, goTo]);
 
   // Space plays and pauses; the arrow keys step between plays.
   useEffect(() => {
@@ -122,14 +159,14 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
         event.preventDefault();
         togglePlay();
       } else if (event.key === "ArrowRight") {
-        goTo(index + 1);
+        goTo(next);
       } else if (event.key === "ArrowLeft") {
-        goTo(index - 1);
+        goTo(previous);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goTo, index, togglePlay]);
+  }, [goTo, next, previous, togglePlay]);
 
   // Keep the current play in view in the list.
   const listRef = useRef<HTMLOListElement>(null);
@@ -181,13 +218,13 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
 
           <div className="space-y-3 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn btn-ghost" onClick={() => goTo(index - 1)}
-                disabled={index === 0}>‹ Previous play</button>
+              <button type="button" className="btn btn-ghost" onClick={() => goTo(previous)}
+                disabled={previous === null}>‹ Previous play</button>
               <button type="button" className="btn btn-primary min-w-20" onClick={togglePlay}>
                 {playing ? "Pause" : ended ? "Replay" : "Play"}
               </button>
-              <button type="button" className="btn btn-ghost" onClick={() => goTo(index + 1)}
-                disabled={index === plays.length - 1}>Next play ›</button>
+              <button type="button" className="btn btn-ghost" onClick={() => goTo(next)}
+                disabled={next === null}>Next play ›</button>
               <div role="group" aria-label="Speed" className="ml-2 flex gap-1">
                 {SPEEDS.map((s) => (
                   <button key={s} type="button" aria-pressed={speed === s}
@@ -218,8 +255,13 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
                 Follow ball
               </button>
               <label className="ml-auto flex items-center gap-2 text-xs text-mist">
+                <input type="checkbox" checked={highlights} disabled={highlightList.length === 0}
+                  onChange={(e) => toggleHighlights(e.target.checked)} />
+                Highlights only ({highlightList.length})
+              </label>
+              <label className="flex items-center gap-2 text-xs text-mist">
                 <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
-                Play the drive
+                Play straight through
               </label>
             </div>
 
@@ -242,6 +284,7 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
 
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-wider text-mist">
+                {highlights && reel ? `Highlight ${reel.indexOf(index) + 1} of ${reel.length} · ` : ""}
                 Play {play.n} of {plays.length} · {situation(play, playback)}
               </p>
               <p className="text-sm" data-testid="play-text">{play.text}</p>
@@ -261,9 +304,9 @@ export function WatchView({ playback, initialPlay = 1 }: { playback: GamePlaybac
         </section>
 
         <aside className="panel flex max-h-[38rem] flex-col p-0" aria-label="Plays">
-          <h2 className="eyebrow px-4 pb-2 pt-4">Plays</h2>
+          <h2 className="eyebrow px-4 pb-2 pt-4">{highlights ? "Highlights" : "Plays"}</h2>
           <ol ref={listRef} className="flex-1 divide-y divide-white/[0.04] overflow-y-auto">
-            {plays.map((p, i) => (
+            {plays.map((p, i) => (reel && !reel.includes(i) ? null :
               <li key={p.n}>
                 <button type="button" aria-current={i === index ? "true" : undefined}
                   className={`grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 px-4 py-2 text-left text-xs ${

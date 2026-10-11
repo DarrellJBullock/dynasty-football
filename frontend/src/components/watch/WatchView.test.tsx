@@ -127,15 +127,38 @@ describe("WatchView", () => {
     expect(scene.props!.follow).toBe(false);
   });
 
-  it("plays the drive: on to the next play after each whistle", () => {
+  it("plays straight through: on to the next play after each whistle", () => {
     vi.useFakeTimers();
     render(<WatchView playback={playback} />);
-    fireEvent.click(screen.getByRole("checkbox", { name: "Play the drive" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Play straight through" }));
     tick(scene.props!.timeline.duration);
     expect(screen.getByTestId("play-text")).toHaveTextContent("Nash runs");
     act(() => { vi.advanceTimersByTime(1000); });
     expect(screen.getByTestId("play-text")).toHaveTextContent("TOUCHDOWN");
     expect(scene.props!.clock.playing).toBe(true);
+  });
+
+  it("steps through just the highlights, and keeps the URL in step", async () => {
+    const user = userEvent.setup();
+    render(<WatchView playback={playback} initialPlay={1} />);
+    expect(window.location.search).toBe("?play=1");
+    // Play 2 (a 64-yard touchdown) is the game's only highlight.
+    await user.click(screen.getByRole("checkbox", { name: "Highlights only (1)" }));
+    expect(screen.getByTestId("play-text")).toHaveTextContent("TOUCHDOWN");
+    expect(screen.getByText(/^Highlight 1 of 1 · Play 2 of 3/)).toBeInTheDocument();
+    const list = screen.getByRole("complementary", { name: "Plays" });
+    expect(within(list).getByRole("heading", { name: "Highlights" })).toBeInTheDocument();
+    expect(within(list).getAllByRole("button")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Next play ›" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "‹ Previous play" })).toBeDisabled();
+    expect(window.location.search).toBe("?play=2&highlights=1");
+  });
+
+  it("opens straight into the highlights, playing through", () => {
+    render(<WatchView playback={playback} initialHighlights initialAuto />);
+    expect(screen.getByTestId("play-text")).toHaveTextContent("TOUCHDOWN");
+    expect(screen.getByRole("checkbox", { name: "Play straight through" })).toBeChecked();
+    expect(window.location.search).toBe("?play=2&highlights=1&auto=1");
   });
 
   it("takes the keyboard: space plays and pauses, arrows step", () => {

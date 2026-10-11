@@ -151,10 +151,25 @@ describe("ScheduleView", () => {
     expect(within(weeks).getAllByRole("link", { name: /^Wk/ })).toHaveLength(17);
     expect(within(weeks).getByRole("link", { name: "Playoffs →" })).toHaveAttribute("href", "/playoffs");
     expect(within(weeks).getByRole("link", { name: "Wk 2" })).toHaveAttribute("aria-current", "page");
-    const cards = within(screen.getByRole("region", { name: "Week 2 games" })).getAllByRole("link");
-    expect(cards[0]).toHaveAccessibleName("Albuquerque Roadrunners at Hartford Ironclads");
-    expect(cards[0]).toHaveAttribute("href", "/games/2");
+    const region = screen.getByRole("region", { name: "Week 2 games" });
+    const cards = within(region).getAllByRole("listitem");
+    const ours = within(cards[0]).getByRole("link", { name: "Albuquerque Roadrunners at Hartford Ironclads" });
+    expect(ours).toHaveAttribute("href", "/games/2");
     expect(cards[0]).toHaveTextContent("26");
+    // Played games can be watched; nothing to coach in a week that's over.
+    expect(within(cards[0]).getByRole("link", { name: "Watch Albuquerque Roadrunners at Hartford Ironclads" }))
+      .toHaveAttribute("href", "/games/2/watch?auto=1");
+    expect(within(region).queryByRole("link", { name: /^Coach/ })).not.toBeInTheDocument();
+  });
+
+  it("offers to coach the franchise's game this week, and nothing to watch yet", () => {
+    render(<ScheduleView teamId={team.id} schedule={{ season, week: 3, games: [
+      game({ id: 4, week: 3, status: "scheduled", home_score: null, away_score: null }),
+    ] }} />);
+    const card = within(screen.getByRole("region", { name: "Week 3 games" })).getByRole("listitem");
+    expect(within(card).getByRole("link", { name: "Coach Albuquerque Roadrunners at Hartford Ironclads" }))
+      .toHaveAttribute("href", "/coach");
+    expect(within(card).queryByRole("link", { name: /^Watch/ })).not.toBeInTheDocument();
   });
 });
 
@@ -206,7 +221,9 @@ describe("GameView", () => {
   it("links the game and each play to the 3D viewer", () => {
     render(<GameView detail={detail} />);
     const id = detail.game.id;
-    expect(screen.getByRole("link", { name: "Watch in 3D" })).toHaveAttribute("href", `/games/${id}/watch`);
+    expect(screen.getByRole("link", { name: "Watch in 3D" })).toHaveAttribute("href", `/games/${id}/watch?auto=1`);
+    expect(screen.getByRole("link", { name: "Highlights" }))
+      .toHaveAttribute("href", `/games/${id}/watch?highlights=1&auto=1`);
     expect(screen.getByRole("link", { name: "Watch play 9" }))
       .toHaveAttribute("href", `/games/${id}/watch?play=9`);
   });
