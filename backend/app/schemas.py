@@ -388,6 +388,74 @@ class LeagueCreate(BaseModel):
         return [t for c in self.conferences for d in c.divisions for t in d.teams]
 
 
+# ---------- season stats ----------
+
+class LeaderRow(BaseModel):
+    player_id: int
+    name: str
+    position: str
+    team: TeamSummary | None  # current team, or last team played for if now a free agent
+    games: int
+    value: int
+    stats: dict[str, int]  # the category's supporting columns
+
+
+class LeaderCategory(BaseModel):
+    key: str
+    label: str
+    leaders: list[LeaderRow]
+
+
+class LeadersOut(BaseModel):
+    season: SeasonOut
+    categories: list[LeaderCategory]
+
+
+class GameLogRow(BaseModel):
+    game_id: int
+    week: int
+    opponent: TeamSummary
+    home: bool
+    result: str  # "W 26-17"
+    stats: dict[str, int]
+
+
+class PlayerSeasonStats(BaseModel):
+    player: PlayerSummary
+    team: TeamSummary | None
+    season: SeasonOut
+    games: int
+    totals: dict[str, int]
+    game_log: list[GameLogRow]
+
+
+class TeamSeasonRow(BaseModel):
+    team: TeamSummary
+    games: int
+    wins: int
+    losses: int
+    ties: int
+    points_for: int
+    points_against: int
+    total_yds: int
+    pass_yds: int
+    rush_yds: int
+    first_downs: int
+    turnovers: int
+    sacks_allowed: int
+    penalties: int
+    penalty_yds: int
+    time_of_possession: int
+    third_down_att: int
+    third_down_conv: int
+    # Defense: what opponents did against this team.
+    yds_allowed: int
+    pass_yds_allowed: int
+    rush_yds_allowed: int
+    takeaways: int
+    sacks: int
+
+
 # ---------- franchise dashboard ----------
 
 class FranchiseOut(BaseModel):

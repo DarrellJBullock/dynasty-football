@@ -131,7 +131,9 @@ def _fold(box: BoxScore, play: PlayRecord) -> None:
             line = p(pid, off)
             line.rush_att += 1
             line.rush_yds += e["yards"]
-            line.rush_long = max(line.rush_long, e["yards"])
+            # The first carry sets the long even if negative (a 0 default would invent one).
+            line.rush_long = (e["yards"] if line.rush_att == 1
+                              else max(line.rush_long, e["yards"]))
             team.rush_att += 1
             team.rush_yds += e["yards"]
             team.total_yds += e["yards"]
@@ -165,7 +167,8 @@ def _fold(box: BoxScore, play: PlayRecord) -> None:
                 qb.pass_yds += e["yards"]
                 receiver.receptions += 1
                 receiver.rec_yds += e["yards"]
-                receiver.rec_long = max(receiver.rec_long, e["yards"])
+                receiver.rec_long = (e["yards"] if receiver.receptions == 1
+                                     else max(receiver.rec_long, e["yards"]))
                 team.pass_cmp += 1
                 team.pass_yds += e["yards"]
                 team.total_yds += e["yards"]

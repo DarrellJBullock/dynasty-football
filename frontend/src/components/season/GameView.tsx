@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { Panel } from "@/components/ui/Panel";
 import { formatPossession } from "@/lib/games";
+import { hasGroup, STAT_GROUPS } from "@/lib/stats";
 import type { GameDetail, PlayerGameLine, PlayOut, TeamSummary } from "@/lib/types";
 
 type Side = "home" | "away";
@@ -151,41 +152,16 @@ function TeamStats({ detail, teams }: { detail: GameDetail; teams: Record<Side, 
   );
 }
 
-const SECTIONS: { title: string; has: string; columns: [string, (s: Record<string, number>) => string | number][] }[] = [
-  { title: "Passing", has: "pass_att", columns: [
-    ["C/ATT", (s) => `${s.pass_cmp ?? 0}/${s.pass_att}`], ["YDS", (s) => s.pass_yds ?? 0],
-    ["TD", (s) => s.pass_td ?? 0], ["INT", (s) => s.pass_int ?? 0], ["SACK", (s) => s.sacked ?? 0]] },
-  { title: "Rushing", has: "rush_att", columns: [
-    ["ATT", (s) => s.rush_att], ["YDS", (s) => s.rush_yds ?? 0], ["TD", (s) => s.rush_td ?? 0],
-    ["LONG", (s) => s.rush_long ?? 0]] },
-  { title: "Receiving", has: "targets", columns: [
-    ["REC", (s) => s.receptions ?? 0], ["TGT", (s) => s.targets], ["YDS", (s) => s.rec_yds ?? 0],
-    ["TD", (s) => s.rec_td ?? 0], ["LONG", (s) => s.rec_long ?? 0]] },
-  { title: "Defense", has: "tackles", columns: [
-    ["TKL", (s) => s.tackles], ["SACK", (s) => s.sacks ?? 0], ["INT", (s) => s.interceptions ?? 0],
-    ["PD", (s) => s.passes_defended ?? 0], ["FF", (s) => s.forced_fumbles ?? 0]] },
-  { title: "Kicking", has: "kicking", columns: [
-    ["FG", (s) => `${s.fg_made ?? 0}/${s.fg_att ?? 0}`], ["LONG", (s) => s.fg_long ?? 0],
-    ["XP", (s) => `${s.xp_made ?? 0}/${s.xp_att ?? 0}`], ["PUNTS", (s) => s.punts ?? 0],
-    ["AVG", (s) => (s.punts ? (s.punt_yds / s.punts).toFixed(1) : "–")]] },
-];
-
-const SORT_KEY: Record<string, string> = {
-  Passing: "pass_att", Rushing: "rush_yds", Receiving: "rec_yds", Defense: "tackles", Kicking: "fg_att",
-};
-
 function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLine[] }) {
   return (
     <section className="panel space-y-4 p-5" aria-label={`${team.full_name} box score`}>
       <h2 className="flex items-center gap-2 font-display text-xl font-bold uppercase">
         <TeamCrest team={team} size={24} /> {team.nickname}
       </h2>
-      {SECTIONS.map((section) => {
+      {STAT_GROUPS.map((section) => {
         const rows = players
-          .filter((p) => section.has === "kicking"
-            ? (p.stats.fg_att || p.stats.xp_att || p.stats.punts)
-            : p.stats[section.has])
-          .sort((a, b) => (b.stats[SORT_KEY[section.title]] ?? 0) - (a.stats[SORT_KEY[section.title]] ?? 0))
+          .filter((p) => hasGroup(section, p.stats))
+          .sort((a, b) => (b.stats[section.sortBy] ?? 0) - (a.stats[section.sortBy] ?? 0))
           .slice(0, section.title === "Defense" ? 6 : 5);
         if (!rows.length) return null;
         return (
@@ -203,7 +179,8 @@ function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLin
                 {rows.map((p) => (
                   <tr key={p.player_id} className="border-t border-white/5">
                     <td className="py-1 pr-2">
-                      {p.name} <span className="text-xs text-mist">{p.position}</span>
+                      <Link href={`/players/${p.player_id}`} className="hover:text-gold">{p.name}</Link>{" "}
+                      <span className="text-xs text-mist">{p.position}</span>
                     </td>
                     {section.columns.map(([label, fmt]) => (
                       <td key={label} className="py-1 text-right tabular-nums">{fmt(p.stats)}</td>

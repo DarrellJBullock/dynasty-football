@@ -321,3 +321,68 @@ export interface GameDetail {
   scoring_plays: PlayOut[];
   plays: PlayOut[];
 }
+
+export interface LeaderRow {
+  player_id: number;
+  name: string;
+  position: Position;
+  team: TeamSummary | null;
+  games: number;
+  value: number;
+  stats: Record<string, number>;
+}
+
+export interface LeaderCategory {
+  key: string;
+  label: string;
+  leaders: LeaderRow[];
+}
+
+export interface LeadersOut {
+  season: Season;
+  categories: LeaderCategory[];
+}
+
+export interface GameLogRow {
+  game_id: number;
+  week: number;
+  opponent: TeamSummary;
+  home: boolean;
+  result: string;
+  stats: Record<string, number>;
+}
+
+export interface PlayerSeasonStats {
+  player: PlayerSummary;
+  team: TeamSummary | null;
+  season: Season;
+  games: number;
+  totals: Record<string, number>;
+  game_log: GameLogRow[];
+}
+
+export interface TeamSeasonRow {
+  team: TeamSummary;
+  games: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  points_for: number;
+  points_against: number;
+  total_yds: number;
+  pass_yds: number;
+  rush_yds: number;
+  first_downs: number;
+  turnovers: number;
+  sacks_allowed: number;
+  penalties: number;
+  penalty_yds: number;
+  time_of_possession: number;
+  third_down_att: number;
+  third_down_conv: number;
+  yds_allowed: number;
+  pass_yds_allowed: number;
+  rush_yds_allowed: number;
+  takeaways: number;
+  sacks: number;
+}
