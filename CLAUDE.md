@@ -27,10 +27,10 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
   src/app/        routes: / (dashboard), /roster, /depth-chart, /schedule, /games/[id],
-                  /games/[id]/watch (3D),
+                  /games/[id]/watch (3D), /games/[id]/coach and /coach (Coach Mode),
                   /playoffs, /contracts, /free-agency, /draft, /trades, /history,
                   /stats, /players/[id], /league, /leagues, /leagues/new
-  src/components/ UI by feature (dashboard, roster, league, field, watch, ui, shell)
+  src/components/ UI by feature (dashboard, roster, league, field, watch, coach, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers
 ```
 
@@ -97,6 +97,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   field to `PlayerLine`/`TeamLine` → add the column + a migration.
 - **Dialogs must portal** to `document.body` (see `components/ui/Dialog.tsx`); any
   ancestor with `backdrop-filter` (every `.panel`) otherwise traps the fixed overlay.
+- **Don't `redirect()` to a destination that depends on game state** (e.g. "the next
+  game"): the client router remembers the redirect and keeps following it after the state
+  changes. Render the destination on the route instead (see `src/app/coach/page.tsx`).
 - **After creating/switching a franchise use `hardNavigate("/")`**, not `router.push` —
   the client router cache can serve pages from the previous franchise.
 - **Three.js** components must be client-only: load via `next/dynamic` with

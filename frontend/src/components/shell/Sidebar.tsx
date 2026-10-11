@@ -12,6 +12,12 @@ interface NavItem {
 
 const NAV: { heading: string; items: NavItem[] }[] = [
   {
+    heading: "Game day",
+    items: [
+      { label: "Play Game", href: "/coach", icon: <IconPlay /> },
+    ],
+  },
+  {
     heading: "Franchise",
     items: [
       { label: "Dashboard", href: "/", icon: <IconGrid /> },
@@ -27,12 +33,6 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "League", href: "/league", icon: <IconTrophy /> },
       { label: "History", href: "/history", icon: <IconHistory /> },
       { label: "My Leagues", href: "/leagues", icon: <IconFolders /> },
-    ],
-  },
-  {
-    heading: "Coming soon",
-    items: [
-      { label: "Play Game", icon: <IconPlay /> },
     ],
   },
 ];
@@ -65,7 +65,8 @@ function isActive(href: string, pathname: string | null): boolean {
   return (
     href === pathname ||
     (href === "/leagues" && pathname.startsWith("/leagues/")) ||
-    (href === "/schedule" && pathname.startsWith("/games/")) ||
+    (href === "/coach" && /^\/games\/\d+\/coach$/.test(pathname)) ||
+    (href === "/schedule" && pathname.startsWith("/games/") && !pathname.endsWith("/coach")) ||
     (href === "/stats" && pathname.startsWith("/players/"))
   );
 }

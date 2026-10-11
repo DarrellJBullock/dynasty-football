@@ -226,3 +226,15 @@ def test_roster_moves_dont_change_a_game_in_progress(client: TestClient, db: Ses
     db.commit()
     again = client.get(f"/api/games/{game_id}/coach").json()
     assert again["plays"] == before["plays"] and again["situation"] == before["situation"]
+
+
+def test_playback_of_a_game_in_progress(client: TestClient, db: Session, franchise):
+    game_id = _next_game(client)["game"]["id"]
+    assert client.get(f"/api/games/{game_id}/playback").json()["plays"] == []
+    client.post(f"/api/games/{game_id}/coach")
+    state = client.post(f"/api/games/{game_id}/coach/auto", json={"scope": "drive"}).json()
+    db.commit()
+    playback = client.get(f"/api/games/{game_id}/playback").json()
+    assert [p["n"] for p in playback["plays"]] == [p["n"] for p in state["plays"]]
+    snaps = [p for p in playback["plays"] if p["result"]["type"] in ("run", "pass")]
+    assert snaps and all(p["personnel"] for p in snaps)

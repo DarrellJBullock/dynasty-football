@@ -1,0 +1,99 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useState } from "react";
+import type { Choreography } from "@/components/field/playback/choreograph";
+import { PlayClock } from "@/components/field/playback/clock";
+import { CAMERA_PRESETS, type CameraPreset } from "@/components/field/layout";
+import { callLabel } from "@/lib/games";
+import type { GamePlayback } from "@/lib/types";
+
+// WebGL only exists in the browser, so the scene is never server-rendered.
+const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-turf/10" />,
+});
+
+const CAMERAS = CAMERA_PRESETS.filter((c) => c.key !== "overview");
+const BETWEEN_PLAYS = 700; // ms pause before the next play in the reel
+
+/**
+ * The plays a call produced, one after another in 3D (the snap, plus any kickoff or extra
+ * point after it), then holding on the last frame. Remount it (a new `key`) for a new reel.
+ */
+export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Choreography[] }) {
+  const [index, setIndex] = useState(0);
+  const [ended, setEnded] = useState(false);
+  const [camera, setCamera] = useState<CameraPreset>("sideline");
+  const [clock] = useState(() => new PlayClock());
+  const last = reel.length - 1;
+  const current = reel[Math.min(index, last)];
+
+  const onTick = useCallback((_: number, justEnded: boolean) => {
+    if (justEnded) setEnded(true);
+  }, []);
+
+  // On to the next play in the reel after a short pause.
+  useEffect(() => {
+    if (!ended || index >= last) return;
+    const timer = setTimeout(() => {
+      clock.seek(0);
+      clock.setPlaying(true);
+      setEnded(false);
+      setIndex(index + 1);
+    }, BETWEEN_PLAYS);
+    return () => clearTimeout(timer);
+  }, [clock, ended, index, last]);
+
+  const skip = () => {
+    setIndex(last);
+    clock.seek(reel[last].timeline.duration);
+    clock.setPlaying(false);
+    setEnded(true);
+  };
+
+  const replay = () => {
+    clock.seek(0);
+    clock.setPlaying(true);
+    setEnded(false);
+  };
+
+  if (!current) return null;
+  const { play } = current;
+  const done = ended && index >= last;
+  return (
+    <section className="panel overflow-hidden" aria-label="Last play">
+      <div className="relative aspect-video w-full bg-ink-950">
+        <PlayScene playback={playback} timeline={current.timeline} clock={clock} camera={camera}
+          follow onTick={onTick} />
+        <div role="group" aria-label="Camera"
+          className="absolute right-3 top-3 flex gap-1 rounded-lg bg-ink-950/70 p-1 backdrop-blur">
+          {CAMERAS.map(({ key, label }) => (
+            <button key={key} type="button" aria-pressed={camera === key}
+              className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+                camera === key ? "bg-gold text-ink-950" : "text-mist hover:text-chalk"}`}
+              onClick={() => setCamera(key)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-start gap-3 p-4">
+        <div className="min-w-0 flex-1">
+          {reel.length > 1 && (
+            <p className="text-xs uppercase tracking-wider text-mist">Play {index + 1} of {reel.length}</p>
+          )}
+          <p className="text-sm" data-testid="reel-text">{play.text}</p>
+          {callLabel(play.play_name, play.defense_name) && (
+            <p className="text-xs text-mist">{callLabel(play.play_name, play.defense_name)}</p>
+          )}
+        </div>
+        {done ? (
+          <button type="button" className="btn btn-ghost px-3 py-1 text-xs" onClick={replay}>Replay</button>
+        ) : (
+          <button type="button" className="btn btn-ghost px-3 py-1 text-xs" onClick={skip}>Skip</button>
+        )}
+      </div>
+    </section>
+  );
+}

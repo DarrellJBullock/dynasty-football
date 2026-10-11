@@ -424,8 +424,8 @@ their men in man coverage, and the call's blitzer comes after the quarterback.
 
 ## Coach Mode
 
-Coach your team's game instead of simulating it (the API is in place; the call screen
-comes next in Milestone 5):
+Coach your team's game instead of simulating it: **Play Game** in the sidebar (or
+**Coach this game** on the Dashboard) opens your team's game this week.
 
 - **Which game:** your team's game this week, or your next playoff game. Starting it
   freezes both rosters as they are, so later moves (a release, a depth-chart change)
@@ -438,6 +438,13 @@ comes next in Milestone 5):
 - **Timeouts:** call one with your play while the clock is running to save the runoff.
 - **Hand it off:** let the AI call the next play, the rest of the drive, or the rest of
   the game.
+- **The call screen:** the score bug (score, clock and whether it's running, timeouts,
+  possession), the down and distance, and the playbook in tabs (Run, Quick, Intermediate,
+  Deep, Play action, Screen, Special on offense; Zone, Man, Pressure, Situational on
+  defense), opened on the tab with the AI's pick. **Call it** takes the AI's suggestion.
+  After each call the plays it produced (the snap, plus any kickoff or extra point) run
+  in 3D, one after another, with Skip and Replay; 3D can be switched off. The final
+  screen links to the box score and the Watch page.
 - **The week:** simulating the week plays your game with the AI if you haven't started
   it. A game you've started has to be finished (or handed to the AI) first. A finished
   game counts like any other: standings, stats, records, and its injuries.

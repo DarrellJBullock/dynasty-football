@@ -88,7 +88,10 @@ Each milestone ends with working software, green tests, and updated docs.
 - [ ] Special teams: field goals, punts, kickoffs
 - [x] Coach Mode engine and API (a coached game is replayed from the user's calls; start,
       call, timeouts, "let the AI call" a play / drive / game; week-simulation rules)
-- [ ] Coach Mode UI (the call screen, the 3D play after each call) and Watch Mode
+- [x] Coach Mode UI (Play Game in the sidebar and Coach this game on the Dashboard; the
+      call screen with the score bug, situation, playbook tabs, the AI's pick, personnel,
+      timeouts and "let the AI call"; each call's plays in 3D, skippable; the final)
+- [ ] Watch Mode
 
 ## M6 — Broadcast presentation
 
