@@ -131,11 +131,13 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   const status = page.getByRole("status", { name: "Draft status" });
   await expect(status).toContainText(/On the clock|You're on the clock/);
   const board = page.getByRole("region", { name: "Prospects" });
-  const scout = board.getByRole("button", { name: /^Scout / }).first();
-  const scoutedName = (await scout.getAttribute("aria-label"))!.replace(/^Scout /, "");
+  const scoutedName = (await board.getByRole("button", { name: /^Scout / }).first()
+    .getAttribute("aria-label"))!.replace(/^Scout /, "");
+  // Click him by name: `.first()` re-resolves at click time and could land on someone else.
+  const scout = board.getByRole("button", { name: `Scout ${scoutedName}`, exact: true });
   await scout.click();
   // Scouted: his exact rating replaces the range (and the board re-sorts).
-  await expect(board.getByRole("button", { name: `Scout ${scoutedName}` })).toHaveCount(0);
+  await expect(scout).toHaveCount(0);
   const draftControls = page.getByRole("group", { name: "Draft" });
   await draftControls.getByRole("button", { name: "Sim to my pick" }).click();
   await expect(status).toContainText("You're on the clock");
