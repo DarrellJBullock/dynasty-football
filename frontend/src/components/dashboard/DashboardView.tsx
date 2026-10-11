@@ -54,7 +54,9 @@ export function DashboardView({ data }: { data: Dashboard }) {
               >
                 <span className="stat-number w-4 text-sm text-mist">{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{player.full_name}</div>
+                  <Link href={`/players/${player.id}`} className="block truncate text-sm font-medium hover:text-gold">
+                    {player.full_name}
+                  </Link>
                   <div className="text-xs text-mist">
                     {player.position} · #{player.jersey_number} · Age {player.age}
                   </div>

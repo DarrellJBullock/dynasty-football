@@ -146,6 +146,12 @@ lineup changes take effect next week. Results update standings, your record, and
 results immediately; every game has a page with the line score, team stats, box score,
 scoring summary, and full play-by-play. Playoffs come in a later update.
 
+**Stats** shows league leaders in 11 categories (passing, rushing, receiving, defense,
+kicking; top 25 per category) and a sortable table of every team's offense and defense.
+Every player has a page with bio, key ratings, season totals for the stats they actually
+record, and a game log linking to each box score. Players who change teams mid-season keep
+one combined line, credited to their current team (or last team, if released).
+
 ## Franchise loop (planned)
 
 ```

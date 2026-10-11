@@ -113,6 +113,26 @@ class TestBoxScore:
                 assert team.pass_yds == passing - sum(p.sack_yds_lost for p in mine)
                 assert team.rush_yds == sum(p.rush_yds for p in mine)
 
+    def test_longest_gains_are_real_plays(self, games):
+        for game in games:
+            carries: dict[int, list[int]] = {}
+            catches: dict[int, list[int]] = {}
+            for play in game.plays:
+                if play.result.get("type") == "penalty":
+                    continue
+                for e in play.events:
+                    if e["t"] == "rush":
+                        carries.setdefault(e["player"], []).append(e["yards"])
+                    elif e["t"] == "pass" and e["result"] == "complete":
+                        catches.setdefault(e["target"], []).append(e["yards"])
+            box = box_score(game)
+            for pid, yards in carries.items():
+                if pid > 0:
+                    assert box.players[pid].rush_long == max(yards)
+            for pid, yards in catches.items():
+                if pid > 0:
+                    assert box.players[pid].rec_long == max(yards)
+
     def test_replacement_players_are_never_credited(self, games):
         for game in games:
             assert all(pid > 0 for pid in box_score(game).players)

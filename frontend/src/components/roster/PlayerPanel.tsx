@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { OvrBadge } from "@/components/ui/OvrBadge";
@@ -168,6 +169,10 @@ function PlayerCard({
           </div>
         ))}
       </dl>
+
+      <Link href={`/players/${player.id}`} className="block text-sm text-gold hover:underline">
+        Season stats &amp; game log →
+      </Link>
 
       <div className="rounded-lg border border-white/5 p-3 text-sm">
         <div className="eyebrow mb-1">Contract</div>

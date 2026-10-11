@@ -93,6 +93,9 @@ Design notes:
 | `POST /api/seasons/{id}/simulate` `{until: next_week \| end_of_regular_season}` | Play games with the engine; persist scores, stats, play logs |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
 | `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play |
+| `GET /api/leagues/{id}/leaders?category=&limit=` | Season leaders: all categories (top 5) or one (up to 50) |
+| `GET /api/leagues/{id}/team-stats` | Every team's season totals, offense and defense (allowed) |
+| `GET /api/players/{id}/stats` | A player's season totals and game log |
 | `GET /api/franchise/dashboard` | Everything the dashboard needs in one call |
 | `GET /api/leagues`, `/api/leagues/{id}` | Leagues |
 | `GET /api/leagues/{id}/teams` | All teams with ratings, payroll, cap space |
@@ -119,7 +122,7 @@ Interactive docs: `http://localhost:8000/docs`.
 
 - **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
   `/leagues` (saved franchises), `/leagues/new` (league builder), `/schedule?week=`,
-  `/games/[id]`. Every page reads the
+  `/games/[id]`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
   active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
@@ -131,6 +134,9 @@ Interactive docs: `http://localhost:8000/docs`.
   switching the active franchise does a full page load (`lib/navigation.hardNavigate`),
   because the client router cache can otherwise reuse pages rendered for the previous
   franchise. Covered by `e2e/freshness.spec.ts`.
+- **Season stats** are aggregated on read from `player_game_stats` / `team_game_stats`
+  (`services/league_stats.py`) — no denormalized season tables to keep in sync. Box-score
+  column groups are shared between the game and player pages (`lib/stats.ts`).
 - **Season simulation** runs synchronously (a week ≈ 0.5 s, a season ≈ 8 s including
   writes). `services/season.py` snapshots every roster + depth chart once per run, seeds
   each game from (league, year, week, game id), and stores the box score rows and play
@@ -158,6 +164,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Backend leagues | pytest | spec validation, templates, creation (generated/empty rosters, custom identities, schedules for small leagues, determinism), franchise switching, team edits, protected delete |
 | Simulation | pytest | determinism, score/clock/down invariants, box-score consistency, overtime rules, Coach seam, AI 4th-down/kneel calls, depth-chart lineups, calibration targets, rating sensitivity |
 | Season | pytest | week/season simulation, persisted stats match scores, standings and dashboard follow results, reproducible seeds, injured QB benched, schedule/game endpoints, deleting played leagues |
+| Season stats | pytest | leaders equal summed box scores (and "long" columns are maxima), released players keep their last team, player totals equal the game log, team totals reconcile with standings and league-wide (yards gained = allowed, turnovers = takeaways) |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

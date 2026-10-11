@@ -34,7 +34,8 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Play-level simulation engine (deterministic, seeded, calibrated) — design:
       `docs/design/simulation-engine.md`
 - [x] Simulate next week / rest of the regular season; stored box scores and play logs
-- [ ] Player & team stats, league leaders
+- [x] League leaders (11 categories), player pages with season totals and game logs,
+      sortable team season stats
 - [x] Schedule page, game page (line score, team stats, box score, scoring summary,
       play-by-play), live records and recent results on the dashboard
 - [ ] Playoffs and championship

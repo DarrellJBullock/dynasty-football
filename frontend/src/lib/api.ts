@@ -1,5 +1,8 @@
 import type {
   Dashboard,
+  LeadersOut,
+  PlayerSeasonStats,
+  TeamSeasonRow,
   GameDetail,
   ScheduleWeek,
   SimulateUntil,
@@ -125,6 +128,15 @@ export const api = {
   schedule: (leagueId: number, week?: number) =>
     request<ScheduleWeek>(`/leagues/${leagueId}/schedule${week ? `?week=${week}` : ""}`),
   game: (gameId: number) => request<GameDetail>(`/games/${gameId}`),
+  leaders: (leagueId: number, category?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (limit) params.set("limit", String(limit));
+    const query = params.size ? `?${params}` : "";
+    return request<LeadersOut>(`/leagues/${leagueId}/leaders${query}`);
+  },
+  teamStats: (leagueId: number) => request<TeamSeasonRow[]>(`/leagues/${leagueId}/team-stats`),
+  playerStats: (playerId: number) => request<PlayerSeasonStats>(`/players/${playerId}/stats`),
   previewImport: (teamId: number, file: File, mode: ImportMode) =>
     request<ImportPreview>(`/teams/${teamId}/roster-import/preview`, {
       method: "POST",
