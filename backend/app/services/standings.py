@@ -27,7 +27,8 @@ class TeamRecord:
 def compute_records(db: Session, season: Season, team_ids: list[int]) -> dict[int, TeamRecord]:
     records = {team_id: TeamRecord() for team_id in team_ids}
     finals = db.scalars(
-        select(Game).where(Game.season_id == season.id, Game.status == "final")
+        select(Game).where(Game.season_id == season.id, Game.status == "final",
+                           Game.stage == "regular")
     )
     for game in finals:
         home, away = records.get(game.home_team_id), records.get(game.away_team_id)

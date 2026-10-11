@@ -62,8 +62,9 @@ players.team_id NULL  = free agent
 | `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status |
 | `player_ratings` | player_id PK + 24 attribute columns (0–99) |
 | `contracts` | player_id, team_id, start_year, years, salary, signing_bonus, is_active |
-| `seasons` | league_id, year (unique per league), phase, current_week |
-| `games` | season_id, week, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB) |
+| `seasons` | league_id, year (unique per league), phase (regular_season → playoffs → offseason), current_week, champion_team_id? |
+| `playoff_seeds` | season_id, conference_id, team_id, seed, division_winner; fixed when the regular season ends |
+| `games` | season_id, week, stage (regular \| playoff), playoff_round?, neutral_site, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB) |
 | `player_game_stats` | game_id, player_id, team_id + one column per `sim.stats.PlayerLine` field |
 | `team_game_stats` | game_id, team_id + one column per `sim.stats.TeamLine` field |
 | `franchises` | name, league_id (unique — one career per league), team_id, activated_at (latest = active) |
@@ -90,7 +91,8 @@ Design notes:
 | `POST /api/leagues` | Create a league from a spec; creates and activates its franchise |
 | `DELETE /api/leagues/{id}` | Delete a league and its contents (not the active one) |
 | `PATCH /api/teams/{id}` | Edit team identity (city, nickname, abbreviation, colors, stadium) |
-| `POST /api/seasons/{id}/simulate` `{until: next_week \| end_of_regular_season}` | Play games with the engine; persist scores, stats, play logs |
+| `POST /api/seasons/{id}/simulate` `{until: next_week \| end_of_regular_season \| end_of_playoffs}` | Play a week (or playoff round) or the rest of a phase; persist scores, stats, play logs; seeds and schedules playoff rounds |
+| `GET /api/leagues/{id}/playoffs` | Seeds (projected during the season), rounds and games, champion |
 | `GET /api/leagues/{id}/schedule?week=` | One week (defaults to the next week to play) |
 | `GET /api/games/{id}` | Line score, team & player stats, scoring summary, play-by-play |
 | `GET /api/leagues/{id}/leaders?category=&limit=` | Season leaders: all categories (top 5) or one (up to 50) |
@@ -122,7 +124,7 @@ Interactive docs: `http://localhost:8000/docs`.
 
 - **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
   `/leagues` (saved franchises), `/leagues/new` (league builder), `/schedule?week=`,
-  `/games/[id]`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
+  `/games/[id]`, `/playoffs`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
   active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
@@ -165,6 +167,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Simulation | pytest | determinism, score/clock/down invariants, box-score consistency, overtime rules, Coach seam, AI 4th-down/kneel calls, depth-chart lineups, calibration targets, rating sensitivity |
 | Season | pytest | week/season simulation, persisted stats match scores, standings and dashboard follow results, reproducible seeds, injured QB benched, schedule/game endpoints, deleting played leagues |
 | Season stats | pytest | leaders equal summed box scores (and "long" columns are maxima), released players keep their last team, player totals equal the game log, team totals reconcile with standings and league-wide (yards gained = allowed, turnovers = takeaways) |
+| Playoffs | pytest | seed counts, pairing and reseeding, round names, each tiebreaker, division winners seeded first; full bracket to a neutral-site champion, offseason 409s, playoff games excluded from standings and stats, projected bracket, small one-conference leagues |
 | Frontend lib | Vitest | formatting, filter/sort |
 | Backend depth chart | pytest | ordering, lineup selection (injuries, no double starts), API save/reset/validation, release & position-change cleanup |
 | Frontend components | Vitest + Testing Library | dashboard rendering; roster filter/sort/search, edit, release, sign, errors; depth chart reorder, revert on error, cross-listing, reset |

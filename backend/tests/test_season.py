@@ -105,9 +105,11 @@ class TestFullSeason:
         standings = client.get(f"/api/leagues/{league.id}/standings").json()
         assert all(r["wins"] + r["losses"] + r["ties"] == 17
                    for d in standings for r in d["rows"])
-        again = _simulate(client, season)
+        # The regular season can't be simmed again; "next week" now means the playoffs.
+        again = _simulate(client, season, "end_of_regular_season")
         assert again.status_code == 409
         assert "complete" in again.json()["detail"]
+        assert body["season"]["phase"] == "playoffs"
 
     def test_partial_then_rest_of_season(self, client: TestClient, season: Season):
         _simulate(client, season)

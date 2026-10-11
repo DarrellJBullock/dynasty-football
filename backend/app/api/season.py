@@ -5,11 +5,18 @@ from app.api.errors import roster_errors
 from app.api.leagues import get_league
 from app.db import get_db
 from app.models import Game, League, Season
-from app.schemas import GameDetail, ScheduleWeek, SimulateRequest, SimulationResult
+from app.schemas import (
+    GameDetail,
+    PlayoffsOut,
+    ScheduleWeek,
+    SimulateRequest,
+    SimulationResult,
+)
 from app.services import games as game_service
+from app.services import playoffs as playoff_service
 from app.services import season as season_service
 from app.services.dashboard import current_franchise
-from app.services.serializers import game_out, season_out
+from app.services.serializers import game_out
 from app.services.teams import current_season
 
 router = APIRouter(tags=["season"])
@@ -28,7 +35,7 @@ def simulate(season_id: int, request: SimulateRequest, db: Session = Depends(get
     mine = [game_out(g) for g in played if team_id in (g.home_team_id, g.away_team_id)]
     return SimulationResult(
         weeks_simulated=weeks, games_simulated=len(played),
-        season=season_out(season, season_service.season_weeks(db, season.id)),
+        season=season_service.season_view(db, season),
         franchise_games=mine)
 
 
@@ -40,6 +47,15 @@ def schedule(week: int | None = Query(None, ge=1), league: League = Depends(get_
     if season is None:
         raise HTTPException(404, "league has no season")
     return game_service.schedule_week(db, season, week)
+
+
+@router.get("/leagues/{league_id}/playoffs", response_model=PlayoffsOut)
+def playoff_bracket(league: League = Depends(get_league), db: Session = Depends(get_db)):
+    """Seeds and bracket: projected from standings during the regular season, then live."""
+    season = current_season(db, league.id)
+    if season is None:
+        raise HTTPException(404, "league has no season")
+    return playoff_service.playoffs_view(db, season)
 
 
 @router.get("/games/{game_id}", response_model=GameDetail)

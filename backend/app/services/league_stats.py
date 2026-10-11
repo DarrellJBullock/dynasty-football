@@ -1,4 +1,5 @@
-"""Season statistics aggregated from per-game stats rows: leaders, player seasons, teams."""
+"""Regular-season statistics aggregated from per-game stats rows: leaders, player seasons,
+teams. Playoff games are excluded (they don't count toward season totals or records)."""
 
 from dataclasses import dataclass
 
@@ -14,8 +15,8 @@ from app.schemas import (
     PlayerSeasonStats,
     TeamSeasonRow,
 )
-from app.services.season import season_weeks
-from app.services.serializers import player_summary, season_out, team_summary
+from app.services.season import season_view
+from app.services.serializers import player_summary, team_summary
 from app.services.standings import compute_records
 from app.sim.stats import PlayerLine
 
@@ -64,7 +65,8 @@ def _teams_for(db: Session, season: Season, players: dict[int, Player]) -> dict[
         rows = db.execute(
             select(PlayerGameStats.player_id, PlayerGameStats.team_id)
             .join(Game, Game.id == PlayerGameStats.game_id)
-            .where(Game.season_id == season.id, PlayerGameStats.player_id.in_(missing))
+            .where(Game.season_id == season.id, Game.stage == "regular",
+                   PlayerGameStats.player_id.in_(missing))
             .order_by(Game.week)
         ).all()
         last = {pid: team_id for pid, team_id in rows}  # later weeks overwrite earlier
@@ -84,7 +86,7 @@ def leaders(db: Session, season: Season, keys: list[str], limit: int) -> Leaders
                    func.count(func.distinct(PlayerGameStats.game_id)).label("games"),
                    *(_agg(c) for c in columns))
             .join(Game, Game.id == PlayerGameStats.game_id)
-            .where(Game.season_id == season.id)
+            .where(Game.season_id == season.id, Game.stage == "regular")
             .group_by(PlayerGameStats.player_id)
             .having(stat_sum > 0)
             .order_by(stat_sum.desc(), PlayerGameStats.player_id)
@@ -103,14 +105,15 @@ def leaders(db: Session, season: Season, keys: list[str], limit: int) -> Leaders
                       stats={c: int(r[c] or 0) for c in category.supporting})
             for r in rows
         ]))
-    return LeadersOut(season=season_out(season, season_weeks(db, season.id)),
+    return LeadersOut(season=season_view(db, season),
                       categories=categories)
 
 
 def player_season(db: Session, player: Player, season: Season) -> PlayerSeasonStats:
     rows = db.execute(
         select(PlayerGameStats, Game).join(Game, Game.id == PlayerGameStats.game_id)
-        .where(Game.season_id == season.id, PlayerGameStats.player_id == player.id)
+        .where(Game.season_id == season.id, Game.stage == "regular",
+               PlayerGameStats.player_id == player.id)
         .order_by(Game.week)
     ).all()
     totals: dict[str, int] = {}
@@ -131,7 +134,7 @@ def player_season(db: Session, player: Player, season: Season) -> PlayerSeasonSt
     team = player.team or (_teams_for(db, season, {player.id: player})[player.id] if rows else None)
     return PlayerSeasonStats(
         player=player_summary(player), team=team_summary(team) if team else None,
-        season=season_out(season, season_weeks(db, season.id)), games=len(rows),
+        season=season_view(db, season), games=len(rows),
         totals={c: v for c, v in totals.items() if v}, game_log=log)
 
 
@@ -154,7 +157,7 @@ def team_season(db: Session, season: Season) -> list[TeamSeasonRow]:
                func.sum(opp.sacks_allowed).label("sacks"))
         .join(opp, (opp.game_id == own.game_id) & (opp.team_id != own.team_id))
         .join(Game, Game.id == own.game_id)
-        .where(Game.season_id == season.id)
+        .where(Game.season_id == season.id, Game.stage == "regular")
         .group_by(own.team_id)
     )
     totals = {r["team_id"]: r for r in db.execute(stmt).mappings()}

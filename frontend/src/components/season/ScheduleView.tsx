@@ -38,6 +38,9 @@ export function ScheduleView({ schedule, teamId }: { schedule: ScheduleWeek; tea
             </Link>
           );
         })}
+        <Link href="/playoffs" className="shrink-0 rounded-md px-3 py-1.5 font-display text-sm font-semibold text-gold hover:bg-white/5">
+          Playoffs →
+        </Link>
       </nav>
 
       <section aria-label={`Week ${week} games`} className="space-y-3">

@@ -17,10 +17,17 @@ export function GameView({ detail }: { detail: GameDetail }) {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link href={`/schedule?week=${game.week}`} className="text-sm text-gold hover:underline">
-          ← Week {game.week} schedule
-        </Link>
-        <span className="eyebrow">{detail.season_year} · Week {game.week}</span>
+        {game.stage === "playoff" ? (
+          <Link href="/playoffs" className="text-sm text-gold hover:underline">← Playoff bracket</Link>
+        ) : (
+          <Link href={`/schedule?week=${game.week}`} className="text-sm text-gold hover:underline">
+            ← Week {game.week} schedule
+          </Link>
+        )}
+        <span className="eyebrow">
+          {detail.season_year} · {game.round_name ?? `Week ${game.week}`}
+          {game.neutral_site && " · Neutral site"}
+        </span>
       </div>
 
       <section className="panel grid grid-cols-[1fr_auto_1fr] items-center gap-4 p-6" aria-label="Scoreboard">

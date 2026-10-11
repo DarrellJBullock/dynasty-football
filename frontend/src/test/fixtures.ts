@@ -98,7 +98,8 @@ export const dashboard: Dashboard = {
     name: "Ironclads Dynasty",
     league: { id: 1, name: "Dynasty Football League", abbreviation: "DFL", salary_cap: 255_000_000 },
     team,
-    season: { id: 1, year: 2026, phase: "preseason", current_week: 1, weeks: 17, regular_season_complete: false },
+    season: { id: 1, year: 2026, phase: "preseason", current_week: 1, weeks: 17, regular_season_complete: false,
+      next_round: null, champion: null },
   },
   team: teamDetail,
   record: { wins: 0, losses: 0, ties: 0 },
@@ -111,8 +112,8 @@ export const dashboard: Dashboard = {
     ],
   },
   upcoming_games: [
-    { id: 1, week: 1, home: team, away: opponent, home_score: null, away_score: null, status: "scheduled", overtime: false },
-    { id: 2, week: 2, home: opponent, away: team, home_score: null, away_score: null, status: "scheduled", overtime: false },
+    { id: 1, week: 1, home: team, away: opponent, home_score: null, away_score: null, status: "scheduled", overtime: false, stage: "regular", round_name: null, neutral_site: false },
+    { id: 2, week: 2, home: opponent, away: team, home_score: null, away_score: null, status: "scheduled", overtime: false, stage: "regular", round_name: null, neutral_site: false },
   ],
   recent_games: [],
   top_players: [

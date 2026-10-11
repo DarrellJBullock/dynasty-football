@@ -87,7 +87,7 @@ describe("TeamStatsTable", () => {
 describe("PlayerView", () => {
   const stats: PlayerSeasonStats = {
     player: makePlayerDetail({ first_name: "Keegan", last_name: "Quarles", full_name: "Keegan Quarles", position: "QB" }),
-    team, season: { id: 1, year: 2026, phase: "regular_season", current_week: 3, weeks: 17, regular_season_complete: false },
+    team, season: { id: 1, year: 2026, phase: "regular_season", current_week: 3, weeks: 17, regular_season_complete: false, next_round: null, champion: null },
     games: 2, totals: { pass_att: 60, pass_cmp: 40, pass_yds: 411, pass_td: 5, rush_att: 5, rush_yds: -4 },
     game_log: [
       { game_id: 7, week: 1, opponent, home: true, result: "W 28-22", stats: { pass_att: 29, pass_cmp: 20, pass_yds: 215 } },

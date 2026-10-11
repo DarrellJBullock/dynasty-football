@@ -62,15 +62,18 @@ class GameResult:
 
 
 def simulate_game(home: SimTeam, away: SimTeam, seed: int, *, playoff: bool = False,
-                  coaches: dict[Side, Coach] | None = None,
+                  neutral: bool = False, coaches: dict[Side, Coach] | None = None,
                   tuning: Tuning = DEFAULT_TUNING) -> GameResult:
-    return _Game(home, away, seed, playoff, coaches, tuning).run()
+    """`playoff`: overtime continues until there's a winner. `neutral`: no home edge
+    ("home" is just the designated side, e.g. the higher seed in a championship)."""
+    return _Game(home, away, seed, playoff, coaches, tuning, neutral).run()
 
 
 class _Game:
     def __init__(self, home: SimTeam, away: SimTeam, seed: int, playoff: bool,
-                 coaches: dict[Side, Coach] | None, tuning: Tuning):
+                 coaches: dict[Side, Coach] | None, tuning: Tuning, neutral: bool = False):
         self.teams: dict[Side, SimTeam] = {"home": home, "away": away}
+        self.neutral = neutral
         self.seed = seed
         self.playoff = playoff
         self.rng = random.Random(seed)
@@ -101,6 +104,8 @@ class _Game:
                           s.score["away"], s.quarter >= 5, self.playoff, self.plays)
 
     def edge(self, side: Side) -> float:
+        if self.neutral:
+            return 0.0
         return self.t.home_edge if side == "home" else -self.t.home_edge
 
     # ---------- clock ----------

@@ -18,6 +18,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
       { label: "Schedule", href: "/schedule", icon: <IconCalendar /> },
+      { label: "Playoffs", href: "/playoffs", icon: <IconBracket /> },
       { label: "Stats", href: "/stats", icon: <IconChart /> },
       { label: "League", href: "/league", icon: <IconTrophy /> },
       { label: "My Leagues", href: "/leagues", icon: <IconFolders /> },
@@ -159,6 +160,13 @@ function IconTrophy() {
     <svg {...iconProps}>
       <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z" />
       <path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" />
+    </svg>
+  );
+}
+function IconBracket() {
+  return (
+    <svg {...iconProps}>
+      <path d="M3 5h5v5H3M3 14h5v5H3M8 7.5h4v9H8M12 12h5M17 9h4v6h-4" />
     </svg>
   );
 }

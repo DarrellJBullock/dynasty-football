@@ -15,12 +15,11 @@ from app.schemas import (
     PositionGroupSummary,
     Record,
 )
-from app.services.season import season_weeks
+from app.services.season import season_view
 from app.services.serializers import (
     game_out,
     league_out,
     player_summary,
-    season_out,
     team_summary,
 )
 from app.services.standings import league_standings
@@ -43,7 +42,7 @@ def franchise_out(db: Session, franchise: Franchise) -> FranchiseOut:
     return FranchiseOut(id=franchise.id, name=franchise.name,
                         league=league_out(franchise.league),
                         team=team_summary(franchise.team),
-                        season=season_out(season, season_weeks(db, season.id)))
+                        season=season_view(db, season))
 
 
 def _position_groups(roster: list[Player],

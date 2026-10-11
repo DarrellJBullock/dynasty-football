@@ -41,11 +41,15 @@ test("sims a week, then follows the result to the box score and other pages", as
   await expect(week1.getByText(/^Final/)).toHaveCount(16); // "Final" or "Final/OT"
 });
 
-test("sims the rest of the regular season from the schedule", async ({ page }) => {
+test("sims the regular season, then the playoffs to a champion", async ({ page }) => {
+  await page.goto("/playoffs");
+  await expect(page.getByText(/if the season ended today/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Bracket" })).toHaveCount(0);
+
   await page.goto("/schedule");
   await page.getByRole("button", { name: "Sim to end of season" }).click();
   await page.getByRole("button", { name: "Confirm: sim weeks 1–17" }).click();
-  await expect(page.getByText("Regular season complete")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Sim Wild Card" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("status")).toContainText("Simulated 17 weeks");
 
   await navigate(page, "Dashboard");
@@ -53,4 +57,26 @@ test("sims the rest of the regular season from the schedule", async ({ page }) =
   const record = (await seasonCard.locator(".stat-number").textContent())!;
   expect(wins(record)).toBe(17);
   await expect(page.getByRole("region", { name: "Recent results" }).getByRole("listitem")).toHaveCount(3);
+
+  await navigate(page, "Playoffs");
+  for (const conference of ["Atlantic Conference", "Pacific Conference"]) {
+    await expect(page.getByRole("region", { name: `${conference} seeds` }).getByRole("listitem")).toHaveCount(7);
+  }
+  const bracket = page.getByRole("region", { name: "Bracket" });
+  await expect(bracket.getByRole("group", { name: "Wild Card" }).getByRole("link")).toHaveCount(6);
+  await expect(bracket.getByRole("group", { name: "Divisional" })).toContainText("TBD");
+
+  await page.getByRole("button", { name: "Sim Wild Card" }).click();
+  await expect(page.getByRole("button", { name: "Sim Divisional" })).toBeVisible();
+  await expect(bracket.getByRole("group", { name: "Divisional" }).getByRole("link")).toHaveCount(4);
+
+  await page.getByRole("button", { name: "Sim rest of playoffs" }).click();
+  await page.getByRole("button", { name: "Confirm: sim to a champion" }).click();
+  const champion = page.getByRole("region", { name: "Champion" });
+  await expect(champion).toContainText(/\d{4} champions/);
+  const final = bracket.getByRole("group", { name: "Championship", exact: true }).getByRole("link");
+  await expect(final).toContainText("Final");
+  await final.click();
+  await expect(page.getByText(/Championship · Neutral site/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "← Playoff bracket" })).toBeVisible();
 });

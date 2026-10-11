@@ -38,7 +38,8 @@ Each milestone ends with working software, green tests, and updated docs.
       sortable team season stats
 - [x] Schedule page, game page (line score, team stats, box score, scoring summary,
       play-by-play), live records and recent results on the dashboard
-- [ ] Playoffs and championship
+- [x] Playoffs and championship: seeding with tiebreakers, reseeded bracket, neutral-site
+      final, champion; the season moves to the offseason
 
 ## M3 — Franchise management
 
