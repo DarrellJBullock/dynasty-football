@@ -231,11 +231,13 @@ class Season(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"))
     year: Mapped[int] = mapped_column(Integer)
-    # preseason | regular_season | playoffs | offseason
+    # free_agency | preseason | regular_season | playoffs | offseason
     phase: Mapped[str] = mapped_column(String(20), default="preseason")
     current_week: Mapped[int] = mapped_column(Integer, default=1)
     champion_team_id: Mapped[int | None] = mapped_column(
         ForeignKey("teams.id", ondelete="SET NULL"))
+    # Free agency market day to play next (phase "free_agency" only).
+    free_agency_day: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # What happened in the offseason before this season (see services/offseason.py).
     offseason_log: Mapped[dict | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"))
@@ -287,6 +289,25 @@ class PlayoffSeed(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
     seed: Mapped[int] = mapped_column(Integer)
     division_winner: Mapped[bool] = mapped_column(default=False)
+
+    team: Mapped["Team"] = relationship()
+
+
+class FreeAgentOffer(Base):
+    """A team's offer to a free agent during the offseason market (services/free_agency.py).
+    status: pending | accepted | lost (he signed elsewhere) | expired (market closed)."""
+
+    __tablename__ = "free_agent_offers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"),
+                                           index=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    salary: Mapped[int] = mapped_column(Integer)
+    years: Mapped[int] = mapped_column(Integer)
+    day: Mapped[int] = mapped_column(Integer)  # market day it was made
+    status: Mapped[str] = mapped_column(String(10), default="pending")
 
     team: Mapped["Team"] = relationship()
 

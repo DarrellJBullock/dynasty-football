@@ -11,7 +11,7 @@ from app.domain.contracts import (
 )
 from app.domain.positions import Position
 from app.models import Franchise, League, Player, Season
-from app.services.offseason import advance
+from tests.conftest import rollover
 
 # ---------- pure rules ----------
 
@@ -128,7 +128,7 @@ def test_rollover_keeps_re_signed_players_and_lets_the_rest_go(
     keep, let_go = rows[0], rows[1:]
     _offer(client, keep["player"]["id"], keep["asking"]["salary"], keep["asking"]["years"])
 
-    new_season = advance(db, season)
+    new_season = rollover(db, season)
     kept = db.get(Player, keep["player"]["id"])
     if kept.retired_year is None:
         assert kept.team_id == franchise.team_id
@@ -155,7 +155,7 @@ def test_offseason_signings_start_next_season(client: TestClient, db: Session,
                          json={"player_id": free_agent["id"], "years": 1}).json()
     assert signed["contract"]["start_year"] == season.year + 1
 
-    advance(db, season)
+    rollover(db, season)
     player = db.get(Player, free_agent["id"])
     assert player.team_id == franchise.team_id  # a one-year deal didn't expire at once
 

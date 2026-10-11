@@ -18,6 +18,7 @@ test("sidebar reaches every page", async ({ page }) => {
     ["Roster", "Hartford Ironclads"],
     ["Depth Chart", "Hartford Ironclads"],
     ["Contracts", "Contracts"],
+    ["Free Agency", "Free Agency"],
     ["League", "Dynasty Football League"],
     ["My Leagues", "Leagues & franchises"],
     ["Dashboard", "Ironclads"],

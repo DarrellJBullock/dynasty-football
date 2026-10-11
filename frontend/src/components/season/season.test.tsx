@@ -12,7 +12,7 @@ const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, api: { simulate: vi.fn(), advance: vi.fn() } };
+  return { ...actual, api: { simulate: vi.fn(), advance: vi.fn(), playFreeAgency: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -80,17 +80,42 @@ describe("SimControls", () => {
     expect(mocked.simulate).toHaveBeenLastCalledWith(5, "end_of_playoffs");
   });
 
-  it("shows the champion and starts the next season after confirmation", async () => {
+  it("shows the champion and starts free agency after confirmation", async () => {
     mocked.advance.mockResolvedValue({ ...season, id: 6, year: 2027, phase: "preseason", current_week: 1 });
     render(<SimControls season={{ ...season, phase: "offseason", current_week: 21,
       regular_season_complete: true, champion: opponent }} teamId={team.id} />);
     expect(screen.getByText(/2026 champion: Albuquerque Roadrunners/)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Start 2027 season" }));
+    await userEvent.click(screen.getByRole("button", { name: "Start free agency" }));
     expect(mocked.advance).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Confirm: run the offseason" }));
     expect(mocked.advance).toHaveBeenCalledWith(5);
     await waitFor(() => expect(router.refresh).toHaveBeenCalled());
+  });
+});
+
+describe("SimControls in free agency", () => {
+  const market = { ...season, id: 6, year: 2027, phase: "free_agency", current_week: 1,
+    free_agency_day: 2 };
+
+  it("plays a market day and reports signings", async () => {
+    mocked.playFreeAgency.mockResolvedValue({ season: { ...market, free_agency_day: 3 },
+      signings: [], mine: [] });
+    render(<SimControls season={market} teamId={team.id} />);
+    await userEvent.click(screen.getByRole("button", { name: "Play free agency day 2" }));
+    expect(mocked.playFreeAgency).toHaveBeenCalledWith(6, "next_day");
+    expect(await screen.findByRole("status")).toHaveTextContent("Day 2: 0 signing(s) league-wide · none of yours");
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("finishes the market after confirmation", async () => {
+    mocked.playFreeAgency.mockResolvedValue({ season: { ...market, phase: "preseason" },
+      signings: [], mine: [] });
+    render(<SimControls season={market} teamId={team.id} />);
+    await userEvent.click(screen.getByRole("button", { name: "Finish free agency" }));
+    expect(mocked.playFreeAgency).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: finish free agency" }));
+    expect(mocked.playFreeAgency).toHaveBeenCalledWith(6, "end");
   });
 });
 

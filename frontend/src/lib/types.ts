@@ -118,6 +118,8 @@ export interface Season {
   /** Name of the next playoff round to play ("Wild Card", ...), if any. */
   next_round: string | null;
   champion: TeamSummary | null;
+  /** Market day to play next, during free agency. */
+  free_agency_day?: number | null;
 }
 
 export interface Game {
@@ -491,3 +493,39 @@ export interface NegotiationResult {
   counter: ContractTerms | null;
   player: PlayerSummary;
 }
+
+export interface FreeAgentRow {
+  player: PlayerSummary;
+  asking: ContractTerms; // his price at the length he prefers
+  offers: number; // pending offers, yours included
+  my_offer: ContractTerms | null;
+  leading: boolean | null; // your offer is currently his best
+}
+
+export interface MarketSigning {
+  player: PlayerSummary;
+  team: TeamSummary;
+  salary: number;
+  years: number;
+  day: number;
+}
+
+export interface FreeAgencyOut {
+  season: Season;
+  open: boolean;
+  day: number | null;
+  days: number;
+  demand: number | null; // share of his price a player needs today
+  open_spots: number;
+  cap_space: number;
+  players: FreeAgentRow[];
+  signings: MarketSigning[];
+}
+
+export interface FreeAgencyResult {
+  season: Season;
+  signings: MarketSigning[];
+  mine: MarketSigning[];
+}
+
+export type FreeAgencyUntil = "next_day" | "end";

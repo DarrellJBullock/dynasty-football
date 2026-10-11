@@ -8,12 +8,9 @@ in the new season's `offseason_log`:
 3. Expiring contracts: AI teams re-sign at market value while the cap allows (keeping room
    to fill the roster); fading depth veterans aren't re-signed. The franchise's players
    re-signed during the offseason window (services/contracts.py) stay; the rest leave.
-4. Every roster spot lost is refilled at the same position with the best affordable free
-   agent, or else an undrafted rookie; the free-agent pool is topped up.
-
-Step 4 is automatic for every team, the user's included, until free agency and the
-draft get their own screens.
-5. A new season with a fresh schedule.
+4. The positions each team lost are recorded; the free-agent pool is topped up.
+5. A new season with a fresh schedule, opening with free agency (services/free_agency.py):
+   teams refill those spots in the market, and with undrafted rookies when it closes.
 """
 
 import hashlib
@@ -24,9 +21,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.domain.contracts import MIN_SALARY, market_salary
+from app.domain.contracts import market_salary
 from app.domain.development import contract_years, develop, retirement_chance
-from app.domain.positions import ROSTER_MAX, ROSTER_TEMPLATE, Position, available_jersey
+from app.domain.positions import ROSTER_MAX, ROSTER_TEMPLATE, Position
 from app.domain.ratings import clamp_rating
 from app.models import Contract, Franchise, Player, Season, Team
 from app.seed.generator import (
@@ -65,7 +62,7 @@ def _leave_team(db: Session, player: Player) -> None:
 
 
 def advance(db: Session, season: Season) -> Season:
-    """Run the offseason after `season` and create the next one."""
+    """Run the offseason after `season` and create the next one, in free agency."""
     if season.phase != "offseason":
         raise RosterError("Finish the playoffs before starting the next season.")
     if db.scalar(select(Season.id).where(Season.league_id == season.league_id,
@@ -149,49 +146,9 @@ def advance(db: Session, season: Season) -> Season:
                 roster.remove(player)
         payrolls[team.id] = payroll
 
-    # 4. Refill the spots that opened up, a round at a time so no team hogs the market:
-    # the best affordable free agent at the position, otherwise an undrafted rookie.
-    pool: dict[str, list[Player]] = defaultdict(list)
-    for player in sorted((p for p in active if p.team_id is None),
-                         key=lambda p: (-p.overall, p.id)):
-        pool[player.position].append(player)
-    order = list(teams)
-    rng.shuffle(order)
-    rookies: list[Player] = []
-    for round_index in range(max((len(v) for v in lost.values()), default=0)):
-        for team in order:
-            roster = rosters[team.id]
-            if round_index >= len(lost[team.id]) or len(roster) >= ROSTER_MAX:
-                continue
-            position = lost[team.id][round_index]
-            reserve = (ROSTER_MAX - len(roster) - 1) * ROSTER_SPOT_RESERVE
-            budget = cap - payrolls[team.id] - reserve
-            signing = next((p for p in pool[position] if p.overall >= FREE_AGENT_FLOOR
-                            and departed_from.get(p.id) != team.id
-                            and market_salary(Position(position), p.overall) <= budget), None)
-            taken = {p.jersey_number for p in roster}
-            if signing is not None:
-                pool[position].remove(signing)
-                salary = market_salary(Position(position), signing.overall)
-                years = contract_years(rng, signing.age)
-                if signing.jersey_number in taken:
-                    signing.jersey_number = available_jersey(position, taken)
-                signing.team_id = team.id
-                _sign(signing, team, year, salary, years)
-                log["signed"].append({"player": signing.id, "team": team.id,
-                                      "salary": salary, "years": years})
-            else:
-                with db.no_autoflush:
-                    signing = _rookie(rng, league, Position(position), taken)
-                    salary = MIN_SALARY  # undrafted rookies sign for the minimum
-                    signing.team = team
-                    _sign(signing, team, year, salary, rng.randint(3, 4))
-                    db.add(signing)
-                rookies.append(signing)
-            roster.append(signing)
-            payrolls[team.id] += salary
+    # 4. Spots to refill in free agency (and with rookies when it closes).
+    log["lost"] = {str(team_id): positions for team_id, positions in lost.items()}
     db.flush()
-    log["rookies"] = [p.id for p in rookies]
 
     free_agents = sum(1 for p in active if p.team_id is None)
     positions, weights = list(ROSTER_TEMPLATE), list(ROSTER_TEMPLATE.values())
@@ -200,13 +157,16 @@ def advance(db: Session, season: Season) -> Season:
         db.add(make_player(rng, league, position, round(rng.gauss(*FREE_AGENT_TARGET)),
                            age=rng.randint(22, 25)))
 
-    # 5. The new season.
+    # 5. The new season, opening with free agency.
     weeks = playoffs.regular_week_count(db, season.id)
-    new_season = Season(league=league, year=year, phase="preseason", current_week=1,
-                        offseason_log=log)
+    new_season = Season(league=league, year=year, phase="free_agency", current_week=1,
+                        free_agency_day=1, offseason_log=log)
     db.add(new_season)
     _schedule(db, new_season, [t.id for t in teams], rng, weeks)
     db.flush()
+    from app.services import free_agency  # (it builds on this module's helpers)
+
+    free_agency.open_market(db, new_season)
     return new_season
 
 

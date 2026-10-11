@@ -44,12 +44,12 @@ Each milestone ends with working software, green tests, and updated docs.
 ## M3 — Franchise management
 
 - [x] Year rollover: offseason → next season, with an offseason recap on the dashboard
-      (AI contracts, free-agent signings, and rookies are automatic placeholders until
-      the items below)
+      (undrafted rookies fill leftover spots until the draft)
 - [x] Re-signing with negotiation (Contracts page; asking price by rating, position, age,
       and preferred length; counter-offers; next season's cap)
 - [ ] Cuts with dead money (signing bonuses)
-- [ ] Free agency period with AI bidding
+- [x] Free agency period with AI bidding (five market days; offers, counts, leading/outbid;
+      players hold out early and lean toward contenders)
 - [ ] Draft: generated classes, scouting, draft day
 - [ ] Trades with AI valuation
 - [x] Player development, aging, retirement

@@ -85,3 +85,14 @@ def league(db: Session) -> League:
 @pytest.fixture
 def franchise(db: Session) -> Franchise:
     return db.query(Franchise).one()
+
+
+def rollover(db: Session, season):
+    """Finish `season`'s offseason: roll over and play free agency to the end (the
+    franchise makes no offers). Returns the new season, in the preseason."""
+    from app.services import free_agency, offseason
+
+    season.phase = "offseason"
+    new_season = offseason.advance(db, season)
+    free_agency.play_days(db, new_season, "end")
+    return new_season

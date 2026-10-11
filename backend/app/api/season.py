@@ -6,6 +6,9 @@ from app.api.leagues import get_league
 from app.db import get_db
 from app.models import Game, League, Season
 from app.schemas import (
+    FreeAgencyOut,
+    FreeAgencyRequest,
+    FreeAgencyResult,
     GameDetail,
     PlayoffsOut,
     ScheduleWeek,
@@ -13,6 +16,7 @@ from app.schemas import (
     SimulateRequest,
     SimulationResult,
 )
+from app.services import free_agency as free_agency_service
 from app.services import games as game_service
 from app.services import offseason as offseason_service
 from app.services import playoffs as playoff_service
@@ -43,14 +47,36 @@ def simulate(season_id: int, request: SimulateRequest, db: Session = Depends(get
 
 @router.post("/seasons/{season_id}/advance", response_model=SeasonOut, status_code=201)
 def advance(season_id: int, db: Session = Depends(get_db)):
-    """Run the offseason (aging, development, retirements, contracts, rookies) and start
-    the next season."""
+    """Run the offseason (aging, development, retirements, contracts) and open the next
+    season with free agency."""
     season = db.get(Season, season_id)
     if season is None:
         raise HTTPException(404, "season not found")
     with roster_errors(db):
         new_season = offseason_service.advance(db, season)
     return season_service.season_view(db, new_season)
+
+
+@router.post("/seasons/{season_id}/free-agency", response_model=FreeAgencyResult)
+def play_free_agency(request: FreeAgencyRequest, season_id: int,
+                     db: Session = Depends(get_db)):
+    """Play the next free-agency day, or every remaining day; the market closes (rookies
+    fill open spots, preseason begins) after the last one."""
+    season = db.get(Season, season_id)
+    if season is None:
+        raise HTTPException(404, "season not found")
+    with roster_errors(db):
+        entries = free_agency_service.play_days(db, season, request.until)
+    signings = free_agency_service.signings_out(db, entries)
+    team_id = free_agency_service.franchise_team_id(db, season.league_id)
+    return FreeAgencyResult(season=season_service.season_view(db, season), signings=signings,
+                            mine=[s for s in signings if s.team.id == team_id])
+
+
+@router.get("/leagues/{league_id}/free-agency", response_model=FreeAgencyOut)
+def free_agency(league: League = Depends(get_league), db: Session = Depends(get_db)):
+    """The market: free agents with asking prices, offer counts, your offers, signings."""
+    return free_agency_service.market_view(db, league)
 
 
 @router.get("/leagues/{league_id}/schedule", response_model=ScheduleWeek)

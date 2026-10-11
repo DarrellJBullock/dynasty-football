@@ -6,12 +6,12 @@ import { useState } from "react";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
 import { describeResult, gameLabel } from "@/lib/games";
-import type { Game, Season, SimulateUntil } from "@/lib/types";
+import type { FreeAgencyUntil, Game, Season, SimulateUntil } from "@/lib/types";
 
 /**
  * Season controls: sim the next week (or playoff round) or the rest of the regular season /
- * playoffs; shows the franchise's latest result. Once a champion is crowned, starts the next
- * season (aging, development, retirements, contracts, rookies happen in between).
+ * playoffs; shows the franchise's latest result. Once a champion is crowned, runs the
+ * offseason into free agency, whose market days are played from here too.
  */
 export function SimControls({ season, teamId }: { season: Season; teamId: number }) {
   const router = useRouter();
@@ -61,8 +61,11 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
     }
   }
 
+  if (season.phase === "free_agency") {
+    return <FreeAgencyControls season={season} />;
+  }
+
   if (season.champion) {
-    const next = season.year + 1;
     return (
       <div className="flex flex-wrap items-center gap-3 text-sm" aria-label="Season status">
         <span className="flex items-center gap-2 rounded-md bg-gold/10 px-2.5 py-1 font-display font-semibold uppercase tracking-wide text-gold">
@@ -81,7 +84,7 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
         ) : (
           <button type="button" className="btn btn-primary" disabled={advancing}
             onClick={() => setConfirming(true)}>
-            {advancing ? "Running offseason…" : `Start ${next} season`}
+            {advancing ? "Running offseason…" : "Start free agency"}
           </button>
         )}
         <Link href="/playoffs" className="text-gold hover:underline">Bracket →</Link>
@@ -123,6 +126,62 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
       )}
       {inPlayoffs && <Link href="/playoffs" className="text-sm text-gold hover:underline">Bracket →</Link>}
       {latest && <ResultLink game={latest.game} label={latest.label} />}
+      {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
+    </div>
+  );
+}
+
+/** Free agency: play the next market day, or the rest of the market. */
+function FreeAgencyControls({ season }: { season: Season }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<FreeAgencyUntil | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const day = season.free_agency_day ?? 1;
+
+  async function play(until: FreeAgencyUntil) {
+    setBusy(until);
+    setConfirming(false);
+    setError(null);
+    try {
+      const result = await api.playFreeAgency(season.id, until);
+      const names = result.mine.map((s) => s.player.full_name);
+      const when = until === "next_day" ? `Day ${day}` : "Free agency";
+      setSummary(`${when}: ${result.signings.length} signing(s) league-wide` +
+        (names.length ? ` · you signed ${names.join(", ")}` : " · none of yours"));
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Free agency">
+      <button type="button" className="btn btn-primary" disabled={busy !== null}
+        onClick={() => play("next_day")}>
+        {busy === "next_day" ? "Playing…" : `Play free agency day ${day}`}
+      </button>
+      {confirming ? (
+        <>
+          <button type="button" className="btn btn-ghost" disabled={busy !== null}
+            onClick={() => play("end")}>
+            Confirm: finish free agency
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button type="button" className="btn btn-ghost" disabled={busy !== null}
+          onClick={() => setConfirming(true)}>
+          {busy === "end" ? "Finishing…" : "Finish free agency"}
+        </button>
+      )}
+      <Link href="/free-agency" className="text-sm text-gold hover:underline">Free agents →</Link>
+      {summary && <span role="status" className="text-sm text-chalk">{summary}</span>}
       {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
     </div>
   );
