@@ -76,3 +76,9 @@ body {
   from { opacity: 0; transform: translate(-50%, -10px) scale(0.96); }
   to { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
+
+/* The instant replay's wipe: a band of light sweeps across the picture. */
+@keyframes wipe {
+  from { transform: translateX(-100%); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}

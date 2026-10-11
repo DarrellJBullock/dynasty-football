@@ -494,6 +494,13 @@ resolved, the AI, overtime and playoff rules, and calibration targets. Remaining
   tracking kickoffs and punts. Shots cut rather than pan, and each is held at least a
   second (a touchdown cuts at once). Sideline, End zone and All-22 remain as fixed
   cameras.
+- **Instant replay:** after a highlight play (a score, a turnover, a gain of 20 yards or
+  more, a missed kick) the broadcast replays it from a second angle (the skycam for
+  passes, the reverse angle from the far sideline otherwise) at half speed, with a REPLAY
+  tag. The score bug holds the result. Skip replay ends it; the Watch page's Instant
+  replays setting turns them off; playing straight through waits for them. In Coach
+  Mode, replays run only when the AI has called several plays (a drive or the rest of
+  the game), never after your own call.
 - Plays: run, pass, blocking schemes, tackling, field goals, punts, kickoffs.
 - AI: situational play calling (down, distance, clock, score) for both sides.
 - Presentation: broadcast cameras, all-22 view, instant replay from the timeline.

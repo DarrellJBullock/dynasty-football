@@ -102,7 +102,9 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Broadcast camera rigs, all-22, end zone (a Broadcast director, the default camera,
       cuts between wide, sideline, tight, end-zone shots by play type and moment; skycam
       and reverse angles; the presets stay one click away)
-- [ ] Instant replay with scrubbing
+- [x] Instant replay with scrubbing (highlight plays replay automatically from the skycam
+      or the reverse angle at half speed, with a REPLAY tag and wipe; skippable, and a
+      setting on the Watch page; in Coach Mode during multi-play reels)
 - [x] Score bug and banners (team colors, scores, timeouts, possession, a running game
       clock and the play clock, down and distance; FIRST DOWN, TOUCHDOWN, SACK, FLAG and
       kick banners) on the Watch page and Coach Mode — design: `docs/design/broadcast.md`

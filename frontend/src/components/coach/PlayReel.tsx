@@ -2,11 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BroadcastOverlay } from "@/components/broadcast/BroadcastOverlay";
+import { BroadcastOverlay, ReplayBadge } from "@/components/broadcast/BroadcastOverlay";
 import type { Choreography } from "@/components/field/playback/choreograph";
 import { PlayClock } from "@/components/field/playback/clock";
 import { PLAY_CAMERAS, type CameraChoice } from "@/components/field/layout";
 import { shotList } from "@/components/field/playback/director";
+import { replayPlan } from "@/components/field/playback/replay";
+import { useInstantReplay } from "@/components/field/playback/useInstantReplay";
 import { callLabel } from "@/lib/games";
 import type { GamePlayback } from "@/lib/types";
 
@@ -32,6 +34,19 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   const last = reel.length - 1;
   const current = reel[Math.min(index, last)];
   const cues = useMemo(() => (current ? shotList(current.play, current.timeline) : []), [current]);
+  const playIndex = current ? playback.plays.findIndex((p) => p.n === current.play.n) : -1;
+
+  // Instant replays of highlights, but only in a reel of several plays (a drive the AI
+  // called): a single call's play goes straight back to the call screen.
+  const plan = useMemo(() => (current ? replayPlan(current.play, playback.plays[playIndex - 1], current.timeline) : null),
+                       [current, playIndex, playback.plays]);
+  const onSeek = useCallback((t: number) => {
+    shown.current = t;
+    setTime(t);
+  }, []);
+  const instant = useInstantReplay({ clock, plan, enabled: reel.length > 1, ended, playKey: index,
+                                     duration: current?.timeline.duration ?? 0, onSeek });
+  const { track, settled, cancel } = instant;
 
   const onTick = useCallback((t: number, justEnded: boolean) => {
     if (justEnded) setEnded(true);
@@ -39,11 +54,12 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
       shown.current = t;
       setTime(t);
     }
-  }, []);
+    track(t);
+  }, [track]);
 
-  // On to the next play in the reel after a short pause.
+  // On to the next play in the reel after a short pause (and any replay).
   useEffect(() => {
-    if (!ended || index >= last) return;
+    if (!ended || index >= last || !settled) return;
     const timer = setTimeout(() => {
       clock.seek(0);
       clock.setPlaying(true);
@@ -53,9 +69,10 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
       setIndex(index + 1);
     }, BETWEEN_PLAYS);
     return () => clearTimeout(timer);
-  }, [clock, ended, index, last]);
+  }, [clock, ended, index, last, settled]);
 
   const skip = () => {
+    cancel();
     setIndex(last);
     clock.seek(reel[last].timeline.duration);
     clock.setPlaying(false);
@@ -78,11 +95,13 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   return (
     <section className="panel overflow-hidden" aria-label="Last play">
       <div className="relative aspect-video w-full bg-ink-950">
-        <PlayScene playback={playback} timeline={current.timeline} clock={clock} camera={camera}
-          cues={cues}
+        <PlayScene playback={playback} timeline={current.timeline} clock={clock}
+          camera={instant.replaying ? "broadcast" : camera}
+          cues={instant.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
           follow onTick={onTick} />
         <BroadcastOverlay playback={playback} timeline={current.timeline} time={time}
-          index={playback.plays.findIndex((p) => p.n === current.play.n)} />
+          index={playIndex} replay={instant.replaying} />
+        {instant.replaying && <ReplayBadge key={index} onSkip={instant.skip} />}
         <div role="group" aria-label="Camera"
           className="absolute right-3 top-3 flex gap-1 rounded-lg bg-ink-950/70 p-1 backdrop-blur">
           {PLAY_CAMERAS.map(({ key, label }) => (
