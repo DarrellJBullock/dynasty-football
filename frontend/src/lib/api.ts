@@ -3,6 +3,7 @@ import type {
   PlayoffsOut,
   LeadersOut,
   PlayerSeasonStats,
+  Season,
   TeamSeasonRow,
   GameDetail,
   ScheduleWeek,
@@ -129,6 +130,7 @@ export const api = {
   schedule: (leagueId: number, week?: number) =>
     request<ScheduleWeek>(`/leagues/${leagueId}/schedule${week ? `?week=${week}` : ""}`),
   game: (gameId: number) => request<GameDetail>(`/games/${gameId}`),
+  advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),
   leaders: (leagueId: number, category?: string, limit?: number) => {
     const params = new URLSearchParams();

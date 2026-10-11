@@ -15,6 +15,7 @@ from app.schemas import (
     PositionGroupSummary,
     Record,
 )
+from app.services.offseason import recap
 from app.services.season import season_view
 from app.services.serializers import (
     game_out,
@@ -142,4 +143,5 @@ def build_dashboard(db: Session, franchise: Franchise) -> Dashboard:
         position_groups=groups,
         expiring_contracts=expiring,
         alerts=_alerts(roster, detail.cap_space, expiring, groups, lineup),
+        offseason=recap(db, season, team.id) if season.phase == "preseason" else None,
     )

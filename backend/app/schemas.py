@@ -85,6 +85,7 @@ class PlayerSummary(BaseModel):
     potential: int
     development_trait: str
     injury_status: str
+    retired_year: int | None = None
     contract: ContractOut | None
     key_ratings: dict[str, int]
 
@@ -525,6 +526,37 @@ class Record(BaseModel):
     ties: int
 
 
+class RecapSigning(BaseModel):
+    player: PlayerSummary
+    salary: int
+    years: int
+
+
+class RecapMove(BaseModel):
+    player: PlayerSummary
+    before: int
+    after: int
+
+
+class RecapRetirement(BaseModel):
+    player: PlayerSummary
+    team: TeamSummary | None  # None: retired as a free agent
+
+
+class OffseasonRecap(BaseModel):
+    """The offseason before `year`, for one team (plus the league's notable retirements)."""
+    from_year: int
+    year: int
+    retired: list[PlayerSummary]
+    departed: list[PlayerSummary]  # contract expired and no cap room to re-sign
+    re_signed: list[RecapSigning]
+    signed: list[RecapSigning]  # free agents who filled open spots
+    rookies: list[PlayerSummary]
+    risers: list[RecapMove]
+    decliners: list[RecapMove]
+    league_retirements: list[RecapRetirement]
+
+
 class Dashboard(BaseModel):
     franchise: FranchiseOut
     team: TeamDetail
@@ -536,3 +568,4 @@ class Dashboard(BaseModel):
     position_groups: list[PositionGroupSummary]
     expiring_contracts: int
     alerts: list[Alert]
+    offseason: OffseasonRecap | None = None  # shown until the first game of the season

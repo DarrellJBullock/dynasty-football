@@ -172,14 +172,41 @@ Every player has a page with bio, key ratings, season totals for the stats they 
 record, and a game log linking to each box score. Players who change teams mid-season keep
 one combined line, credited to their current team (or last team, if released).
 
-## Franchise loop (planned)
+## Franchise loop
 
 ```
 Preseason → Regular season (17 weeks) → Playoffs → Championship
   → Offseason: re-sign / release → Free agency → Draft → Development & aging → next season
 ```
 
-- **Development:** young players with high potential grow; veterans decline after ~30.
+Once a champion is crowned, **Start {next year} season** (with confirmation) runs the
+offseason in one deterministic step and the league plays on:
+
+- **Aging & development:** everyone ages a year. Players under 27 close part of the gap
+  to their potential each year (30% normal, 40% impact, 50% star, 60% elite trait, with
+  variance); 27–29 hold roughly steady; from 30 players decline, faster each year,
+  physical attributes first while awareness and recognition hold up. Kickers and punters
+  age four years slower. Injuries heal.
+- **Retirement:** from 30, rising with age (2% at 30, 28% at 34, 70% at 37; everyone by
+  40). Stars hang on longer, fringe players leave sooner, and unsigned veterans are the
+  likeliest to go. Retired players keep their pages and stats.
+- **Contracts (placeholder):** every team re-signs its expiring players at market value,
+  best first, while the cap allows — keeping room to fill the roster — but lets fading
+  depth veterans (30+, under 70 OVR) walk. The rest become free agents.
+- **Refilling rosters (placeholder):** each spot lost is refilled at the same position,
+  one round at a time across the league: the best affordable free agent (64+ OVR), or
+  else an undrafted rookie (age 21–23, ~60 OVR with upside) on a minimum deal. The
+  free-agent pool is topped back up with young players.
+- **New season:** a fresh schedule; standings, leaders, and the bracket start over. The
+  dashboard shows an **offseason recap** (re-signed, new arrivals, departures,
+  biggest risers and decliners, notable retirements around the league) until week 1.
+
+Until re-signing, free agency, and the draft get their own screens, these steps happen
+automatically for every team, the user's included. Over ten simulated offseasons team
+strength, roster sizes, ages, and payrolls stay stable.
+
+Still planned:
+
 - **Injuries:** occur in simulated games, weighted by Toughness; duration in weeks.
 - **Draft:** generated fictional draft classes with scouting fog.
 - **Trades:** AI evaluates value from OVR, age, contract, and positional need.

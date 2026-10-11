@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { dashboard } from "@/test/fixtures";
+import { dashboard, makePlayer, team } from "@/test/fixtures";
 import { DashboardView } from "./DashboardView";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
@@ -40,5 +40,36 @@ describe("DashboardView", () => {
     const schedule = screen.getByRole("region", { name: "Upcoming schedule" });
     expect(within(schedule).getByText("vs Roadrunners")).toBeInTheDocument();
     expect(within(schedule).getByText("@ Roadrunners")).toBeInTheDocument();
+  });
+
+  it("shows the offseason recap before the first game", () => {
+    const player = (id: number, full_name: string, overall = 70) =>
+      makePlayer({ id, full_name, overall });
+    const { rerender } = render(<DashboardView data={dashboard} />);
+    expect(screen.queryByRole("region", { name: "Offseason recap" })).not.toBeInTheDocument();
+
+    rerender(<DashboardView data={{ ...dashboard, offseason: {
+      from_year: 2026, year: 2027,
+      re_signed: [{ player: player(1, "Kept Guy", 81), salary: 12_500_000, years: 3 }],
+      signed: [{ player: player(2, "New Vet"), salary: 1_200_000, years: 2 }],
+      rookies: [player(3, "Young Kid", 61)],
+      retired: [player(4, "Old Timer")],
+      departed: [player(5, "Gone Guy")],
+      risers: [{ player: player(6, "Rising Star", 77), before: 71, after: 77 }],
+      decliners: [{ player: player(7, "Fading Vet", 74), before: 78, after: 74 }],
+      league_retirements: [{ player: player(8, "Legend Smith", 88), team }],
+    } }} />);
+    const recap = screen.getByRole("region", { name: "Offseason recap" });
+    expect(recap).toHaveTextContent("2026 offseason");
+    expect(recap).toHaveTextContent("1 re-signed · 2 gone · 2 new");
+    expect(within(recap).getByRole("group", { name: "Re-signed" })).toHaveTextContent("$12.5M × 3");
+    const arrivals = within(recap).getByRole("group", { name: "New arrivals" });
+    expect(arrivals).toHaveTextContent("FA · $1.2M × 2");
+    expect(arrivals).toHaveTextContent("Rookie");
+    expect(within(recap).getByRole("group", { name: "Gone" })).toHaveTextContent("Left in free agency");
+    const development = within(recap).getByRole("group", { name: "Development" });
+    expect(development).toHaveTextContent("+6");
+    expect(development).toHaveTextContent("-4");
+    expect(within(recap).getByRole("link", { name: "Legend Smith" })).toHaveAttribute("href", "/players/8");
   });
 });

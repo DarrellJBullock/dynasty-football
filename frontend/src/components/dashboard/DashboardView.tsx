@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatMoney, formatPhase, formatRecord, ratingTier, TIER_BAR } from "@/lib/format";
 import { gameLabel, OUTCOME_STYLES, resultFor } from "@/lib/games";
+import { OffseasonRecap } from "./OffseasonRecap";
 import type { Alert, Dashboard, Game, PositionGroupSummary, TeamSummary } from "@/lib/types";
 
 export function DashboardView({ data }: { data: Dashboard }) {
@@ -24,6 +25,8 @@ export function DashboardView({ data }: { data: Dashboard }) {
       }
     >
       <Hero data={data} awayColor={opponent?.primary_color ?? "#3a4a5e"} />
+
+      {data.offseason && <OffseasonRecap recap={data.offseason} />}
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <NextGameCard game={nextGame} teamId={team.id} />

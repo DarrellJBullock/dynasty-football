@@ -112,4 +112,9 @@ describe("PlayerView", () => {
     expect(screen.getByText("No stats yet this season.")).toBeInTheDocument();
     expect(screen.getByText(/Free agent/)).toBeInTheDocument();
   });
+
+  it("marks retired players", () => {
+    render(<PlayerView player={makePlayerDetail({ retired_year: 2026 })} stats={{ ...stats, games: 0, totals: {}, game_log: [], team: null }} />);
+    expect(screen.getByText(/Retired after 2026/)).toBeInTheDocument();
+  });
 });

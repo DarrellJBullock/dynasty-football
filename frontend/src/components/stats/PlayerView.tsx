@@ -20,7 +20,9 @@ export function PlayerView({ player, stats }: { player: PlayerDetail; stats: Pla
           <h1 className="font-display text-4xl font-bold uppercase tracking-wide">{player.full_name}</h1>
           <p className="mt-1 text-sm text-mist">
             Age {player.age} · {formatHeight(player.height_in)}, {player.weight_lb} lb · {player.college} ·{" "}
-            {player.years_pro ? `${player.years_pro} yr pro` : "Rookie"} · {injuryLabel(player.injury_status)}
+            {player.retired_year
+              ? `Retired after ${player.retired_year}`
+              : <>{player.years_pro ? `${player.years_pro} yr pro` : "Rookie"} · {injuryLabel(player.injury_status)}</>}
             {player.contract && <> · {formatMoney(player.contract.salary)}/yr through {player.contract.end_year}</>}
           </p>
         </div>

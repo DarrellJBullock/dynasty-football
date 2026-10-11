@@ -110,10 +110,14 @@ def make_player(
     target: int,
     team: Team | None = None,
     taken_numbers: set[int] | None = None,
+    age: int | None = None,
 ) -> Player:
+    """A generated player. Pass `age` for rookies (the random age draw still happens, so
+    the RNG sequence is the same either way)."""
     attributes = _attributes(rng, position, target)
     overall = calculate_overall(position, attributes)
-    age = max(21, min(36, round(rng.gauss(26, 3))))
+    drawn_age = max(21, min(36, round(rng.gauss(26, 3))))
+    age = drawn_age if age is None else age
     min_h, max_h, min_w, max_w = BODY[position]
     growth = max(0, 28 - age) * rng.uniform(0.8, 2.2)
     player = Player(
