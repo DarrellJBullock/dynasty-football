@@ -868,8 +868,17 @@ export interface Playbook {
 
 // ---------- coach mode ----------
 
+/** What the other side shows at the line (maybe disguised, on defense). */
+export interface CoachLook {
+  package?: "base" | "nickel" | "dime" | null;
+  safeties?: "two_high" | "single_high" | "none" | null;
+  blitz?: boolean | null;
+  formation?: string | null;
+}
+
 export interface CoachSituation {
-  role: "offense" | "defense" | "kickoff" | "conversion"; // a play, or a kicking decision
+  /** A play, a kicking decision, or (with audibles in the game plan) keep-or-audible at the line. */
+  role: "offense" | "defense" | "kickoff" | "conversion" | "audible";
   quarter: number;
   clock: string; // before any runoff
   seconds: number;
@@ -885,6 +894,11 @@ export interface CoachSituation {
   suggestion: string; // the AI's call: a playbook key, or a kickoff / conversion choice
   suggestion_name: string;
   suggested_package: "base" | "nickel" | "dime" | null;
+  /** At the line: for which side, the call made, the look, and the audibles (or "keep"). */
+  audible_for?: "offense" | "defense" | null;
+  called?: { key: string; name: string } | null;
+  look?: CoachLook | null;
+  audibles?: { key: string; name: string }[];
 }
 
 export interface CoachState {
@@ -955,6 +969,9 @@ export interface GamePlan {
   defense: string[];
   /** Each from -2 (much less) to 2 (much more); 0 is the league's usual. */
   tendencies: Record<string, number>;
+  /** Coach Mode: up to three plays (calls) from the plan to switch to at the line. */
+  offense_audibles: string[];
+  defense_audibles: string[];
   /** What the roster-based plan would set. */
   suggested: Record<string, number>;
   offense_choices: string[];
@@ -968,4 +985,6 @@ export interface GamePlanInput {
   offense: string[];
   defense: string[];
   tendencies: Record<string, number>;
+  offense_audibles: string[];
+  defense_audibles: string[];
 }

@@ -25,6 +25,7 @@ const DEFENSE_TABS: { key: DefensivePlay["category"]; label: string }[] = [
 const PACKAGES: Package[] = ["base", "nickel", "dime"];
 const HEADINGS: Record<CoachSituation["role"], string> = {
   offense: "Your offense", defense: "Your defense", kickoff: "Your kickoff", conversion: "After the touchdown",
+  audible: "At the line",
 };
 const KICK_CHOICES: Record<"kickoff" | "conversion", { key: string; label: string; note: string }[]> = {
   kickoff: [
@@ -146,6 +147,10 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
                 )}
               </header>
 
+              {situation.role === "audible" ? (
+                <AtTheLine situation={situation} busy={busy}
+                  onCall={(play) => run(() => api.coachCall(game.id, { play }))} />
+              ) : (<>
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-gold/[0.06] px-3 py-2 text-sm">
                 <span className="text-mist">AI suggests</span>
                 <span className="font-semibold">{situation.suggestion_name}</span>
@@ -189,6 +194,7 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
                   {!situation.clock_running && <span className="text-mist/60">· clock stopped</span>}
                 </label>
               </div>}
+              </>)}
 
               <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3" role="group"
                 aria-label="Let the AI call">
@@ -306,6 +312,45 @@ function ScoreBug({ state, teams }: { state: CoachState; teams: { home: Game["ho
         )}
       </div>
     </section>
+  );
+}
+
+/** What the other side shows, in words. */
+export function lookText(situation: CoachSituation): string {
+  const look = situation.look ?? {};
+  if (situation.audible_for === "defense") {
+    return `The offense lines up in ${look.formation ?? "its formation"}.`;
+  }
+  const safeties = { two_high: "two deep safeties", single_high: "one deep safety", none: "no deep safety" };
+  return `The defense shows ${look.package ?? "base"} personnel, ` +
+    `${safeties[look.safeties ?? "single_high"]}${look.blitz ? ", and a blitz" : ", no blitz"}.`;
+}
+
+/** At the line (audibles in the game plan): keep the call, or switch to an audible. */
+function AtTheLine({ situation, busy, onCall }: {
+  situation: CoachSituation; busy: boolean; onCall: (play: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm">
+        You called <span className="font-semibold">{situation.called?.name}</span>.{" "}
+        <span data-testid="look">{lookText(situation)}</span>
+        {situation.audible_for === "offense" && (
+          <span className="text-mist"> (Defenses sometimes disguise what they&apos;re in.)</span>
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Audibles">
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onCall("keep")}>
+          Keep: {situation.called?.name}
+        </button>
+        {(situation.audibles ?? []).filter((a) => a.key !== situation.called?.key).map((a) => (
+          <button key={a.key} type="button" className="btn btn-ghost" disabled={busy}
+            onClick={() => onCall(a.key)}>
+            Audible: {a.name}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

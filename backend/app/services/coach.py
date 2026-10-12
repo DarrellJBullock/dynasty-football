@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import CoachedGame, Game, Season
-from app.schemas import CoachSituation, CoachStateOut
+from app.schemas import AudibleOption, CoachLook, CoachSituation, CoachStateOut
 from app.services.errors import RosterError
 from app.services.free_agency import franchise_team_id
 from app.services.games import play_out
@@ -139,15 +139,21 @@ def _situation(s: Situation, abbreviations: dict[str, str]) -> CoachSituation:
     offense = abbreviations[s.possession]
     defense = abbreviations["away" if s.possession == "home" else "home"]
     minutes, seconds = divmod(max(0, s.clock), 60)
-    plays = DEFENSE_BY_KEY if s.role == "defense" else OFFENSE_BY_KEY
-    names = {**{key: p.name for key, p in plays.items()}, **CHOICE_NAMES}
+    side = s.audible_for or s.role
+    plays = DEFENSE_BY_KEY if side == "defense" else OFFENSE_BY_KEY
+    names = {**{key: p.name for key, p in plays.items()}, **CHOICE_NAMES,
+             "keep": "Keep the call"}
     return CoachSituation(
         role=s.role, quarter=s.quarter, clock=f"{minutes}:{seconds:02d}", seconds=s.clock,
         clock_running=s.clock_running, possession=s.possession, offense=offense, down=s.down,
         distance=s.distance, ball_on=s.ball_on, spot=spot_label(s.ball_on, offense, defense),
         score=s.score, timeouts=s.timeouts, suggestion=s.suggestion,
         suggestion_name=names.get(s.suggestion, s.suggestion),
-        suggested_package=s.suggested_package)
+        suggested_package=s.suggested_package, audible_for=s.audible_for,
+        called=AudibleOption(key=s.called, name=names.get(s.called, s.called))
+        if s.called else None,
+        look=CoachLook(**s.look) if s.look else None,
+        audibles=[AudibleOption(key=k, name=names.get(k, k)) for k in s.audibles])
 
 
 def _in_progress(coached: CoachedGame | None) -> CoachedGame:
@@ -170,10 +176,18 @@ def call(db: Session, coached: CoachedGame | None, play: str, package: str | Non
     problem = check_call(new, before.situation)
     if problem:
         raise RosterError(problem, 422)
-    coached.calls = [*coached.calls, new.to_dict()]
+    coached.calls = _with(coached.calls, new)
     after = _replay(coached)
     db.flush()
     return state(db, coached, after, new_plays=len(after.plays) - len(before.plays))
+
+
+def _with(calls: list[dict], new: CoachCall) -> list[dict]:
+    """The recorded calls with a new one: an audible goes onto the snap's call (it's
+    decided at the line), anything else is the next call."""
+    if new.role == "audible":
+        return [*calls[:-1], {**calls[-1], "audible": new.play}]
+    return [*calls, new.to_dict()]
 
 
 def abandon(db: Session, coached: CoachedGame | None) -> None:
@@ -198,8 +212,8 @@ def auto(db: Session, coached: CoachedGame | None, scope: AutoScope) -> CoachSta
         situation = outcome.situation
         if scope == "drive" and first and situation.possession != first.possession:
             break  # the drive (yours or theirs) is over
-        coached.calls = [*coached.calls, CoachCall(
-            situation.role, situation.suggestion, situation.suggested_package).to_dict()]
+        coached.calls = _with(coached.calls, CoachCall(
+            situation.role, situation.suggestion, situation.suggested_package))
         outcome = _replay(coached)
         if scope == "play":
             break

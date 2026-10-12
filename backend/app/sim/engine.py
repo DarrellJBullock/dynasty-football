@@ -11,7 +11,8 @@ from dataclasses import dataclass, field
 from app.domain.positions import Position as P
 from app.sim import resolve as rs
 from app.sim.injuries import injury_details, roll_injuries
-from app.sim.playcalls import AICoach, Coach, PlayCall, field_goal_distance
+from app.sim.look import defensive_look, offensive_look
+from app.sim.playcalls import AICoach, Coach, DefenseCall, PlayCall, field_goal_distance
 from app.sim.state import OT_SECONDS, QUARTER_SECONDS, GameState, Side, other
 from app.sim.teams import SimTeam
 from app.sim.text import describe
@@ -328,6 +329,27 @@ class _Game:
             self.scrimmage(side, call, situation, clock_before)
         self.snap_done()
 
+    def at_the_line(self, side: Side, call: PlayCall,
+                    dcall: DefenseCall) -> tuple[PlayCall, DefenseCall]:
+        """Before the snap each side sees the other's look and may audible (Coach Mode,
+        with audibles in the plan; the AI keeps its calls). The look draws from its own
+        stream, so seeing it never shifts the game's other draws."""
+        s = self.s
+        for role, team_side in (("offense", side), ("defense", s.defense)):
+            hook = getattr(self.coaches[team_side], "audible", None)
+            if hook is None:
+                continue
+            look_rng = random.Random(f"look:{self.seed}:{len(self.plays)}:{role}")
+            look = (defensive_look(dcall.package, dcall.shell, dcall.blitz,
+                                   self.teams[s.defense], look_rng)
+                    if role == "offense" else offensive_look(call.play))
+            choice = hook(s, role, team_side, look)
+            if choice and role == "offense" and choice != call.play:
+                call = PlayCall.named(choice, audible_from=call.play)
+            elif choice and role == "defense" and choice != dcall.play:
+                dcall = DefenseCall.named(choice, dcall.package, audible_from=dcall.play)
+        return call, dcall
+
     def punt(self, side: Side, call: PlayCall, situation, clock_before: int) -> None:
         punter = self.teams[side].one(P.P)
         spot, event = rs.resolve_punt(punter, self.s.ball_on, self.rng, self.t)
@@ -357,6 +379,7 @@ class _Game:
         t, rng = self.t, self.rng
         offense, defense = self.teams[side], self.teams[s.defense]
         dcall = self.coaches[s.defense].defense(s, offense, defense, rng)
+        call, dcall = self.at_the_line(side, call, dcall)
         off = rs.offense_personnel(offense, rng)
         offense_ids = [p.id for p in off.all]
 

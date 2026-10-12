@@ -1145,9 +1145,23 @@ class PlaybookOut(BaseModel):
 
 # ---------- coach mode ----------
 
+class CoachLook(BaseModel):
+    """What the other side shows at the line."""
+    package: Literal["base", "nickel", "dime"] | None = None  # the defense's personnel
+    safeties: Literal["two_high", "single_high", "none"] | None = None  # (maybe disguised)
+    blitz: bool | None = None  # a blitz showing (maybe disguised)
+    formation: str | None = None  # the offense's formation
+
+
+class AudibleOption(BaseModel):
+    key: str
+    name: str
+
+
 class CoachSituation(BaseModel):
-    # Which call the user makes: a play (offense / defense) or a kicking decision.
-    role: Literal["offense", "defense", "kickoff", "conversion"]
+    # Which call the user makes: a play (offense / defense), a kicking decision, or, at the
+    # line, whether to audible.
+    role: Literal["offense", "defense", "kickoff", "conversion", "audible"]
     quarter: int
     clock: str  # before any runoff, e.g. "2:05"
     seconds: int
@@ -1165,6 +1179,12 @@ class CoachSituation(BaseModel):
     suggestion: str
     suggestion_name: str
     suggested_package: Literal["base", "nickel", "dime"] | None
+    # At the line: for which side, the call made, the look, and the audibles to switch to
+    # (answer with the audible's key, or "keep").
+    audible_for: Literal["offense", "defense"] | None = None
+    called: AudibleOption | None = None
+    look: CoachLook | None = None
+    audibles: list[AudibleOption] = []
 
 
 class CoachStateOut(BaseModel):
@@ -1240,6 +1260,9 @@ class GamePlanIn(BaseModel):
     offense: list[str] = Field(max_length=100)  # the plays in the plan
     defense: list[str] = Field(max_length=100)  # the calls in the plan
     tendencies: dict[str, int] = {}  # each -2..2 (missing: 0)
+    # Coach Mode: up to three plays (calls) from the plan to switch to at the line.
+    offense_audibles: list[str] = Field(default=[], max_length=10)
+    defense_audibles: list[str] = Field(default=[], max_length=10)
 
 
 class PlanRequirement(BaseModel):
@@ -1254,6 +1277,8 @@ class GamePlanOut(BaseModel):
     offense: list[str]
     defense: list[str]
     tendencies: dict[str, int]
+    offense_audibles: list[str]
+    defense_audibles: list[str]
     suggested: dict[str, int]  # the roster-based plan's tendencies
     offense_choices: list[str]
     defense_choices: list[str]

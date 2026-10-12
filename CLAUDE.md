@@ -160,6 +160,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   team's plan. A neutral plan (the whole book, every tendency 0) must stay draw-for-draw
   identical to the AI before plans (`test_game_plans.py` pins a game's log): apply a
   tendency only when its level isn't 0, and only fall back when a pick finds nothing.
+- **Audibles** are decided at the line inside a snap (`engine.at_the_line`): the answer is
+  stored on that snap's recorded call (`CoachCall.audible`), not as a new call, and the look
+  draws from its own `random.Random(f"look:{seed}:{n}:{role}")`, never the game's stream.
 - **The franchise on autopilot:** the offseason, free agency and the draft take
   `autopilot=True` (sim ahead), which treats the franchise like an AI team. Anything new
   that skips the franchise for the user to decide needs the same flag.

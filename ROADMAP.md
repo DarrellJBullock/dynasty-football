@@ -137,7 +137,8 @@ Design: `docs/design/dynasty-mode.md`.
       through each offseason, a Dynasty report, older play logs compacted)
 - [x] Game plans (choose your plays and tendencies; the AI follows them when it calls
       for you, and AI teams get plans that suit their rosters; engine version 1.6)
-- [ ] Audibles (a pre-snap look in Coach Mode, sometimes disguised; three audibles a side)
+- [x] Audibles (a pre-snap look in Coach Mode, sometimes disguised; three audibles a side,
+      picked in the game plan)
 - [ ] Penalties and injuries (about ten more fouls driven by awareness, questionable and
       season-ending injuries; engine version 1.7)
 

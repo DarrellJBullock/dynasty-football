@@ -28,6 +28,8 @@ export function GamePlanEditor({ initial, playbook, team }: {
   const [offense, setOffense] = useState(new Set(initial.offense));
   const [defense, setDefense] = useState(new Set(initial.defense));
   const [tendencies, setTendencies] = useState(initial.tendencies);
+  const [offenseAudibles, setOffenseAudibles] = useState(initial.offense_audibles);
+  const [defenseAudibles, setDefenseAudibles] = useState(initial.defense_audibles);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +43,8 @@ export function GamePlanEditor({ initial, playbook, team }: {
     setOffense(new Set(plan.offense));
     setDefense(new Set(plan.defense));
     setTendencies(plan.tendencies);
+    setOffenseAudibles(plan.offense_audibles);
+    setDefenseAudibles(plan.defense_audibles);
   }
 
   async function act(run: () => Promise<GamePlan>, done: string) {
@@ -57,8 +61,13 @@ export function GamePlanEditor({ initial, playbook, team }: {
     }
   }
 
+  // (an audible must be in the plan: one switched off drops out)
+  const keep = (audibles: string[], chosen: Set<string>) =>
+    [...new Set(audibles)].filter((key) => chosen.has(key));
   const save = () => act(() => api.saveGamePlan(team.id, {
-    offense: [...offense].sort(), defense: [...defense].sort(), tendencies }), "Game plan saved.");
+    offense: [...offense].sort(), defense: [...defense].sort(), tendencies,
+    offense_audibles: keep(offenseAudibles, offense), defense_audibles: keep(defenseAudibles, defense),
+  }), "Game plan saved.");
   const reset = () => act(() => api.resetGamePlan(team.id), "Back to the plan for your roster.");
 
   return (
@@ -102,7 +111,8 @@ export function GamePlanEditor({ initial, playbook, team }: {
               plays={playbook.defense.filter((p) => saved.defense_choices.includes(p.key))} />
           </Panel>
         </div>
-        <Panel title="Tendencies" className="self-start">
+        <div className="space-y-6 self-start">
+        <Panel title="Tendencies">
           <div className="space-y-4">
             {Object.entries(saved.tendency_labels).map(([key, label]) => (
               <fieldset key={key}>
@@ -127,8 +137,43 @@ export function GamePlanEditor({ initial, playbook, team }: {
             ))}
           </div>
         </Panel>
+        <Panel title="Audibles">
+          <p className="mb-3 text-xs text-mist">
+            In Coach Mode, after you call a play you see the other side&apos;s look and can
+            switch to one of these. None: plays snap as called.
+          </p>
+          <AudiblePicks side="Offensive" chosen={offenseAudibles} setChosen={setOffenseAudibles}
+            plays={playbook.offense.filter((p) => offense.has(p.key))} />
+          <AudiblePicks side="Defensive" chosen={defenseAudibles} setChosen={setDefenseAudibles}
+            plays={playbook.defense.filter((p) => defense.has(p.key))} />
+        </Panel>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Up to three audibles for one side, from the plays in the plan. */
+function AudiblePicks({ side, plays, chosen, setChosen }: {
+  side: string; plays: { key: string; name: string }[]; chosen: string[];
+  setChosen: (next: string[]) => void;
+}) {
+  return (
+    <fieldset className="mb-3 space-y-1.5">
+      <legend className="text-sm font-medium">{side} audibles</legend>
+      {[0, 1, 2].map((i) => (
+        <select key={i} className="field-input py-1 text-sm" aria-label={`${side} audible ${i + 1}`}
+          value={chosen[i] ?? ""}
+          onChange={(e) => {
+            const next = [...chosen];
+            next[i] = e.target.value;
+            setChosen(next.filter(Boolean));
+          }}>
+          <option value="">—</option>
+          {plays.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+        </select>
+      ))}
+    </fieldset>
   );
 }
 

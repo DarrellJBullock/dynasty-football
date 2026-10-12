@@ -24,6 +24,7 @@ TENDENCIES: dict[str, str] = {
     "two_point": "Going for two",
 }
 LEVELS = range(-2, 3)
+MAX_AUDIBLES = 3  # per side, from the plan
 
 # What one step of a tendency changes.
 PASS_RATE_STEP = 0.05  # pass probability per level
@@ -55,22 +56,36 @@ class GamePlan:
     offense: frozenset[str] | None = None  # None: the whole book
     defense: frozenset[str] | None = None
     tendencies: Mapping[str, int] = field(default_factory=dict)  # missing: 0
+    # Coach Mode: the plays (calls) to switch to at the line, up to three a side. None at
+    # all: no audible step, the call is snapped as made.
+    offense_audibles: tuple[str, ...] = ()
+    defense_audibles: tuple[str, ...] = ()
 
     def level(self, name: str) -> int:
         return self.tendencies.get(name, 0)
 
+    def audibles(self, role: str) -> tuple[str, ...]:
+        return self.offense_audibles if role == "offense" else self.defense_audibles
+
     def to_dict(self) -> dict:
-        return {"offense": sorted(self.offense) if self.offense is not None else None,
+        data = {"offense": sorted(self.offense) if self.offense is not None else None,
                 "defense": sorted(self.defense) if self.defense is not None else None,
                 "tendencies": {k: v for k, v in self.tendencies.items() if v}}
+        if self.offense_audibles or self.defense_audibles:
+            data["audibles"] = {"offense": list(self.offense_audibles),
+                                "defense": list(self.defense_audibles)}
+        return data
 
     @classmethod
     def from_dict(cls, data: Mapping | None) -> "GamePlan":
         if not data:
             return NEUTRAL
+        audibles = data.get("audibles") or {}
         return cls(offense=frozenset(data["offense"]) if data.get("offense") is not None else None,
                    defense=frozenset(data["defense"]) if data.get("defense") is not None else None,
-                   tendencies=dict(data.get("tendencies") or {}))
+                   tendencies=dict(data.get("tendencies") or {}),
+                   offense_audibles=tuple(audibles.get("offense", ())),
+                   defense_audibles=tuple(audibles.get("defense", ())))
 
 
 NEUTRAL = GamePlan()
@@ -90,6 +105,17 @@ def validate(plan: GamePlan) -> list[str]:
         for what, options in required.items():
             if not any(key in chosen for key, _ in options):
                 errors.append(f"The plan needs {what}.")
+    for side, audibles, chosen, book in (
+            ("offensive", plan.offense_audibles, plan.offense, OFFENSE_CHOICES),
+            ("defensive", plan.defense_audibles, plan.defense, DEFENSE_CHOICES)):
+        if len(audibles) > MAX_AUDIBLES:
+            errors.append(f"Up to {MAX_AUDIBLES} {side} audibles.")
+        if len(set(audibles)) != len(audibles):
+            errors.append(f"The {side} audibles repeat a play.")
+        outside = [a for a in audibles if a not in (chosen if chosen is not None else book)]
+        if outside:
+            errors.append(f"{side.capitalize()} audibles must be in the plan: "
+                          f"{', '.join(outside)}.")
     for name, level in plan.tendencies.items():
         if name not in TENDENCIES:
             errors.append(f"Unknown tendency: {name}.")

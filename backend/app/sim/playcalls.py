@@ -39,11 +39,12 @@ class PlayCall:
     depth: PassDepth | None = None
     play_action: bool = False
     play: str | None = None  # the named play (app/sim/playbook.py), if any
+    audible_from: str | None = None  # the play called in the huddle, if changed at the line
 
     @classmethod
-    def named(cls, key: str) -> "PlayCall":
+    def named(cls, key: str, audible_from: str | None = None) -> "PlayCall":
         p = OFFENSE_BY_KEY[key]
-        return cls(p.kind, p.direction, p.depth, p.play_action, key)
+        return cls(p.kind, p.direction, p.depth, p.play_action, key, audible_from)
 
     def describe(self) -> dict:
         data: dict = {"type": self.kind}
@@ -55,6 +56,8 @@ class PlayCall:
             data["play_action"] = True
         if self.play:
             data["play"] = self.play
+        if self.audible_from:
+            data["audible_from"] = self.audible_from
         return data
 
 
@@ -64,20 +67,23 @@ class DefenseCall:
     coverage: Coverage = "zone"
     blitz: bool = False
     play: str | None = None  # the named call (app/sim/playbook.py), if any
+    audible_from: str | None = None  # the call made in the huddle, if changed at the line
 
     @property
     def shell(self) -> str | None:
         return DEFENSE_BY_KEY[self.play].shell if self.play else None
 
     @classmethod
-    def named(cls, key: str, package: Package) -> "DefenseCall":
+    def named(cls, key: str, package: Package, audible_from: str | None = None) -> "DefenseCall":
         p = DEFENSE_BY_KEY[key]
-        return cls(p.package or package, p.coverage, p.blitz, key)
+        return cls(p.package or package, p.coverage, p.blitz, key, audible_from)
 
     def describe(self) -> dict:
         data: dict = {"package": self.package, "coverage": self.coverage, "blitz": self.blitz}
         if self.play:
             data["play"] = self.play
+        if self.audible_from:
+            data["audible_from"] = self.audible_from
         return data
 
 
