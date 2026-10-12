@@ -900,6 +900,17 @@ export interface CoachSituation {
   called?: { key: string; name: string } | null;
   look?: CoachLook | null;
   audibles?: { key: string; name: string }[];
+  /** Before a snap: each side's most tired players still in the game. */
+  fatigue?: FatigueLine[];
+}
+
+export interface FatigueLine {
+  player_id: number;
+  name: string;
+  position: string;
+  team: string; // abbreviation
+  energy: number; // 0-100 (100: fresh)
+  resting: boolean; // on the sideline until he recovers
 }
 
 export interface CoachState {

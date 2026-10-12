@@ -8,6 +8,8 @@ export interface StatGroup {
   has: string[];
   sortBy: string;
   columns: [label: string, value: (s: Stats) => string | number][];
+  /** Not one of the box score's top-five tables (the game page lists it on its own). */
+  ownSection?: boolean;
 }
 
 const n = (s: Stats, key: string) => s[key] ?? 0;
@@ -29,6 +31,8 @@ export const STAT_GROUPS: StatGroup[] = [
     ["FG", (s) => `${n(s, "fg_made")}/${n(s, "fg_att")}`], ["LONG", (s) => n(s, "fg_long")],
     ["XP", (s) => `${n(s, "xp_made")}/${n(s, "xp_att")}`], ["PUNTS", (s) => n(s, "punts")],
     ["AVG", (s) => (s.punts ? (s.punt_yds / s.punts).toFixed(1) : "–")]] },
+  { title: "Snaps", has: ["snaps"], sortBy: "snaps", ownSection: true, columns: [
+    ["SNAPS", (s) => n(s, "snaps")]] },
 ];
 
 export function hasGroup(group: StatGroup, stats: Stats): boolean {
@@ -47,5 +51,18 @@ export const STAT_LABELS: Record<string, string> = {
   receptions: "REC", targets: "TGT", rec_td: "TD", rec_long: "LONG", rec_yds: "YDS",
   tackles: "TKL", sacks: "SACK", interceptions: "INT", forced_fumbles: "FF",
   passes_defended: "PD", int_return_yds: "RET YDS",
-  fg_att: "FGA", fg_long: "LONG", xp_made: "XP",
+  fg_att: "FGA", fg_long: "LONG", xp_made: "XP", snaps: "SNAPS",
 };
+
+/** Each player's share of his unit's snaps: offense, or defense (from the busiest
+ * player on each side, who played every snap the unit did). */
+export function snapShares<T extends { position: string; stats: Stats }>(players: T[]):
+    (T & { snaps: number; share: number })[] {
+  const OFFENSE = new Set(["QB", "RB", "FB", "WR", "TE", "OT", "OG", "C"]);
+  const unit = (p: T) => (OFFENSE.has(p.position) ? "offense" : "defense");
+  const most = { offense: 0, defense: 0 };
+  for (const p of players) most[unit(p)] = Math.max(most[unit(p)], p.stats.snaps ?? 0);
+  return players
+    .filter((p) => (p.stats.snaps ?? 0) > 0)
+    .map((p) => ({ ...p, snaps: p.stats.snaps, share: p.stats.snaps / Math.max(1, most[unit(p)]) }));
+}

@@ -21,6 +21,11 @@ test("sims a week, then follows the result to the box score and other pages", as
   const line = page.getByRole("region", { name: "Line score" });
   await expect(line.getByRole("row")).toHaveCount(3);
   await expect(page.getByRole("table", { name: "HFD passing" })).toBeVisible();
+  // Snap counts: everyone who played, the quarterback on every offensive snap.
+  const box = page.getByRole("region", { name: "Hartford Ironclads box score" });
+  await box.getByText("Snap counts").click();
+  const snaps = box.getByRole("table", { name: "HFD snap counts" });
+  await expect(snaps.getByRole("row", { name: /QB/ }).first()).toContainText("100%");
   await expect(page.getByRole("list", { name: "Quarter 1" }).getByRole("listitem").first())
     .toContainText("kicks off");
 

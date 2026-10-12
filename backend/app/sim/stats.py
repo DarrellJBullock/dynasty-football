@@ -45,6 +45,7 @@ class PlayerLine:
     punts: int = 0
     punt_yds: int = 0
     penalties: int = 0
+    snaps: int = 0  # scrimmage snaps on the field (from the play's recorded personnel)
 
     def as_dict(self) -> dict[str, int]:
         return {f.name: getattr(self, f.name) for f in fields(self) if getattr(self, f.name)}
@@ -114,6 +115,13 @@ def _fold(box: BoxScore, play: PlayRecord) -> None:
         team.first_downs += 1
     if result.get("turnover"):
         team.turnovers += 1
+    # Snaps: everyone on the field for a play that was snapped (a pre-snap foul wasn't).
+    snapped = any(e["t"] != "penalty" for e in play.events)
+    if play.personnel and play.down is not None and snapped:
+        for pid in play.personnel["offense"]:
+            p(pid, off).snaps += 1
+        for pid in play.personnel["defense"]:
+            p(pid, deff).snaps += 1
 
     for e in play.events:
         t = e["t"]

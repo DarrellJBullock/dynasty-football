@@ -535,6 +535,7 @@ class PlayerGameStats(Base):
     punts: Mapped[int] = mapped_column(Integer, default=0)
     punt_yds: Mapped[int] = mapped_column(Integer, default=0)
     penalties: Mapped[int] = mapped_column(Integer, default=0)
+    snaps: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     player: Mapped["Player"] = relationship()
 

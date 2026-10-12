@@ -380,6 +380,26 @@ describe("GameView", () => {
     expect(within(list).getByRole("link", { name: /Rod Banks/ })).toHaveAttribute("href", "/players/31");
   });
 
+  it("lists snap counts by position with each player's share of his unit's snaps", async () => {
+    render(<GameView detail={{ ...detail, players: [
+      { player_id: 1, team_id: team.id, name: "Keegan Quarles", position: "QB", stats: { snaps: 64, pass_att: 30 } },
+      { player_id: 3, team_id: team.id, name: "Rod Banks", position: "RB", stats: { snaps: 48, rush_att: 18 } },
+      { player_id: 4, team_id: team.id, name: "Eli Nash", position: "RB", stats: { snaps: 16 } },
+      { player_id: 5, team_id: team.id, name: "Dane Voss", position: "DE", stats: { snaps: 50 } },
+      { player_id: 6, team_id: team.id, name: "Owen Hale", position: "CB", stats: { snaps: 66 } },
+    ] }} />);
+    const box = screen.getByRole("region", { name: `${team.full_name} box score` });
+    await userEvent.click(within(box).getByText("Snap counts"));
+    const rows = within(within(box).getByRole("table", { name: `${team.abbreviation} snap counts` }))
+      .getAllByRole("row").slice(1).map((r) => r.textContent);
+    expect(rows).toEqual([
+      "Keegan Quarles QB64100%", "Rod Banks RB4875%", "Eli Nash RB1625%",
+      "Dane Voss DE5076%", "Owen Hale CB66100%",
+    ]);
+    // Snaps are their own list, not one of the box score's top-five tables.
+    expect(within(box).queryByRole("table", { name: `${team.abbreviation} snaps` })).not.toBeInTheDocument();
+  });
+
   it("explains an unplayed game", () => {
     render(<GameView detail={{ ...detail, game: game({ status: "scheduled", home_score: null, away_score: null }),
       players: [], plays: [], scoring_plays: [], line_score: { home: [], away: [] }, team_stats: {} }} />);

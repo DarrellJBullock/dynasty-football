@@ -106,7 +106,7 @@ class TestAtTheLine:
     def test_an_audible_changes_the_call(self, teams):
         def switch(stop: Situation) -> str:
             return next(a for a in stop.audibles if a != stop.called)
-        calls, stops, outcome = _coach(teams, OFFENSE_AUDIBLES, "home", 12, audible=switch)
+        calls, stops, outcome = _coach(teams, OFFENSE_AUDIBLES, "home", 30, audible=switch)
         assert stops
         audibled = [p for p in outcome.plays if p.call and p.call.get("audible_from")]
         assert audibled

@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import CoachedGame, Game, Season
-from app.schemas import AudibleOption, CoachLook, CoachSituation, CoachStateOut
+from app.schemas import AudibleOption, CoachLook, CoachSituation, CoachStateOut, FatigueLine
 from app.services.errors import RosterError
 from app.services.free_agency import franchise_team_id
 from app.services.games import play_out
@@ -153,7 +153,8 @@ def _situation(s: Situation, abbreviations: dict[str, str]) -> CoachSituation:
         called=AudibleOption(key=s.called, name=names.get(s.called, s.called))
         if s.called else None,
         look=CoachLook(**s.look) if s.look else None,
-        audibles=[AudibleOption(key=k, name=names.get(k, k)) for k in s.audibles])
+        audibles=[AudibleOption(key=k, name=names.get(k, k)) for k in s.audibles],
+        fatigue=[FatigueLine(**line) for line in s.fatigue])
 
 
 def _in_progress(coached: CoachedGame | None) -> CoachedGame:

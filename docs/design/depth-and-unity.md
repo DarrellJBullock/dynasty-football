@@ -73,6 +73,21 @@ week an injured player is expected back.
   means "the AI as before plans" for calls.
 - **Calibration:** today's targets must stay green; the +5 OVR win rate (65–75%) is
   re-checked, since depth now counts.
+- **As built** (`app/sim/fatigue.py`, constants in `tuning.py`):
+  - Costs per snap: RB 7, DT 7, DE 6.5, OLB 3.5, WR and TE 2.6, MLB 2.4, CB 2.2, safeties
+    about 2, linemen 0.8, QB 0.6. Recovery: 5 a snap off the field, 8 a change of
+    possession or a quarter break, 4 a timeout, 60 at halftime and before overtime.
+    Sub out below 72 (±4 per Rotation level), back at 90. A point off speed,
+    acceleration, agility and strength for every 4 of energy lost; injury odds ×(1 + 0.5
+    × the share lost).
+  - Measured over 150 games: RB1 plays about 75% of snaps and RB2 24%; starting
+    defensive linemen 72–78%, with the third and fourth men splitting the rest; the
+    quarterback and the line play every snap. The calibration targets, home field and
+    rating sensitivity are unchanged and green; injuries are 2.7 a game (2.6 before).
+  - Snap counts are a `player_game_stats.snaps` column (migration 0022), so every player
+    who took a snap now has a stat line (linemen included). The game page lists them in
+    a collapsible "Snap counts" table with each player's share of his unit's snaps.
+  - A pre-snap foul uses the same fatigued lineup but costs nobody energy.
 
 ## 4. Unity
 

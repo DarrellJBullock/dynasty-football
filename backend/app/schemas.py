@@ -1159,6 +1159,15 @@ class AudibleOption(BaseModel):
     name: str
 
 
+class FatigueLine(BaseModel):
+    player_id: int
+    name: str  # "K. Quarles"
+    position: str
+    team: str  # abbreviation
+    energy: int  # 0-100 (100: fresh)
+    resting: bool  # on the sideline until he recovers
+
+
 class CoachSituation(BaseModel):
     # Which call the user makes: a play (offense / defense), a kicking decision, or, at the
     # line, whether to audible.
@@ -1186,6 +1195,8 @@ class CoachSituation(BaseModel):
     called: AudibleOption | None = None
     look: CoachLook | None = None
     audibles: list[AudibleOption] = []
+    # Before a snap: each side's most tired players still in the game.
+    fatigue: list[FatigueLine] = []
 
 
 class CoachStateOut(BaseModel):
