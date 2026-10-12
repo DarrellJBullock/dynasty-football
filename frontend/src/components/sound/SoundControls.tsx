@@ -2,7 +2,7 @@
 
 import type { SoundSettings } from "@/lib/sound/useGameSound";
 
-/** Sound on or off, the volume, and the effects and crowd (docs/design/sound.md §5). */
+/** Sound on or off, the volume, the effects and crowd, and captions (docs/design/sound.md §5). */
 export function SoundControls({ settings, onChange }: {
   settings: SoundSettings;
   onChange: (change: Partial<SoundSettings>) => void;
@@ -14,6 +14,12 @@ export function SoundControls({ settings, onChange }: {
           settings.on ? "bg-white/10 text-chalk" : "text-mist hover:text-chalk"}`}
         onClick={() => onChange({ on: !settings.on })}>
         {settings.on ? "Sound on" : "Sound off"}
+      </button>
+      <button type="button" aria-pressed={settings.captions}
+        className={`rounded-md px-2 py-1 text-[11px] font-semibold ${
+          settings.captions ? "bg-white/10 text-chalk" : "text-mist hover:text-chalk"}`}
+        onClick={() => onChange({ captions: !settings.captions })}>
+        Captions
       </button>
       {settings.on && (
         <>

@@ -56,6 +56,21 @@ afterEach(() => {
 });
 
 describe("WatchView", () => {
+  it("shows the commentary as captions when asked, in time with the play", async () => {
+    localStorage.clear();
+    render(<WatchView playback={playback} initialPlay={1} />);
+    expect(screen.queryByRole("log", { name: "Commentary" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Captions" }));
+    const captions = screen.getByRole("log", { name: "Commentary" });
+    const { timeline } = scene.props!;
+    const handoff = timeline.moments.find((m) => m.kind === "handoff")!.t;
+    tick(handoff + 0.2);
+    const back = playback.players.find((p) => p.id === pid(H, "RB"))!.name.split(" ").slice(-1)[0];
+    expect(captions).toHaveTextContent(back);
+    expect(JSON.parse(localStorage.getItem("dynasty.sound")!)).toMatchObject({ captions: true });
+    localStorage.clear();
+  });
+
   describe("the renderer", () => {
     afterEach(() => {
       unity.build = null;
