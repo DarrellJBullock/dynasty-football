@@ -6,7 +6,7 @@ import { choreographGame } from "@/components/field/playback/choreograph";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
 import { callLabel } from "@/lib/games";
-import type { CoachSituation, CoachState, DefensivePlay, Game, GamePlayback, OffensivePlay,
+import type { CoachSituation, CoachState, DefensivePlay, FatigueLine, Game, GamePlayback, OffensivePlay,
               Playbook } from "@/lib/types";
 import { PlayReel } from "./PlayReel";
 
@@ -194,6 +194,7 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
                   {!situation.clock_running && <span className="text-mist/60">· clock stopped</span>}
                 </label>
               </div>}
+              {!kicking && <Fatigue lines={situation.fatigue ?? []} mine={state.team.abbreviation} />}
               </>)}
 
               <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3" role="group"
@@ -316,6 +317,40 @@ function ScoreBug({ state, teams }: { state: CoachState; teams: { home: Game["ho
 }
 
 /** What the other side shows, in words. */
+/** Each side's most tired players: energy bars, and who is resting on the sideline. */
+export function Fatigue({ lines, mine }: { lines: FatigueLine[]; mine: string }) {
+  const sides = [
+    { label: "Your tired players", rows: lines.filter((l) => l.team === mine) },
+    { label: "Their tired players", rows: lines.filter((l) => l.team !== mine) },
+  ];
+  return (
+    <section aria-label="Fatigue" className="grid gap-3 border-t border-white/5 pt-3 sm:grid-cols-2">
+      {sides.map(({ label, rows }) => (
+        <div key={label}>
+          <h3 className="mb-1 text-xs text-mist">{label}</h3>
+          {rows.length === 0 ? <p className="text-xs text-mist/70">Everyone is fresh.</p> : (
+            <ul className="space-y-1">
+              {rows.map((l) => (
+                <li key={l.player_id} className="flex items-center gap-2 text-xs">
+                  <span className="w-8 shrink-0 text-mist">{l.position}</span>
+                  <span className="min-w-0 flex-1 truncate">{l.name}</span>
+                  {l.resting && <span className="text-[10px] uppercase text-amber-300">Resting</span>}
+                  <div role="meter" aria-label={`${l.name} energy`} aria-valuemin={0} aria-valuemax={100}
+                    aria-valuenow={l.energy} className="h-1.5 w-16 shrink-0 overflow-hidden rounded bg-white/10">
+                    <div className={`h-full ${l.energy < 70 ? "bg-rose-400" : l.energy < 85 ? "bg-amber-300" : "bg-emerald-400"}`}
+                      style={{ width: `${l.energy}%` }} />
+                  </div>
+                  <span className="w-6 text-right tabular-nums text-mist">{l.energy}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function lookText(situation: CoachSituation): string {
   const look = situation.look ?? {};
   if (situation.audible_for === "defense") {

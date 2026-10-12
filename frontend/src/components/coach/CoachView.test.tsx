@@ -109,6 +109,18 @@ describe("CoachView", () => {
     expect(log).toHaveTextContent("Smash vs Cover 1");
   });
 
+  it("shows each side's tired players before the snap", () => {
+    renderView(state({ situation: situation({ fatigue: [
+      { player_id: 101, name: "R. Banks", position: "RB", team: "HFD", energy: 66, resting: true },
+      { player_id: 230, name: "D. Voss", position: "DE", team: "ABQ", energy: 81, resting: false },
+    ] }) }));
+    const panel = screen.getByRole("region", { name: "Fatigue" });
+    expect(within(panel).getByRole("meter", { name: "R. Banks energy" })).toHaveAttribute("aria-valuenow", "66");
+    expect(within(panel).getByText("Resting")).toBeInTheDocument();
+    const theirs = within(panel).getByText("Their tired players").parentElement!;
+    expect(within(theirs).getByRole("meter", { name: "D. Voss energy" })).toBeInTheDocument();
+  });
+
   it("calls the AI's suggestion, with a timeout while the clock runs", async () => {
     const user = userEvent.setup();
     mocked.coachCall.mockResolvedValue(state());

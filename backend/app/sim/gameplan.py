@@ -22,6 +22,7 @@ TENDENCIES: dict[str, str] = {
     "man_coverage": "Man coverage",
     "fourth_down": "Going for it on fourth down",
     "two_point": "Going for two",
+    "rotation": "Rotating tired players",
 }
 LEVELS = range(-2, 3)
 MAX_AUDIBLES = 3  # per side, from the plan
@@ -143,11 +144,12 @@ def scaled(rate: float, step: float, level: int) -> float:
 def generated(ratings: "TeamRatings") -> GamePlan:
     """The plan an AI team plays to: the whole book, leaning on its strengths. A strong
     arm and fast receivers take more deep shots; pass rushers blitz more; good corners
-    play more man."""
+    play more man; good backups rotate in more."""
     tendencies = {
         "deep_shots": _lean(ratings.arm_and_speed, 80, 70),
         "blitz": _lean(ratings.pass_rush, 78, 66),
         "man_coverage": _lean(ratings.man_coverage, 78, 66),
+        "rotation": _lean(ratings.depth, 70, 60),
     }
     return GamePlan(tendencies={k: v for k, v in tendencies.items() if v})
 
@@ -162,6 +164,7 @@ class TeamRatings:
     arm_and_speed: float  # the QB's arm with the top receivers' speed
     pass_rush: float  # edge rushers' and linebackers' pass rush
     man_coverage: float  # the starting corners' man coverage
+    depth: float = 65.0  # the first backups' overall (RB, DE, DT, CB): who can rotate in
 
 
 def describe_book() -> dict:

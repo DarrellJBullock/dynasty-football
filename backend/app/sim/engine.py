@@ -9,7 +9,7 @@ import random
 from dataclasses import dataclass, field
 
 from app.domain.positions import Position as P
-from app.sim import penalties
+from app.sim import fatigue, penalties
 from app.sim import resolve as rs
 from app.sim.injuries import injury_details, roll_injuries
 from app.sim.look import defensive_look, offensive_look
@@ -21,8 +21,9 @@ from app.sim.tuning import DEFAULT_TUNING, Tuning
 
 # 1.1: in-game injuries; 1.2: personnel and returners in play logs; 1.3: named plays;
 # 1.4: onside kicks and squibs, and kicking decisions by the coach (Coach Mode);
-# 1.5: timeouts and play seconds in play logs (broadcast graphics)
-SIM_VERSION = "1.7"
+# 1.5: timeouts and play seconds in play logs (broadcast graphics); 1.6: game plans;
+# 1.7: penalties and injuries (Milestone 8); 1.8: fatigue and substitutions
+SIM_VERSION = "1.8"
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 
@@ -85,13 +86,6 @@ def simulate_game(home: SimTeam, away: SimTeam, seed: int, *, playoff: bool = Fa
     """`playoff`: overtime continues until there's a winner. `neutral`: no home edge
     ("home" is just the designated side, e.g. the higher seed in a championship)."""
     return _Game(home, away, seed, playoff, coaches, tuning, neutral).run()
-
-
-def _front_and_backers(lineup: list) -> tuple[list, list]:
-    """A pre-snap lineup (rs.defense_lineup) split into the line and the linebackers:
-    four linemen, then the outside backers and the middle backer, then the secondary."""
-    secondary = sum(1 for p in lineup[4:] if p.position in ("CB", "FS", "SS"))
-    return lineup[:4], lineup[4:len(lineup) - secondary]
 
 
 class _Game:
@@ -175,6 +169,7 @@ class _Game:
             if s.timeouts[side] > 0 and self.coaches[side].timeout(s, side):
                 s.timeouts[side] -= 1
                 self.clock_running = False
+                self.breather(self.t.fatigue_recover_timeout)
                 return
 
     def huddle(self) -> None:
@@ -199,8 +194,10 @@ class _Game:
         if s.quarter in (1, 3):
             s.quarter += 1
             s.clock = QUARTER_SECONDS
+            self.breather(self.t.fatigue_recover_quarter)
         elif s.quarter == 2:
             s.quarter, s.clock = 3, QUARTER_SECONDS
+            self.breather(self.t.fatigue_recover_half)
             s.timeouts = {"home": 3, "away": 3}
             self.kickoff(kicking=other(s.second_half_receiver))
         elif s.quarter == 4:
@@ -209,6 +206,7 @@ class _Game:
                 return
             s.quarter, s.clock = 5, OT_SECONDS
             s.timeouts = {"home": 2, "away": 2}
+            self.breather(self.t.fatigue_recover_half)
             s.ot_possessions = 0
             receiver: Side = self.rng.choice(["home", "away"])
             self.kickoff(kicking=other(receiver))
@@ -232,6 +230,12 @@ class _Game:
         s.possession = side
         s.ball_on = max(1, min(99, ball_on))
         s.first_down()
+        self.breather(self.t.fatigue_recover_change)
+
+    def breather(self, amount: float) -> None:
+        """Everyone recovers some energy (a change of possession, a timeout, a break)."""
+        for team in self.teams.values():
+            fatigue.recover(team, amount, self.t)
 
     def score(self, side: Side, points: int, kind: str) -> None:
         s = self.s
@@ -388,21 +392,16 @@ class _Game:
         offense, defense = self.teams[side], self.teams[s.defense]
         dcall = self.coaches[s.defense].defense(s, offense, defense, rng)
         call, dcall = self.at_the_line(side, call, dcall)
-        off = rs.offense_personnel(offense, rng)
-        offense_ids = [p.id for p in off.all]
+        off = rs.offense_personnel(offense, t)
+        deff = rs.defense_personnel(defense, dcall, t)
+        self.personnel = {"offense": [p.id for p in off.all],
+                          "defense": [p.id for p in deff.all], "package": dcall.package}
 
-        lineup = rs.defense_lineup(defense, dcall)
-        foul = penalties.pre_snap(off, *_front_and_backers(lineup), rng, t)
-        if foul:
-            # (No snap: the defense is its base lineup for the package, with no rotation.)
-            self.personnel = {"offense": offense_ids, "package": dcall.package,
-                              "defense": [p.id for p in lineup]}
+        foul = penalties.pre_snap(off, deff.front, deff.backers, rng, t)
+        if foul:  # (no snap: nobody tires)
             self.pre_snap_foul(side, call, dcall, foul, clock_before, situation)
             return
 
-        deff = rs.defense_personnel(defense, dcall, rng)
-        self.personnel = {"offense": offense_ids, "defense": [p.id for p in deff.all],
-                          "package": dcall.package}
         edge = self.edge(side)
         if call.kind == "run":
             outcome = rs.resolve_run(call, dcall, off, deff, s.ball_on, edge, rng, t)
@@ -411,6 +410,8 @@ class _Game:
             outcome = rs.resolve_pass(call, dcall, off, deff, s.ball_on, edge, rng, t, obvious)
         outcome.penalty = outcome.penalty or penalties.live(outcome, off, deff, s.ball_on, rng, t)
         self.injure(offense, defense, off.all, deff.all, outcome.events)
+        fatigue.after_snap(offense, self.personnel["offense"], outcome.duration, t)
+        fatigue.after_snap(defense, self.personnel["defense"], outcome.duration, t)
         self.tick(outcome.duration, during_play=True)
         if outcome.penalty and self.enforce(side, call, dcall, outcome, clock_before,
                                             situation):
@@ -510,8 +511,9 @@ class _Game:
         """Roll for injuries on a snap; the injured leave the game (the depth chart's next
         man up takes over from the next snap)."""
         for team, players in ((offense, off_players), (defense, def_players)):
-            for player in roll_injuries(self.injury_rng, players, events, self.t,
-                                        self.injury_base):
+            for player in roll_injuries(
+                    self.injury_rng, players, events, self.t, self.injury_base,
+                    lambda pid, team=team: fatigue.injury_factor(team, pid, self.t)):
                 description, weeks = injury_details(self.injury_rng)
                 team.injure(player.id)
                 events.append({"t": "injury", "player": player.id, "team": team.abbreviation,

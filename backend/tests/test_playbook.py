@@ -126,8 +126,8 @@ def _average(teams, resolve, call: PlayCall, dcall: DefenseCall, n: int = 4000) 
     offense, defense = teams[0], teams[1]
     gains, completions = [], []
     for _ in range(n):
-        off = offense_personnel(offense, rng)
-        deff = defense_personnel(defense, dcall, rng)
+        off = offense_personnel(offense, DEFAULT_TUNING)
+        deff = defense_personnel(defense, dcall, DEFAULT_TUNING)
         outcome = resolve(call, dcall, off, deff, 30, 0.0, rng, DEFAULT_TUNING)
         gains.append(outcome.yards)
         completions.append(outcome.result == "complete")
@@ -153,8 +153,8 @@ class TestConceptsMatter:
         offense, defense = teams[0], teams[1]
         backs = 0
         for _ in range(600):
-            off = offense_personnel(offense, rng)
-            deff = defense_personnel(defense, DefenseCall(), rng)
+            off = offense_personnel(offense, DEFAULT_TUNING)
+            deff = defense_personnel(defense, DefenseCall(), DEFAULT_TUNING)
             outcome = resolve_pass(PlayCall.named("rb_screen"), DefenseCall(), off, deff, 30, 0.0,
                                    rng, DEFAULT_TUNING)
             target = next((e.get("target") for e in outcome.events if e["t"] == "pass"), None)

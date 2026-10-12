@@ -153,6 +153,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   that alters the order of random draws changes how an in-progress coached game replays.
   Bump `SIM_VERSION` with such changes, and re-pin `NEUTRAL_GAME` in
   `tests/test_game_plans.py` (the play-log hash of a neutral-plan game).
+- **Fatigue** (`app/sim/fatigue.py`): who's on the field comes from `fatigue.take`
+  (healthy, not resting, as tired copies). In the engine, never pick on-field players with
+  `team.at` directly; the in-game energy lives on the `SimTeam` and resets in
+  `start_game`. Fatigue makes no random draws.
 - **Penalties** (`app/sim/penalties.py`): a play whose result type is `"penalty"` was wiped
   out and counts only the foul in stats; a personal foul keeps the play's own type (the
   play stands) and adds a penalty event. Add a foul in `FOULS`, `NAMES`,

@@ -2,9 +2,9 @@ import Link from "next/link";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { Panel } from "@/components/ui/Panel";
 import { callLabel, formatPossession } from "@/lib/games";
-import { hasGroup, STAT_GROUPS } from "@/lib/stats";
+import { hasGroup, snapShares, STAT_GROUPS } from "@/lib/stats";
 import { injuryDuration } from "@/lib/format";
-import type { GameDetail, PlayerGameLine, PlayOut, TeamSummary } from "@/lib/types";
+import { POSITIONS, type GameDetail, type PlayerGameLine, type PlayOut, type Position, type TeamSummary } from "@/lib/types";
 
 type Side = "home" | "away";
 
@@ -210,7 +210,7 @@ function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLin
       <h2 className="flex items-center gap-2 font-display text-xl font-bold uppercase">
         <TeamCrest team={team} size={24} /> {team.nickname}
       </h2>
-      {STAT_GROUPS.map((section) => {
+      {STAT_GROUPS.filter((section) => !section.ownSection).map((section) => {
         const rows = players
           .filter((p) => hasGroup(section, p.stats))
           .sort((a, b) => (b.stats[section.sortBy] ?? 0) - (a.stats[section.sortBy] ?? 0))
@@ -244,7 +244,44 @@ function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLin
           </div>
         );
       })}
+      <SnapCounts team={team} players={players} />
     </section>
+  );
+}
+
+/** Everyone who played, by position, with his share of his unit's snaps. */
+function SnapCounts({ team, players }: { team: TeamSummary; players: PlayerGameLine[] }) {
+  const rows = snapShares(players).sort((a, b) =>
+    POSITIONS.indexOf(a.position as Position) - POSITIONS.indexOf(b.position as Position)
+    || b.snaps - a.snaps);
+  if (!rows.length) return null; // (games played before snap counts)
+  return (
+    <details className="rounded-lg border border-white/5">
+      <summary className="cursor-pointer px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-mist">
+        Snap counts
+      </summary>
+      <table className="w-full text-sm" aria-label={`${team.abbreviation} snap counts`}>
+        <thead>
+          <tr className="text-[11px] uppercase tracking-wider text-mist">
+            <th className="px-3 pb-1 text-left font-medium">Player</th>
+            <th className="pb-1 text-right font-medium">Snaps</th>
+            <th className="px-3 pb-1 text-right font-medium">Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => (
+            <tr key={p.player_id} className="border-t border-white/5">
+              <td className="px-3 py-1">
+                <Link href={`/players/${p.player_id}`} className="hover:text-gold">{p.name}</Link>{" "}
+                <span className="text-xs text-mist">{p.position}</span>
+              </td>
+              <td className="py-1 text-right tabular-nums">{p.snaps}</td>
+              <td className="px-3 py-1 text-right tabular-nums">{Math.round(p.share * 100)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
   );
 }
 

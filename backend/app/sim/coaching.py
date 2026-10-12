@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Literal
 
+from app.sim import fatigue
 from app.sim.engine import GameResult, PlayRecord, _Game
 from app.sim.gameplan import GamePlan
 from app.sim.playbook import DEFENSE_BY_KEY, OFFENSE_BY_KEY
@@ -70,6 +71,8 @@ class Situation:
     called: str | None = None
     look: dict | None = None
     audibles: tuple[str, ...] = ()
+    # Before a snap: each side's most tired players (sim/fatigue.py report).
+    fatigue: tuple[dict, ...] = ()
 
 
 class OutOfStep(Exception):  # noqa: N818
@@ -123,7 +126,8 @@ class ScriptedCoach:
             role=role, quarter=state.quarter, clock=state.clock, clock_running=clock_running,
             possession=state.possession, down=state.down, distance=state.distance,
             ball_on=state.ball_on, score=dict(state.score), timeouts=dict(state.timeouts),
-            suggestion=suggestion.play or "", suggested_package=package))
+            suggestion=suggestion.play or "", suggested_package=package,
+            fatigue=(*fatigue.report(offense), *fatigue.report(defense))))
 
     def snap_done(self) -> None:
         self.pending = None

@@ -149,8 +149,9 @@ Design: `docs/design/depth-and-unity.md`.
 
 - [x] Follow-ups (the backend CI job split into PostgreSQL and SQLite jobs; "back week 9"
       for injured players on the injury report, the roster and the player page)
-- [ ] Fatigue and substitutions (stamina drives energy, tired players sub out by the
-      depth chart, a Rotation tendency, snap counts; engine version 1.8)
+- [x] Fatigue and substitutions (stamina drives energy, tired players sub out by the
+      depth chart, a Rotation tendency, snap counts, tired players in Coach Mode; engine
+      version 1.8)
 - [ ] Unity foundation (a WebGL renderer on the Watch page beside the current viewer,
       fed the same play timelines; built in CI)
 - [ ] Unity art and cameras (animated athletes in team uniforms, the stadium, broadcast

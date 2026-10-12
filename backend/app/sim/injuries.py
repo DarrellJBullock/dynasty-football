@@ -5,7 +5,7 @@ so a game without injuries plays out exactly as it would without this module).
 """
 
 import random
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from app.sim.teams import SimPlayer
 from app.sim.tuning import Tuning
@@ -59,12 +59,14 @@ def injury_chance(player: SimPlayer, contact: bool, t: Tuning) -> float:
 
 
 def roll_injuries(rng: random.Random, on_field: Iterable[SimPlayer], events: list[dict],
-                  t: Tuning, cache: dict[int, float] | None = None) -> list[SimPlayer]:
+                  t: Tuning, cache: dict[int, float] | None = None,
+                  tiredness: Callable[[int], float] | None = None) -> list[SimPlayer]:
     """The player hurt on this snap, if any (stand-ins with negative ids never are).
 
     One draw decides whether anyone is hurt (the chances sum to a few percent, so two on
     one snap is negligible), a second picks who, weighted by each player's chance.
-    `cache` holds per-player base chances for the game."""
+    `cache` holds per-player base chances for the game; `tiredness` multiplies a player's
+    chance by how tired he is (sim/fatigue.py)."""
     cache = {} if cache is None else cache
     contact = contact_ids(events)
     odds = []
@@ -74,7 +76,8 @@ def roll_injuries(rng: random.Random, on_field: Iterable[SimPlayer], events: lis
         base = cache.get(p.id)
         if base is None:
             base = cache[p.id] = _base_chance(p, t)
-        odds.append((p, base * t.injury_contact_factor if p.id in contact else base))
+        chance = base * t.injury_contact_factor if p.id in contact else base
+        odds.append((p, chance * tiredness(p.id) if tiredness else chance))
     total = sum(chance for _, chance in odds)
     if not odds or rng.random() >= total:
         return []

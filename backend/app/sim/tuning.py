@@ -154,5 +154,27 @@ class Tuning:
     # A questionable player plays hurt: his physical ratings drop by this many points.
     questionable_drop: int = 6
 
+    # Fatigue (sim/fatigue.py). Energy cost per snap on the field by listed position, for a
+    # snap of `fatigue_typical_snap` seconds, ×(stamina_base − stamina/100) (at least 0.4).
+    fatigue_cost: dict[str, float] = field(default_factory=lambda: {
+        "QB": 0.6, "RB": 7.0, "FB": 3.0, "WR": 2.6, "TE": 2.6,
+        "OT": 0.8, "OG": 0.8, "C": 0.8,
+        "DE": 6.5, "DT": 7.0, "OLB": 3.5, "MLB": 2.4, "CB": 2.2, "FS": 1.8, "SS": 2.0,
+        "K": 0.0, "P": 0.0,
+    })
+    fatigue_typical_snap: float = 6.0
+    fatigue_stamina_base: float = 1.6
+    fatigue_recover_snap: float = 5.0  # each snap off the field
+    fatigue_recover_change: float = 8.0  # a change of possession
+    fatigue_recover_timeout: float = 4.0
+    fatigue_recover_quarter: float = 8.0
+    fatigue_recover_half: float = 60.0
+    # Sub out below this (plus the plan's Rotation × step); back in at or above sub_in.
+    fatigue_sub_out: float = 72.0
+    fatigue_rotation_step: float = 4.0
+    fatigue_sub_in: float = 90.0
+    fatigue_points_per_rating: float = 4.0  # energy lost per point off physical ratings
+    fatigue_injury_k: float = 0.5  # injury odds ×(1 + k × share of energy lost)
+
 
 DEFAULT_TUNING = Tuning()

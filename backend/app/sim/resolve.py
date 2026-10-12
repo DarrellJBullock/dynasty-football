@@ -9,6 +9,7 @@ import random
 from dataclasses import dataclass, field
 
 from app.domain.positions import Position as P
+from app.sim import fatigue
 from app.sim.playbook import OFFENSE_BY_KEY, concept_edge
 from app.sim.playcalls import DefenseCall, PlayCall
 from app.sim.teams import SimPlayer, SimTeam
@@ -69,37 +70,33 @@ class Defense:
         return [*self.front, *self.backers, *self.corners, self.fs, self.ss]
 
 
-def offense_personnel(team: SimTeam, rng: random.Random) -> Offense:
-    """Base 11 personnel (1 RB, 1 TE, 3 WR); the RB2 spells the starter ~30% of snaps."""
+def offense_personnel(team: SimTeam, t: Tuning) -> Offense:
+    """Base 11 personnel (1 RB, 1 TE, 3 WR): the depth chart's first healthy players who
+    aren't resting, as tired as they are (sim/fatigue.py)."""
     used: list[int] = []
 
     def take(slot: P, count: int) -> list[SimPlayer]:
-        players = team.at(slot, count, used)
+        players = fatigue.take(team, slot, count, used, t)
         used.extend(p.id for p in players)
         return players
 
-    qb = take(P.QB, 1)[0]
-    rbs = team.at(P.RB, 2, used)
-    rb = rbs[1] if rng.random() < 0.3 and rbs[1].id > 0 else rbs[0]
-    used.append(rb.id)
-    return Offense(qb=qb, rb=rb, wrs=take(P.WR, 3), te=take(P.TE, 1)[0], tackles=take(P.OT, 2),
-                   guards=take(P.OG, 2), center=take(P.C, 1)[0])
+    return Offense(qb=take(P.QB, 1)[0], rb=take(P.RB, 1)[0], wrs=take(P.WR, 3),
+                   te=take(P.TE, 1)[0], tackles=take(P.OT, 2), guards=take(P.OG, 2),
+                   center=take(P.C, 1)[0])
 
 
-def defense_personnel(team: SimTeam, call: DefenseCall, rng: random.Random) -> Defense:
-    """4-3 base; nickel swaps an OLB for a third CB, dime swaps both. DL rotate ~25%."""
+def defense_personnel(team: SimTeam, call: DefenseCall, t: Tuning) -> Defense:
+    """4-3 base; nickel swaps an OLB for a third CB, dime swaps both. Tired players rest
+    (sim/fatigue.py)."""
     used: list[int] = []
 
-    def take(slot: P, count: int, rotate: bool = False) -> list[SimPlayer]:
-        pool = team.at(slot, count + 1, used)
-        chosen = pool[:count]
-        if rotate and pool[count].id > 0 and rng.random() < 0.25:
-            chosen[rng.randrange(count)] = pool[count]
-        used.extend(p.id for p in chosen)
-        return chosen
+    def take(slot: P, count: int) -> list[SimPlayer]:
+        players = fatigue.take(team, slot, count, used, t)
+        used.extend(p.id for p in players)
+        return players
 
-    ends = take(P.DE, 2, rotate=True)
-    tackles = take(P.DT, 2, rotate=True)
+    ends = take(P.DE, 2)
+    tackles = take(P.DT, 2)
     olb_count = {"base": 2, "nickel": 1, "dime": 0}[call.package]
     cb_count = {"base": 2, "nickel": 3, "dime": 4}[call.package]
     olbs = take(P.OLB, olb_count) if olb_count else []

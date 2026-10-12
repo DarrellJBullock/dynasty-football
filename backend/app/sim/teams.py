@@ -77,12 +77,19 @@ class SimTeam:
     unavailable: set[int] = field(default_factory=set)
     injured: set[int] = field(default_factory=set)
     sidelined: set[int] = field(default_factory=set)  # both of the above
+    # Fatigue (sim/fatigue.py): energy below 100 by player id (missing: fresh), who is
+    # resting until he recovers, and tired copies of players by (id, points lost).
+    energy: dict[int, float] = field(default_factory=dict)
+    resting: set[int] = field(default_factory=set)
+    tired_copies: dict[tuple[int, int], "SimPlayer"] = field(default_factory=dict)
     plan: GamePlan = NEUTRAL  # which plays and calls the AI makes for this team, and how
 
     def start_game(self) -> None:
         """Reset in-game state; called by the engine at kickoff."""
         self.injured = set()
         self.sidelined = set(self.unavailable)
+        self.energy = {}
+        self.resting = set()
         self.__dict__.pop("pass_lean", None)
 
     def injure(self, player_id: int) -> None:
@@ -163,7 +170,10 @@ def plan_ratings(team: SimTeam) -> TeamRatings:
     return TeamRatings(
         arm_and_speed=mean([avg(Position.QB, 1, "throw_power"), avg(Position.WR, 2, "speed")]),
         pass_rush=mean([avg(Position.DE, 2, "pass_rush"), avg(Position.OLB, 2, "pass_rush")]),
-        man_coverage=avg(Position.CB, 2, "man_coverage"))
+        man_coverage=avg(Position.CB, 2, "man_coverage"),
+        depth=mean(p.overall for slot, starters in ((Position.RB, 1), (Position.DE, 2),
+                                                    (Position.DT, 2), (Position.CB, 2))
+                   for p in team.at(slot, starters + 1)[starters:]))
 
 
 def team_to_dict(team: SimTeam) -> dict:
