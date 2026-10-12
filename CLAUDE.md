@@ -166,7 +166,8 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   after changing any of them (or the choreographer), rewrite the shared fixtures
   (`UPDATE_UNITY_FIXTURES=1`) and run `make unity-test`. Its canvas needs an `id` (Unity's
   runtime looks it up). Without a build in `frontend/public/unity/` the Renderer switch
-  disables Unity and `e2e/unity.spec.ts` skips.
+  disables Unity and `e2e/unity.spec.ts` skips. The page keeps one Unity (`leaseUnity`);
+  viewers borrow it rather than start their own.
 - **Penalties** (`app/sim/penalties.py`): a play whose result type is `"penalty"` was wiped
   out and counts only the foul in stats; a personal foul keeps the play's own type (the
   play stands) and adds a penalty event. Add a foul in `FOULS`, `NAMES`,

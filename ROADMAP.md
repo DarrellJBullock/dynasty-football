@@ -158,7 +158,9 @@ Design: `docs/design/depth-and-unity.md`.
 - [x] Unity art and cameras (jointed athletes posed like the classic viewer's, in team
       uniforms with numbers; the painted field, stands and crowd, goalposts, light towers
       and lighting; the page's broadcast cameras and replays)
-- [ ] Unity in Coach Mode and the parity check
+- [x] Unity in Coach Mode and the parity check (the Renderer switch in Coach Mode's reel,
+      one Unity kept for the page so each call's reel is instant; every kind of play
+      compared with the classic viewer; whether Unity becomes the default is your call)
 
 ## Later
 

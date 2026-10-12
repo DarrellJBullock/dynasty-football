@@ -13,6 +13,10 @@ vi.mock("next/dynamic", () => ({
   },
 }));
 
+// The Unity build: not installed unless a test says so.
+const unity = vi.hoisted(() => ({ build: null as unknown }));
+vi.mock("@/lib/unity", () => ({ unityBuild: () => Promise.resolve(unity.build) }));
+
 const H = 1;
 const playback = makePlayback([
   makePlay({ ball_on: 40, score: { home: 6, away: 0 }, text: "A 60-yard touchdown run.",
@@ -55,5 +59,34 @@ describe("PlayReel instant replays", () => {
     endPlay();
     act(() => { vi.advanceTimersByTime(2000); });
     expect(screen.queryByRole("group", { name: "Instant replay" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PlayReel's renderer", () => {
+  afterEach(() => {
+    unity.build = null;
+    localStorage.clear();
+  });
+
+  it("draws in Unity when that's the choice, and falls back to Classic if Unity fails", async () => {
+    unity.build = { loader: "Build/unity.loader.js" };
+    localStorage.setItem("dynasty.renderer", "unity"); // (chosen on the Watch page)
+    render(<PlayReel playback={playback} reel={reel} />);
+    await act(async () => {});
+    const renderer = screen.getByRole("group", { name: "Renderer" });
+    expect(screen.getByRole("button", { name: "Unity" })).toHaveAttribute("aria-pressed", "true");
+    expect(scene.props).toHaveProperty("onError");
+    expect(renderer).toBeInTheDocument();
+
+    act(() => (scene.props as unknown as { onError: (m: string) => void }).onError("Out of memory."));
+    expect(screen.getByRole("alert")).toHaveTextContent("The Unity viewer stopped: Out of memory.");
+    expect(screen.getByRole("button", { name: "Classic" })).toHaveAttribute("aria-pressed", "true");
+    expect(scene.props).not.toHaveProperty("onError");
+  });
+
+  it("offers Unity only when it's installed", async () => {
+    render(<PlayReel playback={playback} reel={reel} />);
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Unity" })).toBeDisabled();
   });
 });

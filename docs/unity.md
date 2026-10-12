@@ -51,6 +51,14 @@ cd frontend && UPDATE_UNITY_FIXTURES=1 npx vitest run src/components/field/unity
 make unity-test
 ```
 
+## One Unity per page
+
+Starting Unity takes seconds, and Coach Mode shows a new reel after every call, so the page
+keeps one running: `leaseUnity` (lib/unity.ts) lends its canvas to whichever viewer is
+shown and parks it, hidden and idle, between them. Components never call `startUnity`
+themselves. The Renderer switch and its remembered choice are shared by the Watch page and
+Coach Mode (`field/unity/renderer.tsx`).
+
 ## Messages
 
 The page → Unity (`SendMessage("Bridge", …)`):
@@ -61,6 +69,7 @@ The page → Unity (`SendMessage("Bridge", …)`):
   "helmet", "socks"}}}`
 - `SetFrame` — `"t,px,py,pz,tx,ty,tz,fov"`: the playhead, and the camera's position and
   target in three.js scene coordinates (Unity flips Z) with its vertical field of view.
+- `SetActive` — `"1"` while a viewer shows it, `"0"` when parked (camera off, 2 fps).
 
 Unity → the page: a `dynasty-unity` event on `window` with `{type, detail}`: `ready`
 (the stage is built), `loaded` (a play, with its figure count), `error` (a message).

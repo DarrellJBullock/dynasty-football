@@ -6,6 +6,8 @@
 //                   "pants", "helmet", "socks"}}}
 //   SetFrame(csv)   "t,px,py,pz,tx,ty,tz,fov": the playhead, and the camera in three.js
 //                   scene coordinates (the page's director and camera rig decide the shot)
+//   SetActive("0"|"1")  parked between viewers (the page keeps one Unity for its session):
+//                   stop drawing and idle, or draw again
 // and hears back through DynastyBridge.jslib: "ready" once the stage is built, "loaded"
 // with the number of figures, and "error" with a message. Unity only draws: the browser
 // owns the clock, the cameras, replays and the broadcast graphics.
@@ -68,6 +70,14 @@ namespace Dynasty.Playback
             {
                 Notify("error", $"LoadPlay: {e.Message}");
             }
+        }
+
+        /// <summary>Parked (no viewer on the page shows it) or showing.</summary>
+        public void SetActive(string on)
+        {
+            bool active = on != "0";
+            stage.Camera.enabled = active;
+            Application.targetFrameRate = active ? -1 : 2; // (barely runs while parked)
         }
 
         /// <summary>The playhead and the camera for this frame.</summary>

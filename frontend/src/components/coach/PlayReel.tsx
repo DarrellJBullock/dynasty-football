@@ -12,6 +12,7 @@ import { useInstantReplay } from "@/components/field/playback/useInstantReplay";
 import { callLabel } from "@/lib/games";
 import type { GamePlayback } from "@/lib/types";
 import { usePrefersReducedMotion } from "@/lib/motion";
+import { RendererSwitch, UnityPlayScene, UnityProblem, useRenderer } from "@/components/field/unity/renderer";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
 const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"), {
@@ -30,6 +31,9 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   const [ended, setEnded] = useState(false);
   const [camera, setCamera] = useState<CameraChoice>("broadcast");
   const [clock] = useState(() => new PlayClock());
+  // Classic or Unity, as chosen on the Watch page or here (one Unity runs for the page, so
+  // each new reel picks it straight up).
+  const { renderer, setRenderer, installed, problem, onUnityError } = useRenderer();
   const [time, setTime] = useState(0); // for the broadcast graphics, a tenth of a second at a time
   const shown = useRef(0);
   const last = reel.length - 1;
@@ -97,10 +101,17 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   return (
     <section className="panel overflow-hidden" aria-label="Last play">
       <div className="relative aspect-video w-full bg-ink-950">
-        <PlayScene playback={playback} timeline={current.timeline} clock={clock}
-          camera={instant.replaying ? "broadcast" : camera}
-          cues={instant.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
-          follow onTick={onTick} />
+        {renderer === "unity" ? (
+          <UnityPlayScene playback={playback} timeline={current.timeline} clock={clock}
+            camera={instant.replaying ? "broadcast" : camera}
+            cues={instant.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
+            follow onTick={onTick} onError={onUnityError} />
+        ) : (
+          <PlayScene playback={playback} timeline={current.timeline} clock={clock}
+            camera={instant.replaying ? "broadcast" : camera}
+            cues={instant.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
+            follow onTick={onTick} />
+        )}
         <BroadcastOverlay playback={playback} timeline={current.timeline} time={time}
           index={playIndex} replay={instant.replaying} />
         {instant.replaying && <ReplayBadge key={index} onSkip={instant.skip} />}
@@ -125,7 +136,9 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
           {callLabel(play.play_name, play.defense_name) && (
             <p className="text-xs text-mist">{callLabel(play.play_name, play.defense_name)}</p>
           )}
+          <UnityProblem problem={problem} />
         </div>
+        <RendererSwitch renderer={renderer} installed={installed} onChange={setRenderer} />
         {done ? (
           <button type="button" className="btn btn-ghost px-3 py-1 text-xs" onClick={replay}>Replay</button>
         ) : (
