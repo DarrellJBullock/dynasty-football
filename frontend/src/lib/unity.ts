@@ -8,6 +8,7 @@
  */
 
 import type { CameraShot } from "@/components/field/layout";
+import type { Kit } from "@/components/field/players/kit";
 import type { PlayTimeline } from "@/components/field/playback/timeline";
 
 const BASE = "/unity/";
@@ -50,8 +51,10 @@ export interface UnityEvent { type: "ready" | "loaded" | "error"; detail: string
 
 /** A running Unity viewer. */
 export interface UnityPlayer {
-  /** A new play: its timeline, each team's color by id, and the home end zones'. */
-  loadPlay(timeline: PlayTimeline, teams: Record<number, string>, endZone: string): void;
+  /** The field as the page paints it (a base64 PNG), and the home fans' colors. */
+  setField(png: string, crowd: string[]): void;
+  /** A new play: its timeline, and each team's uniform by team id. */
+  loadPlay(timeline: PlayTimeline, kits: Record<number, Kit>): void;
   /** This frame's playhead and camera. */
   setFrame(time: number, camera: CameraShot): void;
   quit(): Promise<void>;
@@ -110,8 +113,11 @@ export async function startUnity(canvas: HTMLCanvasElement, files: UnityBuild,
   settle = null;
   const unity = instance;
   return {
-    loadPlay(timeline, teams, endZone) {
-      unity.SendMessage("Bridge", "LoadPlay", JSON.stringify({ timeline, teams, endZone }));
+    setField(png, crowd) {
+      unity.SendMessage("Bridge", "SetField", JSON.stringify({ image: png, crowd }));
+    },
+    loadPlay(timeline, kits) {
+      unity.SendMessage("Bridge", "LoadPlay", JSON.stringify({ timeline, kits }));
     },
     setFrame(time, camera) {
       unity.SendMessage("Bridge", "SetFrame", frameMessage(time, camera));

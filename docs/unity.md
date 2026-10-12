@@ -9,8 +9,11 @@ each frame.
 ```
 unity/                       the Unity project (Unity 6, the version in ProjectSettings/ProjectVersion.txt)
   Assets/Dynasty/Runtime/    Timeline.cs (the timeline), TimelineSampler.cs (timeline.ts ported),
-                             Field.cs (coordinates), Stage.cs (field, light, camera),
-                             PlayView.cs (the players, ball, flag), Bridge.cs (the page's messages)
+                             Poses.cs (poses.ts ported), Field.cs (coordinates),
+                             Stage.cs (the stadium, lighting, camera), Athlete.cs (a player),
+                             PlayView.cs (the players, ball, flag), Parts.cs (shapes sized
+                             like three.js's), Bridge.cs (the page's messages)
+  Assets/Dynasty/Shaders/    VertexColorLit.shader (the stands and crowd)
   Assets/Dynasty/Plugins/WebGL/DynastyBridge.jslib   Unity → page events
   Assets/Dynasty/Editor/BuildScript.cs               Setup() and BuildWebGL()
   Assets/Dynasty/Tests/      edit-mode tests; Fixtures/timelines.json is written by the frontend
@@ -34,6 +37,12 @@ With a build in `frontend/public/unity/`, the Watch page's **Renderer** switch o
 the browser; if Unity can't start (no WebGL 2, a failed download), the page goes back to
 Classic, says so, and remembers that.
 
+**Coordinates:** everything but the camera hangs from `Stage.Scene`, mirrored in z, so
+models are built in the browser's three.js scene coordinates with its numbers. Unity's
+Euler angles match three.js's for one axis or for X with Z; where three.js combines X then
+Y, multiply `Quaternion.Euler(x, 0, 0) * Quaternion.Euler(0, y, 0)`. Check orientation in
+tests with `TransformVector` (it includes the mirroring scales), not `TransformDirection`.
+
 **The two samplers must agree.** `TimelineSampler.cs` is a port of `timeline.ts`. When the
 choreographer or the sampler changes, rewrite the shared fixtures and run both sides:
 
@@ -46,7 +55,10 @@ make unity-test
 
 The page → Unity (`SendMessage("Bridge", …)`):
 
-- `LoadPlay` — `{"timeline": …, "teams": {"<team id>": "#jersey"}, "endZone": "#color"}`
+- `SetField` — `{"image": "<base64 PNG>", "crowd": ["#home", "#colors"]}`: the field as
+  the page paints it (fieldTexture.ts), once per game, and the home fans' colors
+- `LoadPlay` — `{"timeline": …, "kits": {"<team id>": {"jersey", "numbers", "pants",
+  "helmet", "socks"}}}`
 - `SetFrame` — `"t,px,py,pz,tx,ty,tz,fov"`: the playhead, and the camera's position and
   target in three.js scene coordinates (Unity flips Z) with its vertical field of view.
 

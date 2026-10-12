@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CameraFollower } from "../cameraFollow";
+import { canvasSize, drawField } from "../fieldTexture";
 import { kit } from "../players/kit";
 import { shotAt } from "../playback/director";
 import type { PlaySceneProps } from "../playback/PlayScene";
@@ -56,13 +57,20 @@ export default function UnityPlayScene(props: UnityPlaySceneProps) {
     };
   }, []);
 
-  // Each play: its timeline and the uniforms' colors.
+  // Each game: the field, painted as the classic viewer paints it, and the home crowd.
+  const { home, away } = playback.game;
   useEffect(() => {
     if (!player) return;
-    const { home, away } = playback.game;
-    player.loadPlay(timeline, { [home.id]: kit(home, true).jersey, [away.id]: kit(away, false).jersey },
-                    home.primary_color);
-  }, [player, playback, timeline]);
+    const image = paintedField({ primary: home.primary_color, secondary: home.secondary_color,
+                                 nickname: home.nickname, abbreviation: home.abbreviation });
+    if (image) player.setField(image, [home.primary_color, home.secondary_color]);
+  }, [player, home]);
+
+  // Each play: its timeline and both teams' uniforms.
+  useEffect(() => {
+    if (!player) return;
+    player.loadPlay(timeline, { [home.id]: kit(home, true), [away.id]: kit(away, false) });
+  }, [player, home, away, timeline]);
 
   const ball = useMemo(() => {
     const players = new Map(timeline.players.map((p) => [p.id, p]));
@@ -114,4 +122,17 @@ export default function UnityPlayScene(props: UnityPlaySceneProps) {
       )}
     </div>
   );
+}
+
+/** The field surface as a base64 PNG (fieldTexture.ts, like the classic Stadium), or null
+ * where there's no 2D canvas. */
+function paintedField(style: Parameters<typeof drawField>[1]): string | null {
+  const canvas = document.createElement("canvas");
+  const { width, height } = canvasSize();
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  drawField(ctx, style);
+  return canvas.toDataURL("image/png").split(",")[1] ?? null;
 }

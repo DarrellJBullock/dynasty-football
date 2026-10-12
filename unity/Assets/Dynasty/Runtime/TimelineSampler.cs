@@ -86,27 +86,26 @@ namespace Dynasty.Playback
             return player.Facing;
         }
 
-        /// <summary>How far down a pose is: 0 standing … 1 lying (poses.ts).</summary>
-        public static double LieOf(string pose) => pose switch
-        {
-            "dive" => 0.35,
-            "down" => 1,
-            _ => 0,
-        };
-
-        /// <summary>0 standing … 1 lying at <paramref name="t"/>, blending into a new pose.</summary>
-        public static double LieAt(TimelinePlayer player, double t)
+        /// <summary>The joint angles at <paramref name="t"/>: the pose's, run by distance
+        /// covered and speed, blending in from the last pose over its first moments.</summary>
+        public static JointAngles AnglesAt(TimelinePlayer player, double t)
         {
             int i = PoseSegment(player.Poses, t);
-            double current = LieOf(player.Poses[i].Pose);
-            double since = t - player.Poses[i].T;
-            if (i > 0 && since < BlendTime)
+            JointAngles Angles(PoseKey k)
             {
-                double k = Math.Min(Math.Max(since / BlendTime, 0), 1);
-                return LieOf(player.Poses[i - 1].Pose) * (1 - k) + current * k;
+                var (speed, _) = VelocityAt(player.Path, t);
+                double progress = k.Span.HasValue && k.Span.Value != 0 ? (t - k.T) / k.Span.Value : 0;
+                return Poses.Pose(k.Pose, Poses.RunPhase(DistanceAt(player.Path, t)), progress,
+                                  Math.Min(1, speed / 7));
             }
+            var current = Angles(player.Poses[i]);
+            double since = t - player.Poses[i].T;
+            if (i > 0 && since < BlendTime) return JointAngles.Blend(Angles(player.Poses[i - 1]), current, since / BlendTime);
             return current;
         }
+
+        /// <summary>0 standing … 1 lying at <paramref name="t"/>.</summary>
+        public static double LieAt(TimelinePlayer player, double t) => AnglesAt(player, t).Lie;
 
         /// <summary>Where a player's hands hold the ball: at his side, a little in front.</summary>
         public static FieldPoint HandsAt(TimelinePlayer player, double t)

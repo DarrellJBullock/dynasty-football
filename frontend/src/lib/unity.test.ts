@@ -52,10 +52,13 @@ describe("the Unity bridge", () => {
       keyboardListeningElement: canvas,
     }), undefined);
 
+    player.setField("iVBORw0KGgo=", ["#123456", "#abcdef"]);
+    expect(instance.SendMessage).toHaveBeenCalledWith("Bridge", "SetField",
+      JSON.stringify({ image: "iVBORw0KGgo=", crowd: ["#123456", "#abcdef"] }));
     const timeline = { duration: 4 } as PlayTimeline;
-    player.loadPlay(timeline, { 1: "#123456" }, "#654321");
-    expect(instance.SendMessage).toHaveBeenCalledWith("Bridge", "LoadPlay",
-      JSON.stringify({ timeline, teams: { 1: "#123456" }, endZone: "#654321" }));
+    const kit = { jersey: "#123456", numbers: "#ffffff", pants: "#abcdef", helmet: "#123456", socks: "#123456" };
+    player.loadPlay(timeline, { 1: kit });
+    expect(instance.SendMessage).toHaveBeenCalledWith("Bridge", "LoadPlay", JSON.stringify({ timeline, kits: { 1: kit } }));
     player.setFrame(2, { position: [0, 1, 2], target: [3, 4, 5], fov: 30 });
     expect(instance.SendMessage).toHaveBeenLastCalledWith("Bridge", "SetFrame", "2,0,1,2,3,4,5,30");
 

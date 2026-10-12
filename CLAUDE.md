@@ -161,8 +161,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   `team.at` directly; the in-game energy lives on the `SimTeam` and resets in
   `start_game`. Fatigue makes no random draws.
 - **The Unity viewer** (`docs/unity.md`) only draws: the page's choreographer, clock,
-  director and camera rig (`field/cameraFollow.ts`) drive it. `TimelineSampler.cs` ports
-  `timeline.ts`; after changing either (or the choreographer), rewrite the shared fixtures
+  director and camera rig (`field/cameraFollow.ts`) drive it. `TimelineSampler.cs` and `Poses.cs`
+  port `timeline.ts` and `poses.ts`, and `Athlete.cs` builds `PlayerFigure.tsx`'s figure;
+  after changing any of them (or the choreographer), rewrite the shared fixtures
   (`UPDATE_UNITY_FIXTURES=1`) and run `make unity-test`. Its canvas needs an `id` (Unity's
   runtime looks it up). Without a build in `frontend/public/unity/` the Renderer switch
   disables Unity and `e2e/unity.spec.ts` skips.

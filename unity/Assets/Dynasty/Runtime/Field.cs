@@ -22,6 +22,13 @@ namespace Dynasty.Playback
 
         public static Vector3 ToWorld(FieldPoint p) => ToWorld(p.X, p.Y, p.Z);
 
+        /// <summary>A field point in the browser's three.js scene coordinates (layout.ts
+        /// toScene), for things under the mirrored root (Stage.Scene).</summary>
+        public static Vector3 ToScene(double x, double y, double z = 0) =>
+            new((float)(x - Length / 2), (float)z, (float)(y - Width / 2));
+
+        public static Vector3 ToScene(FieldPoint p) => ToScene(p.X, p.Y, p.Z);
+
         /// <summary>A point in the browser's three.js scene coordinates, in Unity world space.</summary>
         public static Vector3 FromScene(double x, double y, double z) =>
             new((float)x, (float)y, -(float)z);

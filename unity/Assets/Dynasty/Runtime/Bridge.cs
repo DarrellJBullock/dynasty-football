@@ -1,5 +1,9 @@
-// The bridge to the web page (docs/design/depth-and-unity.md §4.1). The page sends:
-//   LoadPlay(json)  {"timeline": PlayTimeline, "teams": {"<id>": "#rrggbb"}, "endZone": "#rrggbb"}
+// The bridge to the web page (docs/design/depth-and-unity.md §4.1; docs/unity.md). The
+// page sends:
+//   SetField(json)  {"image": "<base64 PNG>", "crowd": ["#home", "#colors"]}: the field as
+//                   the page paints it (fieldTexture.ts), and the home fans' colors
+//   LoadPlay(json)  {"timeline": PlayTimeline, "kits": {"<team id>": {"jersey", "numbers",
+//                   "pants", "helmet", "socks"}}}
 //   SetFrame(csv)   "t,px,py,pz,tx,ty,tz,fov": the playhead, and the camera in three.js
 //                   scene coordinates (the page's director and camera rig decide the shot)
 // and hears back through DynastyBridge.jslib: "ready" once the stage is built, "loaded"
@@ -29,19 +33,34 @@ namespace Dynasty.Playback
         {
             Application.targetFrameRate = -1;
             stage = new Stage(transform);
-            view = new PlayView(transform);
+            view = new PlayView(stage.Scene);
             Notify("ready", "");
         }
 
-        /// <summary>A new play: its timeline and the teams' colors.</summary>
+        /// <summary>The field and the crowd, once per game.</summary>
+        public void SetField(string json)
+        {
+            try
+            {
+                var o = JObject.Parse(json);
+                stage.Paint(Convert.FromBase64String((string)o["image"]));
+                if (o["crowd"] is JArray crowd && crowd.Count > 0)
+                    stage.Crowd(Array.ConvertAll(crowd.ToObject<string[]>(), c => Parts.Hex(c, Color.gray)));
+            }
+            catch (Exception e)
+            {
+                Notify("error", $"SetField: {e.Message}");
+            }
+        }
+
+        /// <summary>A new play: its timeline and the teams' uniforms.</summary>
         public void LoadPlay(string json)
         {
             try
             {
                 var message = Message.Parse(json);
-                view.Load(message.Timeline, message.TeamColors);
+                view.Load(message.Timeline, message.Kits);
                 stage.Mark(message.Timeline.Los, message.Timeline.FirstDownLine);
-                if (message.EndZone.HasValue) stage.Paint(message.EndZone.Value);
                 view.Show(0);
                 Notify("loaded", view.FigureCount.ToString());
             }
@@ -69,30 +88,28 @@ namespace Dynasty.Playback
         public readonly struct Message
         {
             public readonly PlayTimeline Timeline;
-            public readonly Dictionary<int, Color> TeamColors;
-            public readonly Color? EndZone;
+            public readonly Dictionary<int, Kit> Kits;
 
-            Message(PlayTimeline timeline, Dictionary<int, Color> teamColors, Color? endZone)
+            Message(PlayTimeline timeline, Dictionary<int, Kit> kits)
             {
                 Timeline = timeline;
-                TeamColors = teamColors;
-                EndZone = endZone;
+                Kits = kits;
             }
 
             public static Message Parse(string json)
             {
                 var o = JObject.Parse(json);
-                var colors = new Dictionary<int, Color>();
-                if (o["teams"] is JObject teams)
+                var kits = new Dictionary<int, Kit>();
+                if (o["kits"] is JObject teams)
                 {
                     foreach (var team in teams.Properties())
                     {
-                        if (int.TryParse(team.Name, out int id) && ColorUtility.TryParseHtmlString((string)team.Value, out var c))
-                            colors[id] = c;
+                        if (!int.TryParse(team.Name, out int id) || team.Value is not JObject k) continue;
+                        Color C(string key) => Parts.Hex((string)k[key], Color.gray);
+                        kits[id] = new Kit(C("jersey"), C("numbers"), C("pants"), C("helmet"), C("socks"));
                     }
                 }
-                Color? endZone = ColorUtility.TryParseHtmlString((string)o["endZone"] ?? "", out var z) ? z : null;
-                return new Message(PlayTimeline.FromJson((JObject)o["timeline"]), colors, endZone);
+                return new Message(PlayTimeline.FromJson((JObject)o["timeline"]), kits);
             }
         }
 

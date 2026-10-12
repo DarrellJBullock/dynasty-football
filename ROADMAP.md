@@ -155,8 +155,9 @@ Design: `docs/design/depth-and-unity.md`.
 - [x] Unity foundation (a WebGL renderer on the Watch page beside the current viewer,
       fed the same play timelines, with the page's cameras; shared sampling fixtures;
       built in CI once the repository has a Unity license; docs/unity.md)
-- [ ] Unity art and cameras (animated athletes in team uniforms, the stadium, broadcast
-      cameras and replays)
+- [x] Unity art and cameras (jointed athletes posed like the classic viewer's, in team
+      uniforms with numbers; the painted field, stands and crowd, goalposts, light towers
+      and lighting; the page's broadcast cameras and replays)
 - [ ] Unity in Coach Mode and the parity check
 
 ## Later
