@@ -59,7 +59,9 @@ def owned_league(request: Request, user: User = Depends(current_user),
         return None
     if league_id is None:
         return None
-    if db.get(League, league_id) is not None and members.member(db, league_id, user) is None:
+    if db.get(League, league_id) is None:
+        return None  # (the route itself answers 404)
+    if members.member(db, league_id, user) is None:
         raise HTTPException(404, "Not found.")
     return league_id
 

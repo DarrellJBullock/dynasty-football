@@ -216,7 +216,12 @@ def test_only_the_franchise_next_game_can_be_coached(client: TestClient, db: Ses
     other = db.scalars(select(Game).where(
         Game.season_id == season.id, Game.week == 2,
         Game.home_team_id != franchise.team_id, Game.away_team_id != franchise.team_id)).first()
-    response = client.post(f"/api/games/{other.id}/coach")
+    assert client.post(f"/api/games/{other.id}/coach").status_code == 403  # (not your team's)
+    later = db.scalars(select(Game).where(
+        Game.season_id == season.id, Game.week == 2,
+        (Game.home_team_id == franchise.team_id)
+        | (Game.away_team_id == franchise.team_id))).first()
+    response = client.post(f"/api/games/{later.id}/coach")
     assert response.status_code == 409 and "next game" in response.json()["detail"]
     assert client.post("/api/games/999999/coach").status_code == 404
     assert client.post("/api/games/999999/coach/call", json={"play": "smash"}).status_code == 404
