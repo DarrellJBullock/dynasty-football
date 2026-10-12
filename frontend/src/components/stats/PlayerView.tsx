@@ -24,7 +24,7 @@ export function PlayerView({ player, stats, career }: {
             Age {player.age} · {formatHeight(player.height_in)}, {player.weight_lb} lb · {player.college} ·{" "}
             {player.retired_year
               ? `Retired after ${player.retired_year}`
-              : <>{player.years_pro ? `${player.years_pro} yr pro` : "Rookie"} · {injuryDetail(player)}</>}
+              : <>{player.years_pro ? `${player.years_pro} yr pro` : "Rookie"} · {injuryDetail(player, stats.season)}</>}
             {injuryHistory(player.injury_count) && <> · {injuryHistory(player.injury_count)}</>}
             {player.contract && <> · {formatMoney(player.contract.salary)}/yr through {player.contract.end_year}</>}
             {player.draft_pick

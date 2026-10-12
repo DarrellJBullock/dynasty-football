@@ -85,7 +85,8 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   locators to a visible region/role; page-wide `getByText` can match hidden pages.
 - Python: ruff (line length 100). TS: eslint via `eslint-config-next`.
 - **CI** (`.github/workflows/ci.yml`) runs on every PR and push to `main`: backend lint,
-  migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres and SQLite;
+  migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres (and on
+  SQLite as a parallel job);
   frontend lint, typecheck, Vitest, and production build. Keep it green.
 
 ## Gotchas

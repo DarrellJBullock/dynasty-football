@@ -97,6 +97,19 @@ describe("RosterManager", () => {
     expect(mocked.team).toHaveBeenCalled();
   });
 
+  it("says when an injured player is expected back", async () => {
+    mocked.player.mockResolvedValue(makePlayerDetail({ ...qb, injury_status: "out",
+      injury: "Knee sprain", injury_weeks: 2 }));
+    render(<RosterManager initialTeam={{ ...teamDetail, roster_count: 3 }} initialRoster={[qb, wr, cb]}
+      leagueId={1} seasonYear={2026}
+      season={{ phase: "regular_season", current_week: 7, weeks: 17 }} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Keegan Quarles" }));
+    const panel = await screen.findByRole("dialog", { name: "Player details" });
+    expect(await within(panel).findByText("Knee sprain · Out 2 games · back week 9"))
+      .toBeInTheDocument();
+  });
+
   it("edits ratings and sends only the changed fields", async () => {
     const detail = makePlayerDetail({ ...qb });
     mocked.player.mockResolvedValue(detail);

@@ -73,11 +73,30 @@ export function injuryDuration(weeks: number): string {
   return `Out ${weeks} game${weeks === 1 ? "" : "s"}`;
 }
 
-/** "Knee sprain · Out 2 games", or just the status for injuries set by hand. */
-export function injuryDetail(player: { injury_status: string; injury?: string | null; injury_weeks?: number }): string {
+/** The season's place, for when an injured player is expected back. */
+export type InjurySeason = { phase: string; current_week: number; weeks: number };
+
+/** "back week 9" (the week after the games he misses), "back after the regular season",
+ * or null: not out, out for the season, or outside the regular season (playoff rounds and
+ * the offseason have no week to name). */
+export function expectedReturn(weeks: number, season?: InjurySeason): string | null {
+  if (!season || weeks <= 0 || weeks >= SEASON_ENDING_WEEKS) return null;
+  if (season.phase !== "regular_season" && season.phase !== "preseason") return null;
+  const back = season.current_week + weeks;
+  return back <= season.weeks ? `back week ${back}` : "back after the regular season";
+}
+
+/** "Knee sprain · Out 2 games · back week 9", or just the status for injuries set by hand.
+ * The return week shows only when the season is known. */
+export function injuryDetail(
+  player: { injury_status: string; injury?: string | null; injury_weeks?: number },
+  season?: InjurySeason,
+): string {
   if (player.injury_status === "healthy") return "Healthy";
   if (!player.injury) return injuryLabel(player.injury_status);
-  return `${player.injury} · ${injuryDuration(player.injury_weeks ?? 0)}`;
+  const weeks = player.injury_weeks ?? 0;
+  const back = expectedReturn(weeks, season);
+  return `${player.injury} · ${injuryDuration(weeks)}${back ? ` · ${back}` : ""}`;
 }
 
 /** "2 career injuries", or null for a player never hurt in a game. */

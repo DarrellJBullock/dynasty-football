@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   backend:
-    name: Backend (lint, migrations, tests)
+    name: Backend (lint, migrations, tests on PostgreSQL)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -67,15 +67,35 @@ jobs:
       - name: Tests (PostgreSQL)
         run: pytest
 
-      - name: Tests (SQLite)
-        run: env -u TEST_DATABASE_URL pytest
-
       # Every API read on a league with two seasons played: within 600 ms at the 95th
       # percentile (the 300 ms budget with room for a slow runner) and 80 queries.
       - name: Read budgets
         run: |
           python -m app.perf build --seasons 2
           python -m app.perf measure --runs 5 --budget-ms 600 --max-queries 80
+
+  # The same tests on in-memory SQLite (the local default), in parallel with PostgreSQL.
+  backend-sqlite:
+    name: Backend (tests on SQLite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Tests (SQLite)
+        run: pytest
 
   frontend:
     name: Frontend (lint, typecheck, tests, build)

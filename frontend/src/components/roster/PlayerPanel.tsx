@@ -13,6 +13,7 @@ import {
   formatHeight,
   formatMoney,
   injuryDetail,
+  type InjurySeason,
   injuryLabel,
   releaseCost,
   yearsRemaining,
@@ -34,12 +35,14 @@ export function PlayerPanel({
   playerId,
   seasonYear,
   capYear = seasonYear,
+  season,
   onClose,
   onUpdated,
   onReleased,
 }: {
   playerId: number;
   seasonYear: number;
+  season?: InjurySeason;
   capYear?: number;
   onClose: () => void;
   onUpdated: (player: PlayerDetail) => void;
@@ -104,6 +107,7 @@ export function PlayerPanel({
               <PlayerCard
                 player={state.player}
                 seasonYear={seasonYear}
+                season={season}
                 capYear={capYear}
                 onEdit={() => setEditing(true)}
                 onReleased={onReleased}
@@ -119,12 +123,14 @@ export function PlayerPanel({
 function PlayerCard({
   player,
   seasonYear,
+  season,
   capYear,
   onEdit,
   onReleased,
 }: {
   player: PlayerDetail;
   seasonYear: number;
+  season?: InjurySeason;
   capYear: number;
   onEdit: () => void;
   onReleased: (player: PlayerDetail) => void;
@@ -168,7 +174,7 @@ function PlayerCard({
           ["Weight", `${player.weight_lb} lb`],
           ["Potential", player.potential],
           ["Exp", player.years_pro ? `${player.years_pro} yr` : "Rookie"],
-          ["Status", injuryDetail(player)],
+          ["Status", injuryDetail(player, season)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg bg-white/[0.03] px-2 py-2.5">
             <dt className="text-[10px] uppercase tracking-wider text-mist">{label}</dt>

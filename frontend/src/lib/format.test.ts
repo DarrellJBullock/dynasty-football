@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  expectedReturn,
   formatAttribute,
   formatHeight,
   formatMoney,
@@ -82,6 +83,20 @@ describe("injuries", () => {
       .toBe("Knee sprain · Out 2 games");
     expect(injuryDetail({ injury_status: "injured_reserve", injury: null })).toBe("IR");
     expect(injuryDetail({ injury_status: "healthy" })).toBe("Healthy");
+  });
+
+  it("says when an injured player is expected back", () => {
+    const season = { phase: "regular_season", current_week: 7, weeks: 17 };
+    expect(expectedReturn(2, season)).toBe("back week 9");
+    expect(expectedReturn(11, season)).toBe("back after the regular season");
+    expect(expectedReturn(0, season)).toBeNull(); // questionable: he plays
+    expect(expectedReturn(99, season)).toBeNull(); // out for the season
+    expect(expectedReturn(2, { ...season, phase: "playoffs" })).toBeNull();
+    expect(expectedReturn(2)).toBeNull();
+    expect(injuryDetail({ injury_status: "out", injury: "Knee sprain", injury_weeks: 2 }, season))
+      .toBe("Knee sprain · Out 2 games · back week 9");
+    expect(injuryDetail({ injury_status: "injured_reserve", injury: "Torn ACL", injury_weeks: 99 },
+                        season)).toBe("Torn ACL · Out for the season");
   });
 
   it("counts career injuries", () => {
