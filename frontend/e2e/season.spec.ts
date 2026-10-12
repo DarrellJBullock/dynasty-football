@@ -21,11 +21,17 @@ test("sims a week, then follows the result to the box score and other pages", as
   const line = page.getByRole("region", { name: "Line score" });
   await expect(line.getByRole("row")).toHaveCount(3);
   await expect(page.getByRole("table", { name: "HFD passing" })).toBeVisible();
-  // Snap counts: everyone who played, the quarterback on every offensive snap.
+  // Snap counts: everyone who played. Quarterbacks never come out for fatigue, so between
+  // them (the starter, and his backup if he was hurt) they took every offensive snap.
   const box = page.getByRole("region", { name: "Hartford Ironclads box score" });
   await box.getByText("Snap counts").click();
   const snaps = box.getByRole("table", { name: "HFD snap counts" });
-  await expect(snaps.getByRole("row", { name: /QB/ }).first()).toContainText("100%");
+  await expect(snaps.getByRole("row").nth(1)).toBeVisible();
+  const rows = await snaps.getByRole("row").evaluateAll((trs) => trs.slice(1).map((tr) =>
+    Array.from(tr.querySelectorAll("td"), (td) => td.textContent ?? "")));
+  const share = rows.filter(([player]) => player.trim().endsWith("QB"))
+    .reduce((sum, row) => sum + Number(row[2].replace("%", "")), 0);
+  expect(Math.abs(share - 100)).toBeLessThanOrEqual(1); // (rounding)
   await expect(page.getByRole("list", { name: "Quarter 1" }).getByRole("listitem").first())
     .toContainText("kicks off");
 

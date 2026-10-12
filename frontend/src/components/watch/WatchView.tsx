@@ -15,6 +15,8 @@ import { highlightIndexes } from "@/lib/highlights";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { RendererSwitch, UnityPlayScene, UnityProblem, useRenderer } from "@/components/field/unity/renderer";
+import { SoundControls } from "@/components/sound/SoundControls";
+import { useGameSound } from "@/lib/sound/useGameSound";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
 const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"), {
@@ -135,15 +137,20 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
     if (on && !highlightList.includes(index)) goTo(highlightList.find((i) => i > index) ?? highlightList[0]);
   };
 
+  // Sound: the play's cues as the playhead passes them (docs/design/sound.md).
+  const sound = useGameSound({ game: playback.game, play, timeline, replaying: replay.replaying });
+  const { onTime: soundTime } = sound;
+
   const { track: trackReplay } = replay;
   const onTick = useCallback((t: number, justEnded: boolean) => {
+    soundTime(t);
     if (justEnded) setPlayingState(false);
     if (justEnded || Math.abs(t - shown.current) >= UI_STEP) {
       shown.current = t;
       setTime(t);
     }
     trackReplay(t);
-  }, [trackReplay]);
+  }, [soundTime, trackReplay]);
 
   const togglePlay = useCallback(() => {
     if (!clock.playing && clock.time >= duration - 1e-6) {
@@ -284,6 +291,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
                 ))}
               </div>
               <RendererSwitch renderer={renderer} installed={unityInstalled} onChange={setRenderer} />
+              <SoundControls settings={sound.settings} onChange={sound.update} />
               <button type="button" aria-pressed={follow} disabled={camera === "broadcast"}
                 title={camera === "broadcast" ? "The broadcast camera always follows the ball" : undefined}
                 className={`rounded-md px-2 py-1 text-[11px] font-semibold ${
