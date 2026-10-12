@@ -16,7 +16,7 @@ jobs:
   backend:
     name: Backend (lint, migrations, tests)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17
@@ -69,6 +69,13 @@ jobs:
 
       - name: Tests (SQLite)
         run: env -u TEST_DATABASE_URL pytest
+
+      # Every API read on a league with two seasons played: within 600 ms at the 95th
+      # percentile (the 300 ms budget with room for a slow runner) and 80 queries.
+      - name: Read budgets
+        run: |
+          python -m app.perf build --seasons 2
+          python -m app.perf measure --runs 5 --budget-ms 600 --max-queries 80
 
   frontend:
     name: Frontend (lint, typecheck, tests, build)

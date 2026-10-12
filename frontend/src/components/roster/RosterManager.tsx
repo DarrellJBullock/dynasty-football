@@ -197,7 +197,7 @@ export function RosterManager({
                 }`}
               >
                 {tab === "ALL" ? "All" : tab}
-                <span className={`ml-1.5 text-xs ${group === tab ? "text-ink-950/60" : "text-mist/60"}`}>
+                <span className={`ml-1.5 text-xs ${group === tab ? "text-ink-950/75" : "text-mist/60"}`}>
                   {counts[tab] ?? 0}
                 </span>
               </button>

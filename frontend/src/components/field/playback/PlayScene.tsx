@@ -44,6 +44,7 @@ export default function PlayScene({ playback, timeline, clock, camera, cues, fol
       camera={{ position: start.position, fov: start.fov, far: 600 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
+      role="img"
       aria-label="3D play"
     >
       <Ticker clock={clock} duration={timeline.duration} onTick={onTick} />

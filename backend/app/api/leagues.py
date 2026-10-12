@@ -16,6 +16,7 @@ from app.schemas import (
     TeamDetail,
 )
 from app.seed.generator import league_template
+from app.services import cap
 from app.services import leagues as league_service
 from app.services.dashboard import franchise_out
 from app.services.serializers import league_out, player_summary
@@ -79,9 +80,14 @@ def list_teams(league: League = Depends(get_league), db: Session = Depends(get_d
     by_team: dict[int, list[Player]] = {}
     for player in players:
         by_team.setdefault(player.team_id, []).append(player)
-    teams = db.scalars(select(Team).where(Team.league_id == league.id).order_by(Team.id)).all()
+    teams = db.scalars(select(Team).where(Team.league_id == league.id).order_by(Team.id)
+                       .options(selectinload(Team.division))).all()
     overrides = load_overrides(db, [team.id for team in teams])
-    return [team_detail(team, by_team.get(team.id, []), overrides[team.id]) for team in teams]
+    season = current_season(db, league.id)
+    dead = (cap.dead_money_totals(db, [team.id for team in teams], cap.cap_year(season))
+            if season else {})
+    return [team_detail(team, by_team.get(team.id, []), overrides[team.id],
+                        dead_money=dead.get(team.id, 0)) for team in teams]
 
 
 @router.get("/{league_id}/standings", response_model=list[DivisionStandings])

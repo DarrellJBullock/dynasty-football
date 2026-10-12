@@ -13,6 +13,7 @@ import { useInstantReplay } from "@/components/field/playback/useInstantReplay";
 import { callLabel, formatSpot } from "@/lib/games";
 import { highlightIndexes } from "@/lib/highlights";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
+import { usePrefersReducedMotion } from "@/lib/motion";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
 const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"), {
@@ -68,7 +69,10 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   const [camera, setCamera] = useState<CameraChoice>("broadcast");
   const [follow, setFollow] = useState(true);
   const [auto, setAuto] = useState(initialAuto);
-  const [replays, setReplays] = useState(true);
+  // Instant replays, unless the visitor asked for less motion (then off until turned on).
+  const reducedMotion = usePrefersReducedMotion();
+  const [replaysChoice, setReplays] = useState<boolean | null>(null);
+  const replays = replaysChoice ?? !reducedMotion;
   const [clock] = useState(() => new PlayClock());
   const shown = useRef(0);
 
@@ -211,9 +215,9 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
     <div className="mx-auto max-w-7xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link href={`/games/${game.id}`} className="text-sm text-gold hover:underline">← Box score</Link>
-        <span className="eyebrow">
+        <h1 className="eyebrow">
           {game.away.full_name} at {game.home.full_name} · {game.round_name ?? `Week ${game.week}`}
-        </span>
+        </h1>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">

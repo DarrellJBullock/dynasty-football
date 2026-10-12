@@ -214,6 +214,27 @@ describe("WatchView", () => {
     expect(screen.queryByRole("group", { name: "Instant replay" })).not.toBeInTheDocument();
   });
 
+  it("starts with replays off for visitors who asked for less motion", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      addEventListener: () => {}, removeEventListener: () => {},
+    }));
+    try {
+      render(<WatchView playback={playback} initialPlay={2} />);
+      const setting = screen.getByRole("checkbox", { name: "Instant replays" });
+      expect(setting).not.toBeChecked();
+      tick(scene.props!.timeline.duration);
+      act(() => { vi.advanceTimersByTime(2000); });
+      expect(screen.queryByRole("group", { name: "Instant replay" })).not.toBeInTheDocument();
+      // They can still turn them on.
+      fireEvent.click(setting);
+      expect(setting).toBeChecked();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("takes the keyboard: space plays and pauses, arrows step", () => {
     render(<WatchView playback={playback} />);
     fireEvent.keyDown(window, { key: " " });

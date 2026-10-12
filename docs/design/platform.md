@@ -190,12 +190,31 @@ accessibility pass** sets budgets and keeps them in CI.
   - Pages: Largest Contentful Paint under 2.5 s and layout shift under 0.1, on a mid-range
     laptop profile.
   - The Watch page's JavaScript loaded only there (three.js stays out of other pages).
-- **Work:** profile the slow reads (history, game detail, the dashboard), add the
-  indexes they need, remove N+1 queries (a test counts the queries per request on the
-  main pages), and cache what doesn't change once a season is over (history, past
-  seasons' leaders).
-- **In CI:** a backend benchmark test fails on a budget regression, and Lighthouse CI
-  checks budgets on the dashboard, roster, schedule, game and Watch pages.
+- **Work done** (measured with `python -m app.perf` on three seasons played):
+
+  | Read | Before | After |
+  |---|---|---|
+  | League history | 2,820 ms, 118 queries | 72 ms, 65 queries |
+  | Playoffs | 768 ms | 17 ms |
+  | League teams | 476 ms, 85 queries | 118 ms, 16 queries |
+  | Dashboard | 437 ms | 31 ms |
+  | Trades, standings, team stats | ~400 ms each | 95, 13, 24 ms |
+
+  - The big one: every list of games loaded each game's play log (tens of KB), and
+    every "current season" lookup loaded every season's offseason log. Both columns are
+    now deferred, loaded only for the one game or season that reads them, and the
+    season lookup takes one row.
+  - League records were two scans of the league's stat lines per category; now one
+    pass sums them all.
+  - The teams list looks up dead money for all teams at once.
+  - With reads this fast, caching past seasons isn't needed; it can come back if leagues
+    grow far larger.
+- **In CI:** the backend job builds two seasons and runs `app.perf measure` with a
+  600 ms ceiling (the budget, with room for a slow runner) and 80 queries per read. Page
+  budgets are checked in Playwright (`e2e/performance.spec.ts`) rather than Lighthouse
+  CI: Lighthouse can't easily get past the sign-in, while Playwright measures LCP and
+  layout shift on the production build already signed in, and checks that three.js stays
+  off pages without a 3D view.
 
 ## 8. Accessibility
 
@@ -207,8 +226,17 @@ accessibility pass** sets budgets and keeps them in CI.
   agency, the draft. Fix focus order, focus after dialogs and navigation, skip links,
   heading structure, form labels and error messages, and colour contrast of the design
   tokens.
+- **Done:** axe found and we fixed ARIA labels on plain elements (the 3D views and the
+  score bug's pips are now labelled images), the score bug's team-colour contrast (text
+  now picks dark or white by contrast ratio), a roster count's contrast, the player
+  page's definition lists, and 24 px touch targets on the schedule. Every page has one
+  `h1`; a "Skip to content" link leads past the sidebar; dialogs already trapped and
+  returned focus. A keyboard-only Playwright test signs in, skips to the page and sims a
+  week. The screen-reader (VoiceOver) pass still needs a person.
 - **Motion:** with `prefers-reduced-motion`, the Watch page cuts without easing, turns
   off instant replays by default and doesn't wipe, and banners appear without animating.
+  (`lib/motion.ts`; the 3D cameras also stop orbiting, Coach Mode's reel skips replays,
+  and CSS animations finish at once.)
 - **The 3D view** stays decorative to assistive technology: the play caption, score bug
   and play-by-play carry the same information as text, and the scene's controls are
   ordinary buttons.

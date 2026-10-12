@@ -23,7 +23,8 @@ def load_roster(db: Session, team_id: int) -> list[Player]:
 
 
 def current_season(db: Session, league_id: int) -> Season | None:
-    stmt = select(Season).where(Season.league_id == league_id).order_by(Season.year.desc())
+    stmt = (select(Season).where(Season.league_id == league_id)
+            .order_by(Season.year.desc()).limit(1))
     return db.scalars(stmt).first()
 
 
@@ -62,10 +63,11 @@ def payroll(players: list[Player]) -> int:
     return sum(c.salary for p in players if (c := p.active_contract) is not None)
 
 
-def team_detail(team: Team, players: list[Player], overrides: Overrides) -> TeamDetail:
+def team_detail(team: Team, players: list[Player], overrides: Overrides,
+                dead_money: int | None = None) -> TeamDetail:
     """Identity, ratings, roster count, and cap: payroll is active cap hits plus dead money
-    for the current cap year."""
-    dead = _dead_money_now(team)
+    for the current cap year (looked up unless given, as a list of teams does at once)."""
+    dead = _dead_money_now(team) if dead_money is None else dead_money
     total = payroll(players) + dead
     return TeamDetail(
         **team_summary(team).model_dump(),

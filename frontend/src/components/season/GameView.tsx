@@ -25,10 +25,11 @@ export function GameView({ detail }: { detail: GameDetail }) {
             ← Week {game.week} schedule
           </Link>
         )}
-        <span className="eyebrow">
+        <h1 className="eyebrow">
+          <span className="sr-only">{game.away.full_name} at {game.home.full_name}, </span>
           {detail.season_year} · {game.round_name ?? `Week ${game.week}`}
           {game.neutral_site && " · Neutral site"}
-        </span>
+        </h1>
       </div>
 
       <section className="panel grid grid-cols-[1fr_auto_1fr] items-center gap-4 p-6" aria-label="Scoreboard">

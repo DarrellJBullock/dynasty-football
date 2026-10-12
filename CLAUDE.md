@@ -51,6 +51,7 @@ make e2e-setup        # once: e2e database + Playwright Chromium
 make e2e              # Playwright: real browser, own DB and ports (8001/3001)
 make lint             # ruff + eslint + tsc
 make reseed           # wipe and regenerate the sample league
+make perf             # time every API read on a league with seasons played
 scripts/smoke-test-images.sh API_IMAGE WEB_IMAGE  # (CI) run the built images together
 ```
 
@@ -155,5 +156,13 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   comes from `access.league_of`, as for ownership). Job runners
   commit after each step, so a sim service they call must leave the league consistent
   between steps (see `season.simulate`'s `on_step`).
+- **Big JSON columns are deferred** (`Game.play_log`, `Season.offseason_log`): lists of
+  games or seasons never load them. Reading one on many rows is a query each; add
+  `undefer(...)` to that query. Keep new reads under budget: `make perf`, and CI fails a
+  read over 600 ms or 80 queries.
+- **Accessibility:** `e2e/a11y.spec.ts` runs axe (WCAG 2.2 AA) on every page and wants one
+  `h1` each; add new pages to it. Don't put `aria-label` on a plain `div`/`span` (give it
+  a role). Animations must respect `prefers-reduced-motion` (`lib/motion.ts`; CSS is
+  handled globally).
 - **Generator RNG order is load-bearing:** `build_league` must keep the default league
   byte-identical for a given seed. Append new random draws after existing ones.

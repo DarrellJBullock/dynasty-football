@@ -71,6 +71,18 @@ body {
   scrollbar-color: var(--color-ink-600) transparent;
 }
 
+/* Less motion, when the visitor's system asks for it: animations and transitions finish at
+   once (banners, the replay wipe, lower thirds, progress bars). The 3D views stop orbiting
+   and cut instead of easing (lib/motion.ts). */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Broadcast banners drop in from just above (they're centered with translate -50%). */
 @keyframes banner {
   from { opacity: 0; transform: translate(-50%, -10px) scale(0.96); }
