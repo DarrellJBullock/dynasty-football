@@ -83,6 +83,7 @@ export interface PlayerSummary {
   injury_status: InjuryStatus;
   injury?: string | null; // from a simulated game
   injury_weeks?: number; // games still to miss (99: rest of the season)
+  injury_count?: number; // career injuries from games
   retired_year?: number | null; // last season played
   draft_year?: number | null;
   draft_round?: number | null;

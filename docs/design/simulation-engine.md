@@ -149,9 +149,11 @@ long-gain tail, since football yards are not normally distributed.
 
 ### 5.4 Penalties
 
-v1 includes three common, outcome-relevant ones at realistic base rates: **false start**,
-**offensive holding**, and **defensive pass interference**. Discipline ratings don't exist
-yet, so rates are flat. More types can come later.
+v1 included three common, outcome-relevant ones at flat rates: **false start**,
+**offensive holding**, and **defensive pass interference**. Since `SIM_VERSION` 1.7
+(`penalties.py`; docs/design/dynasty-mode.md §6) there are fourteen, with rates scaled by
+the awareness of the players involved, calibrated to about six accepted flags and 50
+yards a team a game.
 
 ### 5.5 Clock
 
@@ -211,6 +213,8 @@ against targets:
 | Field goal % | 82–90% |
 | Punts | 3.5–5.0 |
 | Ties | < 1% of games |
+| Accepted penalties (since 1.7) | 5–7 |
+| Penalty yards (since 1.7) | 40–60 |
 
 **Rating sensitivity:** the better team should win more often, but not always.
 

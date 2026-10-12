@@ -57,7 +57,7 @@ describe("DashboardView", () => {
     const items = within(panel()).getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("IR");
     expect(items[0]).toHaveTextContent("High ankle sprain · Out 5 games");
-    expect(items[1]).toHaveTextContent("Back spasms · Questionable");
+    expect(items[1]).toHaveTextContent("Back spasms · Questionable, playing hurt");
   });
 
   it("shows the offseason recap before the first game", () => {

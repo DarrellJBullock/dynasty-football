@@ -29,8 +29,9 @@ from app.sim.state import GameState
 from app.sim.teams import build_sim_team, team_from_dict, team_to_dict
 
 # A whole-book, all-zero plan must make the calls the AI made before game plans:
-# this is a game's play log as the engine played it then (SIM_VERSION 1.5).
-NEUTRAL_GAME = "0a20f6282802b7f6"
+# this is a game's play log as the engine played it then (pinned on SIM_VERSION 1.5,
+# re-pinned on 1.7, whose penalties change the draws after the calls).
+NEUTRAL_GAME = "e65abf58273b1415"
 
 SPECIAL = {"kneel", "punt", "field_goal"}  # (situational calls, not plan choices)
 LEAN = GamePlan(  # just what a plan must keep, and two blitzes

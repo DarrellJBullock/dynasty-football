@@ -9,6 +9,7 @@
  * toward the offense's right. `Stage.P` converts them to field coordinates.
  */
 
+import { penaltyName } from "@/lib/penalties";
 import type { GamePlayback, PlaybackPlay, PlaybackPlayer, PlayEvent, TeamSummary } from "@/lib/types";
 import { HASH_INSET, LENGTH, WIDTH, fieldX, type Vec3 } from "../layout";
 import { defenseSpots, NUMBERS, offenseSpots, spotOnField, TYPICAL, type Package,
@@ -964,7 +965,8 @@ function kneelPlay(c: Scrimmage): number {
 function preSnapFoul(c: Scrimmage, penalty: Event<"penalty">): number {
   const { stage } = c;
   stage.rest(0, [stage.los, stage.ballY, BALL_REST]);
-  const offender = stage.byId(penalty.player);
+  // (A delay of game has no one moving early: the play clock ran out.)
+  const offender = penalty.kind === "delay_of_game" ? undefined : stage.byId(penalty.player);
   const t = SNAP - 0.15;
   if (offender) {
     const toward = offender.info.side === "offense" ? 1 : -1;
@@ -1339,7 +1341,7 @@ export function choreograph(play: PlaybackPlay, playback: GamePlayback,
     const t = Math.min(end, SNAP + 0.4 + stage.rng() * Math.max(0, end - SNAP - 0.4));
     const at = offender ? offender.at(t) : stage.P(0, 0);
     stage.flag = { t, x: clampX(at.x + stage.range(-1, 1)), y: clampY(at.y + stage.range(-1, 1)) };
-    stage.moment(t, "flag", `Flag: ${penalty.kind.replaceAll("_", " ")}`);
+    stage.moment(t, "flag", `Flag: ${penaltyName(penalty.kind)}`);
   }
 
   const duration = end + AFTER;

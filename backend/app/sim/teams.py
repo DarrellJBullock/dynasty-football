@@ -14,6 +14,7 @@ from app.domain.depth_chart import build_chart, is_available
 from app.domain.positions import Position
 from app.domain.ratings import ATTRIBUTES
 from app.sim.gameplan import NEUTRAL, GamePlan, TeamRatings, generated
+from app.sim.tuning import DEFAULT_TUNING
 
 REPLACEMENT_RATING = 40  # an empty depth slot plays like a street free agent
 
@@ -32,6 +33,11 @@ class PlayerLike(Protocol):
     position: str
     overall: int
     injury_status: str
+    injury_count: int
+
+
+# What a questionable player loses while playing hurt (Tuning.questionable_drop points).
+HURT_ATTRIBUTES = ("speed", "acceleration", "agility", "strength")
 
 
 @dataclass(frozen=True)
@@ -41,6 +47,7 @@ class SimPlayer:
     position: str
     overall: int
     ratings: Mapping[str, int]
+    injuries: int = 0  # career injuries before this game (proneness)
 
     def r(self, attribute: str) -> float:
         """Rating as a matchup score: 78 → 0.8; each point above or below 78 adds or
@@ -122,12 +129,16 @@ def build_sim_team(
     plan: GamePlan | None = None,
 ) -> SimTeam:
     """Snapshot a roster: depth-chart order per slot (custom orders honoured, cross-listed
-    players included); unavailable (Out/IR) players are skipped when picking lineups. The
-    game plan is the team's saved one, or else one drawn from its roster's strengths."""
+    players included); unavailable (Out/IR) players are skipped when picking lineups, and
+    questionable ones play hurt (`playing_hurt`). The game plan is the team's saved one,
+    or else one drawn from its roster's strengths."""
     chart = build_chart(roster, overrides or {})
     sim_players = {
         p.id: SimPlayer(id=p.id, name=short_name(p.first_name, p.last_name),
-                        position=p.position, overall=p.overall, ratings=dict(ratings[p.id]))
+                        position=p.position, overall=p.overall,
+                        ratings=(playing_hurt(ratings[p.id]) if p.injury_status == "questionable"
+                                 else dict(ratings[p.id])),
+                        injuries=p.injury_count or 0)
         for p in roster
     }
     depth = {slot: [sim_players[p.id] for p in players] for slot, players in chart.items()}
@@ -137,6 +148,12 @@ def build_sim_team(
     team.start_game()
     team.plan = plan if plan is not None else generated(plan_ratings(team))
     return team
+
+
+def playing_hurt(ratings: Mapping[str, int]) -> dict[str, int]:
+    """A questionable player's ratings for the game: slower and weaker than when healthy."""
+    drop = DEFAULT_TUNING.questionable_drop
+    return {k: max(0, v - drop) if k in HURT_ATTRIBUTES else v for k, v in ratings.items()}
 
 
 def plan_ratings(team: SimTeam) -> TeamRatings:
@@ -155,7 +172,8 @@ def team_to_dict(team: SimTeam) -> dict:
     return {
         "id": team.id, "abbreviation": team.abbreviation, "name": team.name,
         "players": [{"id": p.id, "name": p.name, "position": p.position, "overall": p.overall,
-                     "ratings": dict(p.ratings)} for p in team.players.values()],
+                     "ratings": dict(p.ratings), "injuries": p.injuries}
+                    for p in team.players.values()],
         "depth": {slot.value: [p.id for p in players] for slot, players in team.depth.items()},
         "unavailable": sorted(team.unavailable),
         "plan": team.plan.to_dict(),
@@ -164,7 +182,8 @@ def team_to_dict(team: SimTeam) -> dict:
 
 def team_from_dict(data: dict) -> SimTeam:
     players = {p["id"]: SimPlayer(id=p["id"], name=p["name"], position=p["position"],
-                                  overall=p["overall"], ratings=p["ratings"])
+                                  overall=p["overall"], ratings=p["ratings"],
+                                  injuries=p.get("injuries", 0))
                for p in data["players"]}
     depth = {Position(slot): [players[pid] for pid in ids] for slot, ids in data["depth"].items()}
     team = SimTeam(id=data["id"], abbreviation=data["abbreviation"], name=data["name"],

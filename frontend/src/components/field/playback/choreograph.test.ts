@@ -250,7 +250,7 @@ describe("choreograph: the record decides where the play ends", () => {
   it("a nullified play still plays out, with a flag", () => {
     const { timeline } = byName.heldRun;
     expect(timeline.flag).not.toBeNull();
-    expect(timeline.moments.find((m) => m.kind === "flag")!.text).toBe("Flag: holding");
+    expect(timeline.moments.find((m) => m.kind === "flag")!.text).toBe("Flag: Offensive holding");
     expect(timeline.moments.map((m) => m.kind)).toContain("tackle");
   });
 });

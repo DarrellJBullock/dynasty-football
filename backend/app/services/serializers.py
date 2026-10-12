@@ -86,6 +86,7 @@ def _player_fields(player: Player) -> dict:
         injury_status=player.injury_status,
         injury=player.injury,
         injury_weeks=player.injury_weeks,
+        injury_count=player.injury_count or 0,
         retired_year=player.retired_year,
         draft_year=player.draft_year,
         draft_round=player.draft_round,

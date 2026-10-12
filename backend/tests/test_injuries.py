@@ -16,7 +16,14 @@ from app.sim.injuries import (
     injury_chance,
     injury_details,
 )
-from app.sim.teams import SimPlayer, SimTeam
+from app.sim.teams import (
+    HURT_ATTRIBUTES,
+    SimPlayer,
+    SimTeam,
+    build_sim_team,
+    team_from_dict,
+    team_to_dict,
+)
 from app.sim.tuning import DEFAULT_TUNING
 from tests.conftest import rollover
 
@@ -41,6 +48,17 @@ def test_contact_and_toughness_drive_the_chance():
     events = [{"t": "rush", "player": 5, "yards": 3}, {"t": "tackle", "by": [7, 8]},
               {"t": "pass", "qb": 2, "target": 9, "result": "incomplete"}]
     assert contact_ids(events) == {5, 7, 8}
+
+
+def test_earlier_injuries_raise_the_chance_a_little():
+    t = DEFAULT_TUNING
+    fresh = _player(70)
+    twice = dataclasses.replace(fresh, injuries=2)
+    often = dataclasses.replace(fresh, injuries=40)
+    base = injury_chance(fresh, False, t)
+    assert injury_chance(twice, False, t) == pytest.approx(base * (1 + 2 * t.injury_history_k))
+    assert injury_chance(often, False, t) == pytest.approx(
+        base * (1 + t.injury_history_cap * t.injury_history_k))
 
 
 def test_injury_details_follow_the_table():
@@ -201,3 +219,32 @@ def test_the_offseason_heals_everyone(db: Session, season: Season, league: Leagu
     rollover(db, season)
     assert db.scalar(select(Player).where(Player.league_id == league.id,
                                           Player.injury.is_not(None))) is None
+
+
+def test_questionable_players_play_hurt(db: Session):
+    team_players = db.scalars(select(Player).where(Player.team_id.is_not(None))
+                              .order_by(Player.id).limit(2)).all()
+    hurt, healthy = team_players
+    _hurt(hurt, "Ankle sprain", 0)
+    hurt.injury_count = 3
+    ratings = {p.id: p.ratings.as_dict() for p in team_players}
+    team = build_sim_team(1, "TST", "Test", team_players, ratings)
+
+    played = team.players[hurt.id]
+    assert hurt.id not in team.unavailable  # questionable: he plays
+    for attribute in HURT_ATTRIBUTES:
+        assert played.ratings[attribute] == max(
+            0, ratings[hurt.id][attribute] - DEFAULT_TUNING.questionable_drop)
+    assert played.ratings["awareness"] == ratings[hurt.id]["awareness"]
+    assert team.players[healthy.id].ratings == ratings[healthy.id]
+    # The snapshot keeps the game's ratings and the history, so a replay is the same game.
+    again = team_from_dict(team_to_dict(team))
+    assert again.players[hurt.id] == played and again.players[hurt.id].injuries == 3
+
+
+def test_new_injuries_add_to_the_career_count(db: Session, league: League):
+    player = db.scalars(select(Player).where(Player.team_id.is_not(None))).first()
+    assert player.injury_count == 0
+    after_week(db, league.id, [{"player": player.id, "injury": "Ankle sprain", "weeks": 0}])
+    after_week(db, league.id, [{"player": player.id, "injury": "Rib contusion", "weeks": 1}])
+    assert player.injury_count == 2

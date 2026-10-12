@@ -416,14 +416,6 @@ def resolve_pass(call: PlayCall, dcall: DefenseCall, off: Offense, deff: Defense
                    out_of_bounds=rng.random() < 0.28, clock_stops=ball_on + gained >= 100)
 
 
-def maybe_holding(outcome: Outcome, off: Offense, rng: random.Random, t: Tuning) -> None:
-    """Offensive holding wipes out a positive run or completion (10 yards, replay down)."""
-    gained = outcome.kind in ("run", "pass") and outcome.yards > 0 and not outcome.turnover
-    if gained and rng.random() < t.holding_rate:
-        outcome.penalty = {"team": "offense", "kind": "holding", "yards": 10,
-                           "player": rng.choice(off.line).id}
-
-
 # ---------- special teams ----------
 
 def field_goal_probability(distance: int, kicker: SimPlayer, t: Tuning) -> float:

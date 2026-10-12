@@ -5,6 +5,7 @@
 
 import { SNAP } from "@/components/field/playback/choreograph";
 import type { PlayTimeline } from "@/components/field/playback/timeline";
+import { penaltyName } from "@/lib/penalties";
 import type { PlaybackPlay } from "@/lib/types";
 
 const BANNER_HOLD = 2.2; // seconds a banner stays up
@@ -101,7 +102,7 @@ export function bannersFor(play: PlaybackPlay, timeline: PlayTimeline): Banner[]
     } else if (e.t === "two_point") {
       add(end, e.good ? "Two-point try good" : "Two-point try fails", e.good ? "gold" : "red");
     } else if (e.t === "penalty") {
-      add(at("flag") ?? end, `Flag · ${e.kind.replaceAll("_", " ")}`, "flag");
+      add(at("flag") ?? end, `Flag · ${penaltyName(e.kind)}`, "flag");
     }
   }
   if (result.touchdown) add(at("touchdown") ?? end, "Touchdown", "gold");

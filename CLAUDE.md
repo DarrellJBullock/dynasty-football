@@ -150,7 +150,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   because SQLite tests don't enforce `ON DELETE CASCADE`. Add new league-owned tables there.
 - **Coached games replay from the user's calls** (`app/sim/coaching.py`): an engine change
   that alters the order of random draws changes how an in-progress coached game replays.
-  Bump `SIM_VERSION` with such changes.
+  Bump `SIM_VERSION` with such changes, and re-pin `NEUTRAL_GAME` in
+  `tests/test_game_plans.py` (the play-log hash of a neutral-plan game).
+- **Penalties** (`app/sim/penalties.py`): a play whose result type is `"penalty"` was wiped
+  out and counts only the foul in stats; a personal foul keeps the play's own type (the
+  play stands) and adds a penalty event. Add a foul in `FOULS`, `NAMES`,
+  `Tuning.penalty_rates` and the frontend's `src/lib/penalties.ts` together.
 - **Long sims are background jobs** (`services/jobs.py`): while one is queued or running,
   every non-GET route under a league is refused with 409 by `api/locks.py` (the league
   comes from `access.league_of`, as for ownership). Job runners
