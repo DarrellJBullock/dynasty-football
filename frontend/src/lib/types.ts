@@ -943,3 +943,29 @@ export interface SimAheadResult {
   to_year: number;
   seasons: number;
 }
+
+// ---------- game plans ----------
+
+/** Which plays and calls the AI makes for a team, and how (`schemas.GamePlanOut`). */
+export interface GamePlan {
+  team_id: number;
+  /** Saved by the user; otherwise drawn from the roster. */
+  custom: boolean;
+  offense: string[];
+  defense: string[];
+  /** Each from -2 (much less) to 2 (much more); 0 is the league's usual. */
+  tendencies: Record<string, number>;
+  /** What the roster-based plan would set. */
+  suggested: Record<string, number>;
+  offense_choices: string[];
+  defense_choices: string[];
+  tendency_labels: Record<string, string>;
+  /** Each needs at least one of its plays or calls in the plan. */
+  required: { side: "offense" | "defense"; label: string; keys: string[] }[];
+}
+
+export interface GamePlanInput {
+  offense: string[];
+  defense: string[];
+  tendencies: Record<string, number>;
+}

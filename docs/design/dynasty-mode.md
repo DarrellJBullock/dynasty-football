@@ -91,6 +91,21 @@ kinds of penalties and injuries** that the players' ratings drive.
 - **The engine:** a plan is a filter and weights on top of today's situational choice
   (`playcalls.AICoach`); concepts and matchups resolve plays exactly as today. A plan
   that's all deep passes still has to survive third-and-one.
+- **Built** (`sim/gameplan.py`, `services/gameplans.py`, the **Game Plan** page):
+  - Seven tendencies from -2 to +2: run or pass (±5 points of pass rate a step), deep
+    shots and play action and blitzing (the rate ×(1 + 0.35–0.4 a step)), man coverage
+    (±8 points), fourth-down aggressiveness, and going for two.
+  - A plan must keep an inside and an outside run, a screen, a short, medium and deep
+    pass, and a man and a zone call that don't blitz; play-action and blitz calls are
+    optional (the AI falls back to the straight version).
+  - **A whole-book, all-zero plan makes exactly the old calls**, draw for draw (a test
+    pins a game's play log from before plans).
+  - AI teams' plans lean on their rosters: deep shots for a strong arm with fast
+    receivers, blitzing for good pass rushers, man coverage for good corners. That
+    changes their games, so `SIM_VERSION` is now **1.6**; the calibration targets hold.
+    (The penalties and injuries part takes the engine to 1.7.)
+  - Coached games snapshot each team's plan with its roster, so a plan edited mid-game
+    doesn't change a game in progress.
 
 ## 5. Audibles
 

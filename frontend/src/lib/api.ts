@@ -14,6 +14,8 @@ import type {
   FreeAgencyOut,
   FreeAgencyResult,
   FreeAgencyUntil,
+  GamePlan,
+  GamePlanInput,
   GamePlayback,
   Job,
   JobKind,
@@ -211,6 +213,11 @@ export const api = {
   career: (playerId: number) => request<CareerOut>(`/players/${playerId}/career`),
   playback: (gameId: number) => request<GamePlayback>(`/games/${gameId}/playback`),
   playbook: () => request<Playbook>("/playbook"),
+  gamePlan: (teamId: number) => request<GamePlan>(`/teams/${teamId}/game-plan`),
+  saveGamePlan: (teamId: number, plan: GamePlanInput) =>
+    request<GamePlan>(`/teams/${teamId}/game-plan`, { method: "PUT", body: JSON.stringify(plan) }),
+  resetGamePlan: (teamId: number) =>
+    request<GamePlan>(`/teams/${teamId}/game-plan`, { method: "DELETE" }),
   nextGame: () => request<NextGame>("/franchise/next-game"),
   coachState: (gameId: number) => request<CoachState>(`/games/${gameId}/coach`),
   startCoaching: (gameId: number) => post<CoachState>(`/games/${gameId}/coach`),

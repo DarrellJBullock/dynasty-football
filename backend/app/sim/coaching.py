@@ -8,10 +8,12 @@ replay reaches the same point. With `autopilot`, the AI calls the rest of the ga
 """
 
 import random
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Literal
 
 from app.sim.engine import GameResult, PlayRecord, _Game
+from app.sim.gameplan import GamePlan
 from app.sim.playbook import DEFENSE_BY_KEY, OFFENSE_BY_KEY
 from app.sim.playcalls import AICoach, DefenseCall, Package, PlayCall
 from app.sim.state import GameState, Side, other
@@ -75,12 +77,13 @@ class NeedCall(Exception):  # noqa: N818 (a signal, not an error)
 class ScriptedCoach:
     """Calls one side's plays from the user's recorded calls."""
 
-    def __init__(self, calls: list[CoachCall], autopilot: bool = False):
+    def __init__(self, calls: list[CoachCall], autopilot: bool = False,
+                 plans: Mapping[str, GamePlan] | None = None):
         self.calls = calls
         self.used = 0
         self.pending: CoachCall | None = None
         self.autopilot = autopilot
-        self.ai = AICoach()
+        self.ai = AICoach(plans)  # (its suggestions and autopilot follow the game plan)
 
     def huddle(self, state: GameState, role: Role, clock_running: bool, offense: SimTeam,
                defense: SimTeam, rng: random.Random) -> None:
@@ -169,8 +172,9 @@ def replay(home: SimTeam, away: SimTeam, seed: int, side: Side, calls: list[Coac
            autopilot: bool = False, playoff: bool = False, neutral: bool = False) -> CoachedReplay:
     """Play the game from the kickoff with the user coaching `side`, up to the next call
     the user needs to make (or to the final whistle)."""
-    coach = ScriptedCoach(calls, autopilot)
-    game = _Game(home, away, seed, playoff, {side: coach, other(side): AICoach()},
+    plans = {"home": home.plan, "away": away.plan}
+    coach = ScriptedCoach(calls, autopilot, plans)
+    game = _Game(home, away, seed, playoff, {side: coach, other(side): AICoach(plans)},
                  DEFAULT_TUNING, neutral)
     try:
         result = game.run()

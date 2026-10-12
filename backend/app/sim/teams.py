@@ -13,6 +13,7 @@ from typing import Protocol
 from app.domain.depth_chart import build_chart, is_available
 from app.domain.positions import Position
 from app.domain.ratings import ATTRIBUTES
+from app.sim.gameplan import NEUTRAL, GamePlan, TeamRatings, generated
 
 REPLACEMENT_RATING = 40  # an empty depth slot plays like a street free agent
 
@@ -69,6 +70,7 @@ class SimTeam:
     unavailable: set[int] = field(default_factory=set)
     injured: set[int] = field(default_factory=set)
     sidelined: set[int] = field(default_factory=set)  # both of the above
+    plan: GamePlan = NEUTRAL  # which plays and calls the AI makes for this team, and how
 
     def start_game(self) -> None:
         """Reset in-game state; called by the engine at kickoff."""
@@ -117,9 +119,11 @@ def build_sim_team(
     roster: Sequence[PlayerLike],
     ratings: Mapping[int, Mapping[str, int]],
     overrides: Mapping[Position, Sequence[int]] | None = None,
+    plan: GamePlan | None = None,
 ) -> SimTeam:
     """Snapshot a roster: depth-chart order per slot (custom orders honoured, cross-listed
-    players included); unavailable (Out/IR) players are skipped when picking lineups."""
+    players included); unavailable (Out/IR) players are skipped when picking lineups. The
+    game plan is the team's saved one, or else one drawn from its roster's strengths."""
     chart = build_chart(roster, overrides or {})
     sim_players = {
         p.id: SimPlayer(id=p.id, name=short_name(p.first_name, p.last_name),
@@ -131,7 +135,18 @@ def build_sim_team(
                    players=sim_players,
                    unavailable={p.id for p in roster if not is_available(p)})
     team.start_game()
+    team.plan = plan if plan is not None else generated(plan_ratings(team))
     return team
+
+
+def plan_ratings(team: SimTeam) -> TeamRatings:
+    """The starters' numbers a generated game plan leans on."""
+    def avg(slot: Position, count: int, rating: str) -> float:
+        return mean(p.ratings.get(rating, 50) for p in team.at(slot, count))
+    return TeamRatings(
+        arm_and_speed=mean([avg(Position.QB, 1, "throw_power"), avg(Position.WR, 2, "speed")]),
+        pass_rush=mean([avg(Position.DE, 2, "pass_rush"), avg(Position.OLB, 2, "pass_rush")]),
+        man_coverage=avg(Position.CB, 2, "man_coverage"))
 
 
 def team_to_dict(team: SimTeam) -> dict:
@@ -143,6 +158,7 @@ def team_to_dict(team: SimTeam) -> dict:
                      "ratings": dict(p.ratings)} for p in team.players.values()],
         "depth": {slot.value: [p.id for p in players] for slot, players in team.depth.items()},
         "unavailable": sorted(team.unavailable),
+        "plan": team.plan.to_dict(),
     }
 
 
@@ -152,6 +168,8 @@ def team_from_dict(data: dict) -> SimTeam:
                for p in data["players"]}
     depth = {Position(slot): [players[pid] for pid in ids] for slot, ids in data["depth"].items()}
     team = SimTeam(id=data["id"], abbreviation=data["abbreviation"], name=data["name"],
-                   depth=depth, players=players, unavailable=set(data["unavailable"]))
+                   depth=depth, players=players, unavailable=set(data["unavailable"]),
+                   # (snapshots from before game plans played the whole book, neutrally)
+                   plan=GamePlan.from_dict(data.get("plan")))
     team.start_game()
     return team

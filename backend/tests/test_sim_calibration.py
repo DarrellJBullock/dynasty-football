@@ -29,8 +29,11 @@ def test_league_metric_in_target_range(metrics, metric):
     assert low <= metrics.values[metric] <= high, metrics.report()
 
 
-def test_home_field_advantage_is_modest(metrics):
-    assert 52 <= metrics.values["home_win_pct"] <= 60
+def test_home_field_advantage_is_modest(teams):
+    # A win rate needs more games than the other metrics: over 300 a 58% home edge swings
+    # by about 3 points either way, which any engine change can tip past the band's edge.
+    home = measure(teams, games=1200, seed=7).values["home_win_pct"]
+    assert 52 <= home <= 60
 
 
 def _boosted(team: SimTeam, delta: int) -> SimTeam:

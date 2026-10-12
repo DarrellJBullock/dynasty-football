@@ -24,6 +24,7 @@ from app.models import (
 from app.schemas import SeasonOut, SimulateRequest, SimulationResult
 from app.services import injuries, playoffs
 from app.services.errors import RosterError
+from app.services.gameplans import saved_plans
 from app.services.serializers import game_out, job_out, season_out, team_summary
 from app.services.teams import load_overrides
 from app.sim.engine import SIM_VERSION, GameResult, simulate_game
@@ -75,10 +76,11 @@ def league_sim_teams(db: Session, league_id: int) -> dict[int, SimTeam]:
     for player in players:
         rosters[player.team_id].append(player)
     overrides = load_overrides(db, [t.id for t in teams])
+    plans = saved_plans(db, [t.id for t in teams])
     return {
         team.id: build_sim_team(team.id, team.abbreviation, team.full_name, rosters[team.id],
                                 {p.id: p.ratings.as_dict() for p in rosters[team.id]},
-                                overrides[team.id])
+                                overrides[team.id], plans.get(team.id))
         for team in teams
     }
 

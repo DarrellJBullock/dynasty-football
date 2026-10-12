@@ -156,6 +156,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   comes from `access.league_of`, as for ownership). Job runners
   commit after each step, so a sim service they call must leave the league consistent
   between steps (see `season.simulate`'s `on_step`).
+- **Game plans** (`sim/gameplan.py`): the AI picks named plays and calls through the
+  team's plan. A neutral plan (the whole book, every tendency 0) must stay draw-for-draw
+  identical to the AI before plans (`test_game_plans.py` pins a game's log): apply a
+  tendency only when its level isn't 0, and only fall back when a pick finds nothing.
 - **The franchise on autopilot:** the offseason, free agency and the draft take
   `autopilot=True` (sim ahead), which treats the franchise like an AI team. Anything new
   that skips the franchise for the user to decide needs the same flag.

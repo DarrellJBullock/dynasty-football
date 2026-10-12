@@ -24,6 +24,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Dashboard", href: "/", icon: <IconGrid /> },
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
+      { label: "Game Plan", href: "/game-plan", icon: <IconPlan /> },
       { label: "Contracts", href: "/contracts", icon: <IconContract /> },
       { label: "Free Agency", href: "/free-agency", icon: <IconSign /> },
       { label: "Draft", href: "/draft", icon: <IconDraft /> },
@@ -216,6 +217,14 @@ function IconContract() {
   return (
     <svg {...iconProps}>
       <path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5" />
+    </svg>
+  );
+}
+function IconPlan() {
+  return (
+    <svg {...iconProps}>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 8l3 3M11 8l-3 3M14 15a2 2 0 1 0 4 0a2 2 0 1 0-4 0M10 16l3-5" />
     </svg>
   );
 }
