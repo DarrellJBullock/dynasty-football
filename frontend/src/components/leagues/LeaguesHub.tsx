@@ -83,7 +83,8 @@ export function LeaguesHub({ initialFranchises }: { initialFranchises: Franchise
                 </div>
                 <p className="text-sm">{franchise.team.full_name}</p>
                 <p className="text-xs text-mist">
-                  {franchise.league.name} · {franchise.team_count} teams · {franchise.season.year}{" "}
+                  {franchise.league.name}
+                  {franchise.league.players === "women" && " · Women's league"} · {franchise.team_count} teams · {franchise.season.year}{" "}
                   {formatPhase(franchise.season.phase)} · {formatMoney(franchise.league.salary_cap)} cap
                 </p>
               </div>

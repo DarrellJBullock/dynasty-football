@@ -44,10 +44,12 @@ describe("LeagueBuilder", () => {
 
     await userEvent.click(screen.getByRole("radio", { name: "Play as City CCC Nick CCC" }));
     await userEvent.click(screen.getByRole("radio", { name: /Start empty/ }));
+    expect(screen.getByRole("radio", { name: /Men's league/ })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: /Women's league/ }));
     await userEvent.click(screen.getByRole("button", { name: "Create league" }));
 
-    expect(mocked.createLeague).toHaveBeenCalledWith(
-      expect.objectContaining({ user_team: "CCC", rosters: "empty", name: "Test League" }));
+    expect(mocked.createLeague).toHaveBeenCalledWith(expect.objectContaining(
+      { user_team: "CCC", rosters: "empty", players: "women", name: "Test League" }));
     await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith("/"));
   });
 
@@ -98,14 +100,15 @@ describe("LeaguesHub", () => {
   const active = franchiseItem({ id: 1, name: "Ironclads Dynasty", is_active: true });
   const other = franchiseItem({
     id: 2, name: "Krakens Dynasty", team: opponent, team_count: 6,
-    league: { id: 9, name: "Harbor Coast League", abbreviation: "HCL", salary_cap: 200_000_000 },
+    league: { id: 9, name: "Harbor Coast League", abbreviation: "HCL", salary_cap: 200_000_000,
+      players: "women" },
   });
 
   it("switches franchises", async () => {
     mocked.activateFranchise.mockResolvedValue(other);
     render(<LeaguesHub initialFranchises={[active, other]} />);
     const card = screen.getByRole("listitem", { name: "Krakens Dynasty" });
-    expect(within(card).getByText(/Harbor Coast League · 6 teams/)).toBeInTheDocument();
+    expect(within(card).getByText(/Harbor Coast League · Women's league · 6 teams/)).toBeInTheDocument();
 
     await userEvent.click(within(card).getByRole("button", { name: "Switch to this franchise" }));
     expect(mocked.activateFranchise).toHaveBeenCalledWith(2);

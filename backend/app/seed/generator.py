@@ -55,6 +55,20 @@ BODY: dict[Position, tuple[int, int, int, int]] = {
     Position.P: (72, 76, 195, 220),
 }
 
+# Women's leagues: heights and weights from women's tackle football, by position. Ratings
+# and everything else are the same (they're relative to the league).
+BODY_WOMEN: dict[Position, tuple[int, int, int, int]] = {
+    Position.QB: (66, 71, 150, 180), Position.RB: (63, 68, 140, 175),
+    Position.FB: (65, 69, 165, 195), Position.WR: (64, 70, 130, 160),
+    Position.TE: (67, 71, 165, 195), Position.OT: (68, 73, 215, 260),
+    Position.OG: (66, 71, 210, 250), Position.C: (66, 70, 205, 240),
+    Position.DE: (67, 71, 180, 215), Position.DT: (66, 70, 210, 250),
+    Position.OLB: (65, 70, 160, 190), Position.MLB: (65, 69, 165, 195),
+    Position.CB: (63, 68, 130, 155), Position.FS: (64, 69, 140, 165),
+    Position.SS: (64, 69, 145, 170), Position.K: (64, 69, 135, 165),
+    Position.P: (65, 70, 140, 170),
+}
+
 DEPTH_TARGETS = (79, 70, 64)  # target OVR for starter, primary backup, depth
 SPECIALIST_OFFSET = -6  # K/P have only two weighted attributes, so pull them down
 
@@ -118,12 +132,13 @@ def make_player(
     overall = calculate_overall(position, attributes)
     drawn_age = max(21, min(36, round(rng.gauss(26, 3))))
     age = drawn_age if age is None else age
-    min_h, max_h, min_w, max_w = BODY[position]
+    women = league.players == "women"
+    min_h, max_h, min_w, max_w = (BODY_WOMEN if women else BODY)[position]
     growth = max(0, 28 - age) * rng.uniform(0.8, 2.2)
     player = Player(
         league=league,
         team=team,
-        first_name=rng.choice(data.FIRST_NAMES),
+        first_name=rng.choice(data.FIRST_NAMES_WOMEN if women else data.FIRST_NAMES),
         last_name=rng.choice(data.LAST_NAMES),
         position=position.value,
         jersey_number=_jersey(rng, position, taken_numbers if taken_numbers is not None else set()),
@@ -250,7 +265,7 @@ def build_league(session: Session, spec: LeagueCreate, seed: int) -> Franchise:
     user's franchise (activated). Deterministic for a given spec and seed."""
     rng = random.Random(seed)
     league = League(name=spec.name, abbreviation=spec.abbreviation.upper(),
-                    salary_cap=spec.salary_cap)
+                    salary_cap=spec.salary_cap, players=spec.players)
     session.add(league)
 
     teams: list[Team] = []

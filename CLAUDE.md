@@ -165,4 +165,5 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   a role). Animations must respect `prefers-reduced-motion` (`lib/motion.ts`; CSS is
   handled globally).
 - **Generator RNG order is load-bearing:** `build_league` must keep the default league
-  byte-identical for a given seed. Append new random draws after existing ones.
+  byte-identical for a given seed (`tests/test_womens_leagues.py` pins its fingerprint).
+  Append new random draws after existing ones; a women's league draws its own way.

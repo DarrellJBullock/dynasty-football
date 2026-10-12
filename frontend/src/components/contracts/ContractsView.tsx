@@ -226,7 +226,7 @@ function NegotiationDialog({ row, capSpace, onClose }: {
         </p>
         <p className="text-xs text-mist">
           Deals above the minimum include a signing bonus of 30% of their total value: the cap
-          hit stays the salary, but the bonus is guaranteed — cut him early and the rest of it
+          hit stays the salary, but the bonus is guaranteed — cut a player early and the rest of it
           stays on your cap as dead money.
         </p>
         {result?.accepted ? (

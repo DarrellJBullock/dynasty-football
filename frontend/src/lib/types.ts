@@ -15,11 +15,15 @@ export type InjuryStatus = (typeof INJURY_STATUSES)[number];
 export const DEVELOPMENT_TRAITS = ["normal", "impact", "star", "elite"] as const;
 export type DevelopmentTrait = (typeof DEVELOPMENT_TRAITS)[number];
 
+/** Who plays in a league: generated players' names and builds follow it. */
+export type LeaguePlayers = "men" | "women";
+
 export interface League {
   id: number;
   name: string;
   abbreviation: string;
   salary_cap: number;
+  players: LeaguePlayers;
 }
 
 export interface TeamSummary {
@@ -328,6 +332,7 @@ export interface LeagueCreate {
   season_year: number;
   weeks: number;
   rosters: "generated" | "empty";
+  players: LeaguePlayers;
   conferences: ConferenceSpec[];
   user_team: string;
   franchise_name?: string | null;

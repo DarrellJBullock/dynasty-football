@@ -29,7 +29,7 @@ def job_out(job: Job) -> JobOut:
 
 def league_out(league: League) -> LeagueOut:
     return LeagueOut(id=league.id, name=league.name, abbreviation=league.abbreviation,
-                     salary_cap=league.salary_cap)
+                     salary_cap=league.salary_cap, players=league.players)
 
 
 def season_out(season: Season, weeks: int) -> SeasonOut:

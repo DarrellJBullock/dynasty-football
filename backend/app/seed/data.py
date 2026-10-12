@@ -77,6 +77,20 @@ FIRST_NAMES = [
     "Tristan", "Ty", "Tyrese", "Vance", "Victor", "Wade", "Wes", "Xavier", "Zane",
 ]
 
+# For women's leagues (the last names are shared).
+FIRST_NAMES_WOMEN = [
+    "Abby", "Addison", "Adriana", "Alexis", "Aliyah", "Amara", "Amber", "Andrea", "Aria",
+    "Ashley", "Aubrey", "Bailey", "Bianca", "Brianna", "Brooke", "Cameron", "Carly", "Cassidy",
+    "Celeste", "Chloe", "Ciara", "Dana", "Daniela", "Delaney", "Destiny", "Elena", "Eliza",
+    "Emery", "Erin", "Faith", "Gabriela", "Gianna", "Grace", "Hailey", "Harper", "Imani",
+    "Isabel", "Jada", "Jasmine", "Jenna", "Jordyn", "Kaitlyn", "Kara", "Kayla", "Kendall",
+    "Kiara", "Laila", "Lauren", "Leah", "Lena", "Lexi", "Lila", "Maci", "Mackenzie", "Maya",
+    "Megan", "Mia", "Monique", "Morgan", "Naomi", "Natalie", "Nia", "Olivia", "Paige",
+    "Peyton", "Piper", "Quinn", "Raven", "Reagan", "Reese", "Riley", "Rosa", "Sabrina",
+    "Sadie", "Samira", "Savannah", "Serena", "Sienna", "Skylar", "Sofia", "Tatum", "Taylor",
+    "Tessa", "Tiana", "Valerie", "Vanessa", "Whitney", "Willow", "Yasmin", "Zoe",
+]
+
 LAST_NAMES = [
     "Abernathy", "Alder", "Ashford", "Barlow", "Beckett", "Bellamy", "Blackwell", "Boone",
     "Brannigan", "Brooks", "Calloway", "Carver", "Castillo", "Cole", "Crenshaw", "Dawson",
