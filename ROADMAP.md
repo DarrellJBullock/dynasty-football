@@ -169,7 +169,7 @@ Design: `docs/design/sound.md`.
 - [x] Sound engine, effects and the crowd (synthesized in the browser, timed to each
       play's moments and the page's clock; the home crowd's level and reactions; Sound
       controls on the Watch page and in Coach Mode)
-- [ ] Commentary text and captions (a play-by-play announcer and an analyst, written from
+- [x] Commentary text and captions (a play-by-play announcer and an analyst, written from
       the events)
 - [ ] Spoken commentary (the voices, paced to the play, the crowd ducking under them)
 

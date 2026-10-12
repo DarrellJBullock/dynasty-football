@@ -12,10 +12,13 @@ import type { Game, PlaybackPlay } from "@/lib/types";
 import { crowdLevel, dueCues, soundCues } from "./cues";
 import { SoundEngine, type SoundMix } from "./engine";
 
-export interface SoundSettings extends SoundMix { on: boolean }
+export interface SoundSettings extends SoundMix {
+  on: boolean;
+  captions: boolean; // the commentary as captions (with or without sound)
+}
 
 export const SOUND_KEY = "dynasty.sound";
-export const DEFAULT_SOUND: SoundSettings = { on: false, volume: 0.7, effects: true, crowd: true };
+export const DEFAULT_SOUND: SoundSettings = { on: false, volume: 0.7, effects: true, crowd: true, captions: false };
 
 function loadSettings(): SoundSettings {
   try {

@@ -172,6 +172,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   cues are pure (`cues.ts`) and fired by the viewer's onTick through `useGameSound`. No
   audio files: everything is synthesized (`engine.ts`). Browsers start audio only after a
   click or key, so turning sound on must happen in a click handler.
+- **Commentary** (`lib/commentary.ts`) is written from play events, deterministically
+  (phrasings picked from the game and play numbers), and must stay pronoun-neutral; a
+  test checks every phrasing.
 - **Penalties** (`app/sim/penalties.py`): a play whose result type is `"penalty"` was wiped
   out and counts only the foul in stats; a personal foul keeps the play's own type (the
   play stands) and adds a penalty event. Add a foul in `FOULS`, `NAMES`,

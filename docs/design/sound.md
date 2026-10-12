@@ -92,6 +92,25 @@ matches what's on screen, in the classic viewer and in Unity alike.
   and the engine suspended when the viewer goes away. The Sound controls sit with the
   viewer's other controls on the Watch page and in Coach Mode's reel.
 
+### As built (part 2)
+
+- `lib/commentary.ts` (pure): the play-by-play calls every kind of play at its moments
+  (kickoffs and onside kicks, runs inside and outside, passes complete, incomplete, broken
+  up, intercepted and thrown away, sacks, scrambles, fumbles, punts, field goals, extra
+  points, two-point tries, kneels, fouls before and during the play, touchdowns, first
+  downs), naming players by their last names and the spot by its yard line. The analyst
+  speaks after the whistle when there's something to say, in this order: an injury, a
+  foul during the play (what it cost), halftime or the final score, a drive of four or
+  more plays that didn't end in a punt, the key player's day (the stat overlay's line),
+  or a short fourth down coming up.
+- Phrasings vary but are picked from the game and play numbers, so a play reads the same
+  every time. Everything is pronoun-neutral (leagues can be women's); a test calls every
+  play in a dozen games' phrasings and checks.
+- Captions (`components/sound/Captions.tsx`): the line being said, for 3.5 seconds, in a
+  polite live region labeled for screen readers (play-by-play or analyst); the analyst in
+  gold. A Captions switch beside Sound, off by default and remembered; hidden during
+  instant replays.
+
 ## 6. Testing
 
 - **Pure, unit-tested:** the sound cues for a play (which sounds, when, how loud) from its

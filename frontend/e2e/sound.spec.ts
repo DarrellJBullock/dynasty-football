@@ -29,6 +29,12 @@ test("turns the game's sound on, plays the play's sounds, and remembers it", asy
   await expect.poll(() => page.evaluate(() => window.dynastySound?.played ?? []), { timeout: 20_000 })
     .toEqual(expect.arrayContaining(["cadence", "snap", "whistle"]));
 
+  // Captions: the commentary on screen as the play is called.
+  await sound.getByRole("button", { name: "Captions" }).click();
+  await scrubber.fill("0");
+  if (await play.isVisible()) await play.click();
+  await expect(viewer.getByRole("log", { name: "Commentary" })).not.toBeEmpty({ timeout: 15_000 });
+
   // Remembered: on after a reload (the browser starts it again on the next interaction).
   await page.reload();
   await expect(viewer.getByRole("group", { name: "Sound" }).getByRole("button", { name: "Sound on" }))

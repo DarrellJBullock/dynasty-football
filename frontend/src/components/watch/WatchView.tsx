@@ -15,7 +15,9 @@ import { highlightIndexes } from "@/lib/highlights";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { RendererSwitch, UnityPlayScene, UnityProblem, useRenderer } from "@/components/field/unity/renderer";
+import { Captions } from "@/components/sound/Captions";
 import { SoundControls } from "@/components/sound/SoundControls";
+import { commentaryFor } from "@/lib/commentary";
 import { useGameSound } from "@/lib/sound/useGameSound";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
@@ -140,6 +142,8 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   // Sound: the play's cues as the playhead passes them (docs/design/sound.md).
   const sound = useGameSound({ game: playback.game, play, timeline, replaying: replay.replaying });
   const { onTime: soundTime } = sound;
+  const commentary = useMemo(() => (timeline ? commentaryFor(playback, index, timeline) : []),
+                             [playback, index, timeline]);
 
   const { track: trackReplay } = replay;
   const onTick = useCallback((t: number, justEnded: boolean) => {
@@ -250,6 +254,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
             <BroadcastOverlay playback={playback} index={index} timeline={timeline} time={time}
               replay={replay.replaying} />
             {replay.replaying && <ReplayBadge key={plan?.from} onSkip={replay.skip} />}
+            {sound.settings.captions && !replay.replaying && <Captions lines={commentary} time={time} />}
             {moment && (
               <p className="absolute left-3 top-3 rounded-lg bg-ink-950/75 px-3 py-1.5 text-sm font-semibold backdrop-blur"
                 role="status">

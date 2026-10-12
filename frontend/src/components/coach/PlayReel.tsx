@@ -13,7 +13,9 @@ import { callLabel } from "@/lib/games";
 import type { GamePlayback } from "@/lib/types";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { RendererSwitch, UnityPlayScene, UnityProblem, useRenderer } from "@/components/field/unity/renderer";
+import { Captions } from "@/components/sound/Captions";
 import { SoundControls } from "@/components/sound/SoundControls";
+import { commentaryFor } from "@/lib/commentary";
 import { useGameSound } from "@/lib/sound/useGameSound";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
@@ -58,6 +60,8 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   const sound = useGameSound({ game: playback.game, play: current?.play, timeline: current?.timeline,
                                replaying: instant.replaying });
   const { onTime: soundTime } = sound;
+  const commentary = useMemo(() => (current && playIndex >= 0 ? commentaryFor(playback, playIndex, current.timeline) : []),
+                             [current, playIndex, playback]);
 
   const onTick = useCallback((t: number, justEnded: boolean) => {
     soundTime(t);
@@ -121,6 +125,7 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
         <BroadcastOverlay playback={playback} timeline={current.timeline} time={time}
           index={playIndex} replay={instant.replaying} />
         {instant.replaying && <ReplayBadge key={index} onSkip={instant.skip} />}
+        {sound.settings.captions && !instant.replaying && <Captions lines={commentary} time={time} />}
         <div role="group" aria-label="Camera"
           className="absolute right-3 top-3 flex gap-1 rounded-lg bg-ink-950/70 p-1 backdrop-blur">
           {PLAY_CAMERAS.map(({ key, label }) => (
