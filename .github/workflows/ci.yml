@@ -158,8 +158,9 @@ jobs:
         working-directory: frontend
         run: npm run e2e
 
+      # Also when a test only passed on its retry, so a flaky failure's trace is kept.
       - name: Upload report and traces
-        if: failure()
+        if: ${{ !cancelled() && hashFiles('frontend/test-results/**/trace.zip') != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report

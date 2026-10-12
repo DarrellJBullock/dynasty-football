@@ -56,7 +56,9 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   await navigate(page, "Dashboard");
   const simulation = page.getByRole("region", { name: "Franchise overview" });
   await expect(simulation.getByRole("progressbar", { name: "Simulation progress" })).toBeVisible();
-  await expect(simulation.getByRole("button", { name: "Sim Wild Card" })).toBeVisible({ timeout: 30_000 });
+  // 17 weeks in the API's embedded worker thread, sharing a CI runner with the polling page:
+  // ~8 s locally, several times that on a slow runner.
+  await expect(simulation.getByRole("button", { name: "Sim Wild Card" })).toBeVisible({ timeout: 60_000 });
   await expect(simulation.getByRole("status")).toContainText("Simulated 17 weeks");
 
   const seasonCard = page.getByRole("region", { name: "Season" });
