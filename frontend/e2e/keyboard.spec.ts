@@ -5,6 +5,10 @@ test("signs in, skips to the page and sims a week with the keyboard alone", asyn
   const context = await browser.newContext(); // (signed out)
   const page = await context.newPage();
   await page.goto("/signin");
+  // (The form streams in after the shell; wait for it, and for React to take it over,
+  // before typing.)
+  await expect(page.getByRole("form", { name: "Sign in" })).toBeVisible();
+  await page.waitForLoadState("networkidle");
 
   // The form, in order: email, password, Sign in.
   await page.keyboard.press("Tab");
@@ -15,6 +19,7 @@ test("signs in, skips to the page and sims a week with the keyboard alone", asyn
   await page.keyboard.type(E2E_USER.password);
   await page.keyboard.press("Enter");
   await expect(page.getByRole("region", { name: "Franchise overview" })).toBeVisible();
+  await page.waitForLoadState("networkidle");
 
   // The first Tab reaches "Skip to content", which jumps past the sidebar.
   await page.keyboard.press("Tab");
