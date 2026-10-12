@@ -129,6 +129,6 @@ describe("ImportDialog", () => {
   it("links to downloadable templates", () => {
     renderDialog();
     expect(screen.getByRole("link", { name: "Excel" })).toHaveAttribute(
-      "href", "http://localhost:8000/api/roster-import/template.xlsx");
+      "href", "/api/roster-import/template.xlsx");
   });
 });

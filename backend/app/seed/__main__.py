@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.models import League, Player, Team
 from app.seed.generator import clear_database, generate_league
+from app.services.accounts import ensure_user
 
 
 def main() -> None:
@@ -28,10 +29,15 @@ def main() -> None:
             print("Database already has a league; use --reset to regenerate.")
             return
         league = generate_league(session, seed=args.seed)
+        settings = get_settings()
+        if settings.dev_user_email and settings.dev_user_password:
+            owner = ensure_user(session, settings.dev_user_email, settings.dev_user_password)
+            league.user_id = owner.id
         session.commit()
         teams = session.scalar(select(func.count(Team.id)))
         players = session.scalar(select(func.count(Player.id)))
-        print(f"Created {league.name}: {teams} teams, {players} players (seed {args.seed}).")
+        print(f"Created {league.name}: {teams} teams, {players} players (seed {args.seed})"
+              + (f", owned by {settings.dev_user_email}." if league.user_id else "."))
 
 
 if __name__ == "__main__":

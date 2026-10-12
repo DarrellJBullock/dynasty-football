@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
+import { AccountMenu } from "./AccountMenu";
 
 interface NavItem {
   label: string;
@@ -39,7 +40,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
 
 export function Sidebar() {
   return (
-    <aside className="sticky top-0 z-30 border-b border-white/5 bg-ink-900/90 backdrop-blur lg:h-screen lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r">
+    <aside className="sticky top-0 z-30 border-b border-white/5 bg-ink-900/90 backdrop-blur lg:flex lg:h-screen lg:w-60 lg:shrink-0 lg:flex-col lg:border-b-0 lg:border-r">
       <div className="flex items-center gap-3 px-4 py-3 lg:px-5 lg:py-6">
         <Logo />
         <div className="leading-none">
@@ -52,6 +53,7 @@ export function Sidebar() {
       <Suspense fallback={<NavLinks pathname={null} />}>
         <ActiveNavLinks />
       </Suspense>
+      <AccountMenu />
     </aside>
   );
 }
@@ -73,7 +75,7 @@ function isActive(href: string, pathname: string | null): boolean {
 
 function NavLinks({ pathname }: { pathname: string | null }) {
   return (
-    <nav aria-label="Main" className="overflow-x-auto px-2 pb-2 lg:px-3">
+    <nav aria-label="Main" className="overflow-x-auto px-2 pb-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-3">
       {NAV.map((section) => (
         <div key={section.heading} className="contents lg:mb-6 lg:block">
           <div className="eyebrow hidden px-3 pb-2 lg:block">{section.heading}</div>
@@ -114,7 +116,7 @@ function NavLinks({ pathname }: { pathname: string | null }) {
   );
 }
 
-function Logo() {
+export function Logo() {
   return (
     <svg viewBox="0 0 40 40" className="h-9 w-9" aria-hidden>
       <defs>

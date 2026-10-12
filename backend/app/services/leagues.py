@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.models import (
     Award,
     CoachedGame,
@@ -28,6 +29,7 @@ from app.models import (
     Team,
     TeamGameStats,
     Trade,
+    User,
 )
 from app.schemas import FranchiseListItem, LeagueCreate, TeamUpdate
 from app.seed.generator import build_league
@@ -35,17 +37,25 @@ from app.services.dashboard import current_franchise, franchise_out
 from app.services.errors import RosterError
 
 
-def create_league(db: Session, spec: LeagueCreate) -> Franchise:
+def create_league(db: Session, spec: LeagueCreate, user: User) -> Franchise:
+    """Build a league for the user (up to `max_leagues` each); its franchise is active."""
+    limit = get_settings().max_leagues
+    if (db.scalar(select(func.count(League.id)).where(League.user_id == user.id)) or 0) >= limit:
+        raise RosterError(f"You can keep up to {limit} leagues. Delete one to make another.")
     seed = spec.seed if spec.seed is not None else random.SystemRandom().randrange(2**31)
-    return build_league(db, spec, seed)
+    franchise = build_league(db, spec, seed)
+    franchise.league.user_id = user.id
+    db.flush()
+    return franchise
 
 
-def list_franchises(db: Session) -> list[FranchiseListItem]:
-    active = current_franchise(db)
+def list_franchises(db: Session, user: User) -> list[FranchiseListItem]:
+    active = current_franchise(db, user)
     team_counts = dict(db.execute(select(Team.league_id, func.count(Team.id))
                                   .group_by(Team.league_id)).all())
-    franchises = db.scalars(select(Franchise).order_by(Franchise.activated_at.desc(),
-                                                       Franchise.id.desc()))
+    franchises = db.scalars(select(Franchise).join(Franchise.league)
+                            .where(League.user_id == user.id)
+                            .order_by(Franchise.activated_at.desc(), Franchise.id.desc()))
     return [
         FranchiseListItem(**franchise_out(db, f).model_dump(),
                           is_active=active is not None and f.id == active.id,
@@ -75,9 +85,10 @@ def update_team(db: Session, team: Team, payload: TeamUpdate) -> Team:
     return team
 
 
-def delete_league(db: Session, league: League) -> None:
-    """Delete a league and everything in it. The active franchise's league is protected."""
-    active = current_franchise(db)
+def delete_league(db: Session, league: League, user: User | None = None) -> None:
+    """Delete a league and everything in it. Given the user, their active franchise's
+    league is protected (deleting the whole account takes it too)."""
+    active = current_franchise(db, user) if user is not None else None
     if active is not None and active.league_id == league.id:
         raise RosterError("This is your active franchise's league. Switch to another "
                           "franchise before deleting it.")

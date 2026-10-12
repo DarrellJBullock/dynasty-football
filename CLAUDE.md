@@ -27,10 +27,13 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   alembic/        migrations
   tests/          pytest
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
-  src/app/        routes: / (dashboard), /roster, /depth-chart, /schedule, /games/[id],
-                  /games/[id]/watch (3D), /games/[id]/coach and /coach (Coach Mode),
-                  /playoffs, /contracts, /free-agency, /draft, /trades, /history,
-                  /stats, /players/[id], /league, /leagues, /leagues/new
+  src/app/(app)/  the game (with the sidebar): / (dashboard), /roster, /depth-chart,
+                  /schedule, /games/[id], /games/[id]/watch (3D), /games/[id]/coach and
+                  /coach (Coach Mode), /playoffs, /contracts, /free-agency, /draft,
+                  /trades, /history, /stats, /players/[id], /league, /leagues,
+                  /leagues/new, /account
+  src/app/(auth)/ /signin, /signup (no sidebar; a second root layout)
+  src/proxy.ts    sends visitors without a session cookie to /signin
   src/components/ UI by feature (dashboard, roster, league, field, watch, coach, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers
 ```
@@ -88,7 +91,7 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **Next.js 16 differs from older versions.** Read `frontend/node_modules/next/dist/docs/`
   before using an unfamiliar API. Notably:
   - `cacheComponents` is on: uncached data reads must sit inside `<Suspense>` (see
-    `src/app/page.tsx`); `params`/`searchParams` are Promises.
+    `src/app/(app)/page.tsx`); `params`/`searchParams` are Promises.
   - The React lint rule forbids building JSX inside `try/catch`; use `attempt()` from
     `src/lib/api.ts` and render the error outside.
   - `LayoutProps`/`PageProps` types come from `next typegen` (run by `npm run typecheck`).
@@ -101,7 +104,7 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   ancestor with `backdrop-filter` (every `.panel`) otherwise traps the fixed overlay.
 - **Don't `redirect()` to a destination that depends on game state** (e.g. "the next
   game"): the client router remembers the redirect and keeps following it after the state
-  changes. Render the destination on the route instead (see `src/app/coach/page.tsx`).
+  changes. Render the destination on the route instead (see `src/app/(app)/coach/page.tsx`).
 - **After creating/switching a franchise use `hardNavigate("/")`**, not `router.push` —
   the client router cache can serve pages from the previous franchise.
 - **Three.js** components must be client-only: load via `next/dynamic` with
@@ -116,18 +119,30 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   `team_lineup()` / `domain.depth_chart`.
 - **Next dev server** can serve a stale server render of a client component edited
   mid-session (shows as a hydration mismatch). Restart `make dev-frontend` to clear it.
-- **Active franchise** = most recent `franchises.activated_at` (`current_franchise()`).
-  Every page reads `/api/franchise`, so never hard-code a league or team id. One
-  franchise per league (unique constraint).
+- **Accounts:** every API route but `/api/health` and `/api/auth/*` needs a session, and a
+  league belongs to one user (`leagues.user_id`). `api/access.py` finds the league from a
+  route's path ids (`league_of`: `league_id`, `season_id`, `team_id`, `player_id`,
+  `game_id`, `franchise_id`, `job_id`) and answers 404 for someone else's. A new route
+  keyed by another id needs a case there; `test_accounts.py` walks every route and fails
+  otherwise. Routes without ids must scope their queries to the user themselves.
+- **The browser calls `/api` on the web app's own origin** (rewritten to the game server
+  in `next.config.ts`), so the session cookie goes along; server components call
+  `API_URL` and forward the visitor's cookie (`lib/api.ts`). Never call the game server's
+  URL from client code. A 401 in `attempt()` redirects to `/signin`.
+- **Tests sign in:** the backend's `client` fixture is signed in as the sample league's
+  owner (`anonymous` isn't); every e2e test starts signed in as `E2E_USER`
+  (`e2e/support/fixtures.ts`), which the reseed recreates.
+- **Active franchise** = the user's most recent `franchises.activated_at`
+  (`current_franchise(db, user)`). Every page reads `/api/franchise`, so never hard-code a
+  league or team id. One franchise per league (unique constraint).
 - **League deletion** deletes child rows explicitly (`services/leagues.delete_league`)
   because SQLite tests don't enforce `ON DELETE CASCADE`. Add new league-owned tables there.
 - **Coached games replay from the user's calls** (`app/sim/coaching.py`): an engine change
   that alters the order of random draws changes how an in-progress coached game replays.
   Bump `SIM_VERSION` with such changes.
 - **Long sims are background jobs** (`services/jobs.py`): while one is queued or running,
-  every non-GET route under a league is refused with 409 by `api/locks.py`, which finds
-  the league from the path's `league_id`/`season_id`/`team_id`/`player_id`/`game_id`/
-  `franchise_id`. A new mutating route keyed by another id needs a case there. Job runners
+  every non-GET route under a league is refused with 409 by `api/locks.py` (the league
+  comes from `access.league_of`, as for ownership). Job runners
   commit after each step, so a sim service they call must leave the league consistent
   between steps (see `season.simulate`'s `on_step`).
 - **Generator RNG order is load-bearing:** `build_league` must keep the default league

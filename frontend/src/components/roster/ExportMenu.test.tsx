@@ -12,9 +12,9 @@ describe("ExportMenu", () => {
     await userEvent.click(button);
     const items = screen.getAllByRole("menuitem");
     expect(items.map((a) => a.getAttribute("href"))).toEqual([
-      "http://localhost:8000/api/teams/97/roster-export.csv",
-      "http://localhost:8000/api/teams/97/roster-export.xlsx",
-      "http://localhost:8000/api/teams/97/roster-export.json",
+      "/api/teams/97/roster-export.csv",
+      "/api/teams/97/roster-export.xlsx",
+      "/api/teams/97/roster-export.json",
     ]);
     expect(items.every((a) => a.hasAttribute("download"))).toBe(true);
   });

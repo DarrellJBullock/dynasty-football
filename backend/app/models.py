@@ -31,10 +31,40 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+class User(Base):
+    """An account: signs in with an email and a password, and owns leagues."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True)  # stored lower-case
+    password_hash: Mapped[str] = mapped_column(String(200))  # Argon2
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class UserSession(Base):
+    """A signed-in browser. The cookie holds a random token; only its SHA-256 is stored, so
+    a leaked table can't be used to sign in."""
+
+    __tablename__ = "sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship()
+
+
 class League(Base):
     __tablename__ = "leagues"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Whose league it is. Leagues from before accounts have none until the first account
+    # created claims them.
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(80))
     abbreviation: Mapped[str] = mapped_column(String(8))
     salary_cap: Mapped[int] = mapped_column(Integer)  # whole dollars

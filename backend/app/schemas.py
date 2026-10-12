@@ -1180,3 +1180,23 @@ class CoachAutoIn(BaseModel):
 class NextGameOut(BaseModel):
     game: "GameOut | None"  # the franchise's game this week, if it hasn't been played
     coaching: bool  # the user has started coaching it
+
+
+class Credentials(BaseModel):
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=128)
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    has_league: bool  # a new account goes to the league builder first
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(max_length=128)
+    new_password: str = Field(max_length=128)
+
+
+class AccountDeletion(BaseModel):
+    password: str = Field(max_length=128)

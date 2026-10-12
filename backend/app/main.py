@@ -2,9 +2,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    auth,
     coach,
     depth_chart,
     franchise,
@@ -19,6 +19,7 @@ from app.api import (
     teams,
     trades,
 )
+from app.api.access import owned_league, same_site
 from app.api.locks import league_unlocked
 from app.config import get_settings
 
@@ -37,27 +38,23 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Dynasty Football: Next Gen API", version="0.1.0", lifespan=lifespan)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=get_settings().cors_origins,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["Content-Disposition"],  # download filenames for exports
-    )
-
     api = APIRouter(prefix="/api")
 
     @api.get("/health", tags=["meta"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    # Changes to a league wait while a background job simulates it (api/locks.py).
-    locked = [Depends(league_unlocked)]
+    # The browser reaches the API through the web app (same origin, so no CORS). Every
+    # route but these needs a signed-in user and only touches their own leagues
+    # (api/access.py), and changes to a league wait while a background job simulates it
+    # (api/locks.py).
+    api.include_router(auth.router, dependencies=[Depends(same_site)])
+    locked = [Depends(same_site), Depends(owned_league), Depends(league_unlocked)]
     for module in (franchise, leagues, teams, depth_chart, roster_import, players, season,
                    stats, trades, history, playbook, coach):
         api.include_router(module.router, dependencies=locked)
     api.include_router(franchise.franchises_router, dependencies=locked)
-    api.include_router(jobs.router)
+    api.include_router(jobs.router, dependencies=[Depends(same_site), Depends(owned_league)])
     app.include_router(api)
     return app
 

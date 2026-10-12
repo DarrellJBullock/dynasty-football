@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.access import current_user
 from app.api.errors import roster_errors
 from app.db import get_db
 from app.domain.positions import Position
-from app.models import League, Player, Team
+from app.models import League, Player, Team, User
 from app.schemas import (
     DivisionStandings,
     FranchiseOut,
@@ -32,8 +33,9 @@ def get_league(league_id: int, db: Session = Depends(get_db)) -> League:
 
 
 @router.get("", response_model=list[LeagueOut])
-def list_leagues(db: Session = Depends(get_db)):
-    return [league_out(league) for league in db.scalars(select(League).order_by(League.id))]
+def list_leagues(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return [league_out(league) for league in db.scalars(
+        select(League).where(League.user_id == user.id).order_by(League.id))]
 
 
 @router.get("/template", response_model=LeagueCreate)
@@ -47,17 +49,19 @@ def template(conferences: int = Query(2, ge=1, le=4), divisions: int = Query(4, 
 
 
 @router.post("", response_model=FranchiseOut, status_code=201)
-def create_league(spec: LeagueCreate, db: Session = Depends(get_db)):
+def create_league(spec: LeagueCreate, user: User = Depends(current_user),
+                  db: Session = Depends(get_db)):
     """Create a league and the user's franchise in it; the franchise becomes active."""
     with roster_errors(db):
-        franchise = league_service.create_league(db, spec)
+        franchise = league_service.create_league(db, spec, user)
     return franchise_out(db, franchise)
 
 
 @router.delete("/{league_id}", status_code=204)
-def delete_league(league: League = Depends(get_league), db: Session = Depends(get_db)):
+def delete_league(league: League = Depends(get_league), user: User = Depends(current_user),
+                  db: Session = Depends(get_db)):
     with roster_errors(db):
-        league_service.delete_league(db, league)
+        league_service.delete_league(db, league, user)
 
 
 @router.get("/{league_id}", response_model=LeagueOut)

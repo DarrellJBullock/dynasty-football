@@ -114,9 +114,23 @@ Each milestone ends with working software, green tests, and updated docs.
 
 ## M7 — Platform
 
-- [ ] Accounts and multiple franchise saves
+- [x] Accounts and multiple franchise saves (sign up and sign in with an email and a
+      password, sessions in an HttpOnly cookie, each account's leagues private to it with
+      its own active franchise, change password and delete the account; the web app proxies
+      the API on its own origin)
 - [x] Background workers for long sims (the rest of the season, the playoffs, the offseason,
       finishing free agency and the draft run as jobs with a progress bar and Stop; one per
       league, which waits meanwhile) — design: `docs/design/platform.md`
 - [ ] Deployment pipeline, monitoring
 - [ ] Performance & accessibility pass
+
+## Later
+
+- [ ] Women's leagues: a "Players: men / women" choice in the league builder, stored on the
+      league. A women's league gets its own fictional first names and heights and weights
+      by position (the 3D figures follow them); ratings, the engine and everything else stay
+      as they are, since ratings are relative to the league. Player messages become
+      pronoun-neutral everywhere ("isn't in the final year of the contract", "make an
+      offer"). The default league stays byte-identical for its seed. Mixed leagues are out
+      of scope unless decided otherwise (they raise questions such as whether ratings
+      reflect size).

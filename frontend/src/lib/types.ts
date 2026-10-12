@@ -899,3 +899,16 @@ export interface NextGame {
   game: Game | null;
   coaching: boolean;
 }
+
+/** The signed-in account (`schemas.UserOut`). */
+export interface User {
+  id: number;
+  email: string;
+  /** A new account goes to the league builder first. */
+  has_league: boolean;
+}
+
+export interface Credentials {
+  email: string;
+  password: string;
+}
