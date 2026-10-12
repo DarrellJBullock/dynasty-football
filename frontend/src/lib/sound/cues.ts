@@ -109,9 +109,9 @@ export function crowdLevel(play: PlaybackPlay, game: Pick<Game, "stage">): numbe
   return Math.min(0.8, level);
 }
 
-/** The cues the playhead passed going from `from` to `to` seconds (nothing on a jump: a
- * seek or a scrub shouldn't play everything in between). */
-export function dueCues(cues: SoundCue[], from: number, to: number, maxStep = 0.3): SoundCue[] {
+/** The cues (or commentary lines) the playhead passed going from `from` to `to` seconds
+ * (nothing on a jump: a seek or a scrub shouldn't play everything in between). */
+export function dueCues<T extends { t: number }>(cues: T[], from: number, to: number, maxStep = 0.3): T[] {
   if (to <= from || to - from > maxStep) return [];
   return cues.filter((c) => c.t > from && c.t <= to);
 }

@@ -34,6 +34,10 @@ export function SoundControls({ settings, onChange }: {
             <input type="checkbox" checked={settings.crowd} onChange={(e) => onChange({ crowd: e.target.checked })} />
             Crowd
           </label>
+          <label className="flex items-center gap-1">
+            <input type="checkbox" checked={settings.voices} onChange={(e) => onChange({ voices: e.target.checked })} />
+            Commentary
+          </label>
         </>
       )}
     </div>

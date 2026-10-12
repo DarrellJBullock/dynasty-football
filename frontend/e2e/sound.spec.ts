@@ -11,7 +11,13 @@ test("turns the game's sound on, plays the play's sounds, and remembers it", asy
   await expect(result).toHaveText(/^Week 1: /);
   await result.click();
   await expect(page).toHaveURL(/\/games\/\d+$/);
-  await page.goto(`${page.url()}/watch?play=2`);
+  // A snapped play (game seeds vary between runs, so play 2 might be a foul or a kick).
+  const gameId = /\/games\/(\d+)$/.exec(page.url())![1];
+  const n = await page.evaluate(async (id) => {
+    const playback = await fetch(`/api/games/${id}/playback`).then((r) => r.json());
+    return playback.plays.find((p: { result: { type: string } }) => ["run", "pass"].includes(p.result.type)).n;
+  }, gameId);
+  await page.goto(`${page.url()}/watch?play=${n}`);
 
   const viewer = page.getByRole("region", { name: "Play viewer" });
   const sound = viewer.getByRole("group", { name: "Sound" });
@@ -28,6 +34,8 @@ test("turns the game's sound on, plays the play's sounds, and remembers it", asy
   if (await play.isVisible()) await play.click();
   await expect.poll(() => page.evaluate(() => window.dynastySound?.played ?? []), { timeout: 20_000 })
     .toEqual(expect.arrayContaining(["cadence", "snap", "whistle"]));
+  // The booth calls it (spoken commentary is on with sound; the probe records each line).
+  await expect.poll(() => page.evaluate(() => window.dynastySound?.spoken.length ?? 0)).toBeGreaterThan(0);
 
   // Captions: the commentary on screen as the play is called.
   await sound.getByRole("button", { name: "Captions" }).click();

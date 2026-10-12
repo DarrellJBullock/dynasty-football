@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Run by hand (Actions → CI → Run workflow), e.g. to try Unity's license activation.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -140,16 +142,23 @@ jobs:
       built: ${{ steps.build.outcome == 'success' }}
     env:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
       UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
       UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
     steps:
       - name: Check for a Unity license
         id: license
+        # GameCI needs a Personal license (UNITY_LICENSE) or a Pro serial (UNITY_SERIAL), with
+        # the Unity ID's email and password. Only the secrets' names are ever printed.
         run: |
-          if [ -n "$UNITY_LICENSE" ] || { [ -n "$UNITY_EMAIL" ] && [ -n "$UNITY_PASSWORD" ]; }; then
+          missing=""
+          [ -n "$UNITY_LICENSE$UNITY_SERIAL" ] || missing="$missing UNITY_LICENSE"
+          [ -n "$UNITY_EMAIL" ] || missing="$missing UNITY_EMAIL"
+          [ -n "$UNITY_PASSWORD" ] || missing="$missing UNITY_PASSWORD"
+          if [ -z "$missing" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::No Unity license in this repository's secrets (docs/unity.md): skipping Unity's tests and build."
+            echo "::notice::Missing Unity secrets:$missing (docs/unity.md): skipping Unity's tests and build."
           fi
 
       - uses: actions/checkout@v7
