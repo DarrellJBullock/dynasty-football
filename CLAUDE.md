@@ -55,6 +55,7 @@ make reseed           # wipe and regenerate the sample league
 make perf             # time every API read on a league with seasons played
 make unity-test       # Unity's edit-mode tests (needs Unity installed)
 make unity-build      # the Unity viewer's WebGL build into frontend/public/unity
+scripts/setup-unity-runner.sh  # once, on the Unity Mac: the self-hosted runner (docs/unity.md)
 scripts/smoke-test-images.sh API_IMAGE WEB_IMAGE  # (CI) run the built images together
 ```
 
@@ -93,7 +94,8 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **CI** (`.github/workflows/ci.yml`) runs on every PR and push to `main`: backend lint,
   migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres (and on
   SQLite as a parallel job);
-  frontend lint, typecheck, Vitest, and production build. Keep it green.
+  frontend lint, typecheck, Vitest, and production build. Keep it green. The Unity build
+  is its own workflow (`unity.yml`) on a self-hosted Mac runner, never a CI dependency.
 
 ## Gotchas
 

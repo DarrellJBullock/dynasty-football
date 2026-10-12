@@ -76,38 +76,45 @@ Unity → the page: a `dynasty-unity` event on `window` with `{type, detail}`: `
 
 ## CI and deployment
 
-CI's **Unity** job runs the edit-mode tests and the WebGL build with
-[GameCI](https://game.ci), uploads the build as the `unity-webgl` artifact, and the e2e
-and container-image jobs (and the deploy workflow) put it in `frontend/public/unity/`.
-It needs a Unity license in the repository's secrets; without one the job skips with a
-notice and the site runs without the Unity renderer.
+**Why a self-hosted runner.** GameCI on GitHub's Linux machines was tried with a Unity
+Personal license (2026-10-12) and rejected twice: the license file is bound to the Mac that
+made it ("Machine bindings don't match"), and the account sign-in fallback was refused
+("Invalid Credential", which is what two-factor authentication, a pending new-device check
+or a sign-in without a password produce). So the Unity build runs on the Mac that already
+has Unity installed and signed in, as a self-hosted GitHub Actions runner. No Unity
+secrets are needed (delete `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` if they
+exist).
 
-To turn it on with a Unity Personal license (GameCI's activation guide:
-<https://game.ci/docs/github/activation>), add three repository secrets. From the repo,
-with the GitHub CLI (each prompts for its value, or reads the file, without printing it):
+**Set it up** (once, on that Mac, yourself):
 
-1. In Unity Hub → Settings → Licenses → Add → "Get a free personal license", which writes
-   `/Library/Application Support/Unity/Unity_lic.ulf` on a Mac.
-2. `gh secret set UNITY_LICENSE -R DarrellJBullock/dynasty-football < "/Library/Application Support/Unity/Unity_lic.ulf"`
-3. `gh secret set UNITY_EMAIL -R DarrellJBullock/dynasty-football`: the Unity ID that
-   owns the license (id.unity.com).
-4. `gh secret set UNITY_PASSWORD -R DarrellJBullock/dynasty-football`: that Unity ID's
-   password (set one at id.unity.com if you sign in with Google or Apple).
+```
+scripts/setup-unity-runner.sh
+```
 
-Or on GitHub: Settings → Secrets and variables → Actions → New repository secret, same
-names. A Pro license uses `UNITY_SERIAL` instead of `UNITY_LICENSE`. Never put these in a
-`.env` file or the repository.
+It downloads GitHub's official runner (checking the published SHA-256), registers it to
+this repository with the label `unity` (the token comes from your `gh` login and isn't
+printed), installs it as a login item that runs as you (so Unity's licensing works), and
+sets the repository variable `UNITY_RUNNER=true`. Then: Actions → Unity → Run workflow.
 
-Then try it: Actions → CI → Run workflow (or any PR's CI). The Unity job takes several
-minutes when it runs; if it skips, its notice names the missing secrets; if activation
-fails, its log says why.
+**The Unity workflow** (`.github/workflows/unity.yml`) runs `make unity-test` and
+`make unity-build` and uploads the build as `unity-webgl`. It runs only for pushes to
+`main`, pull requests from this repository's own branches and runs started by hand (never
+for someone else's fork: the repository is public), and only while `UNITY_RUNNER` is
+`true`. It's separate from CI, so a Mac that's off or asleep never holds CI up; its runs
+just wait for the Mac. The deploy workflow ships the latest successful build from `main`
+(or none, and the site runs without the Unity renderer).
 
-**Caveat:** a Personal license file is bound to the machine that made it, and GameCI's
-guide doesn't cover Unity 6's newer licensing, so whether Unity accepts it in GameCI's
-container can only be known by running it. If it can't, the fallback is a self-hosted
-runner on the Mac that already has Unity signed in (no secrets needed; see the trade-offs
-for a public repository before setting one up).
+**Safeguards for a public repository:** keep Settings → Actions → General → "Require
+approval for all external contributors" on; the workflow's own condition also refuses
+forks. The runner runs only this repository's Unity workflow (its label), as your user.
 
-GameCI's Docker images are per editor version (6000.6.5f1 has
-`unityci/editor:ubuntu-6000.6.5f1-webgl-3`); when the project moves to a new Unity
-version, check that GameCI publishes an image for it.
+**Limitations:** the Mac must be on, awake and logged in for Unity runs; Unity's e2e specs
+(`e2e/unity.spec.ts`) run locally with `make e2e` after `make unity-build`, not in CI.
+
+**To remove it:** `cd ~/actions-runner-dynasty && ./svc.sh uninstall`, then
+`./config.sh remove --token "$(gh api -X POST repos/DarrellJBullock/dynasty-football/actions/runners/remove-token --jq .token)"`
+and `gh variable delete UNITY_RUNNER -R DarrellJBullock/dynasty-football`.
+
+GameCI's Docker images are per editor version; if Unity Pro (a serial) or a dedicated CI
+account ever makes GitHub-hosted builds possible, GameCI publishes
+`unityci/editor:ubuntu-6000.6.5f1-webgl-3` for this version.
