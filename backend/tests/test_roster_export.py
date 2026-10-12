@@ -105,6 +105,7 @@ class TestRosterExport:
 
 
 def test_browser_can_read_export_filename(client: TestClient, franchise: Franchise):
-    response = client.get(f"/api/teams/{franchise.team_id}/roster-export.csv",
-                          headers={"Origin": "http://localhost:3000"})
-    assert response.headers["access-control-expose-headers"] == "Content-Disposition"
+    # The browser downloads through the web app's own /api (same origin), so it can read
+    # the filename without any CORS exposure.
+    response = client.get(f"/api/teams/{franchise.team_id}/roster-export.csv")
+    assert response.headers["content-disposition"].startswith("attachment; filename=")

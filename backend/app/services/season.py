@@ -12,6 +12,7 @@ from app.domain.depth_chart import UNAVAILABLE
 from app.models import (
     ACTIVE_JOB_STATUSES,
     CoachedGame,
+    Franchise,
     Game,
     Job,
     Player,
@@ -226,10 +227,7 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
 def simulation_result(db: Session, season: Season, steps: int,
                       played: list[Game]) -> SimulationResult:
     """What a sim did, with the franchise's games among those played."""
-    from app.services.dashboard import current_franchise  # (it builds on this module)
-
-    franchise = current_franchise(db)
-    team_id = franchise.team_id if franchise and franchise.league_id == season.league_id else None
+    team_id = db.scalar(select(Franchise.team_id).where(Franchise.league_id == season.league_id))
     return SimulationResult(
         weeks_simulated=steps, games_simulated=len(played), season=season_view(db, season),
         franchise_games=[game_out(g) for g in played

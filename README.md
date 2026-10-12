@@ -18,6 +18,12 @@ make dev-backend    # terminal 1 → http://localhost:8000/docs (and a backgroun
 make dev-frontend   # terminal 2 → http://localhost:3000
 ```
 
+Sign in with the local account that owns the sample league: `DEV_USER_EMAIL` and
+`DEV_USER_PASSWORD` in `backend/.env`. (On an existing install, `make migrate` and then
+`make reseed`, or create an account: the first one created takes over the leagues made
+before accounts.) A forgotten password: `cd backend && .venv/bin/python -m app.accounts
+set-password EMAIL`.
+
 No Homebrew Postgres? `docker compose up -d db` and set `DATABASE_URL` in `backend/.env`
 (see `docker-compose.yml`).
 

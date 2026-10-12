@@ -54,7 +54,8 @@ accessibility pass** sets budgets and keeps them in CI.
 - **Sign up and sign in with an email and a password**, handled by the FastAPI backend.
   Passwords are hashed with Argon2. Signing in creates a server-side **session** (a row in
   a `sessions` table) and sets an `HttpOnly`, `Secure`, `SameSite=Lax` cookie holding the
-  session's random token. Signing out deletes the row. Sessions last 30 days and are
+  session's random token; the table keeps only the token's SHA-256. Signing out deletes
+  the row. (`Secure` is a setting, off for `http://localhost`.) Sessions last 30 days and are
   extended when they're used.
 - **One origin.** The browser calls `/api/*` on the web app's own origin, and Next.js
   proxies it to FastAPI (a rewrite). The cookie is then first-party for both, CORS goes
@@ -62,24 +63,35 @@ accessibility pass** sets budgets and keeps them in CI.
   Mutations also check the `Origin` header against the site, which together with
   `SameSite=Lax` stops cross-site request forgery.
 - **Ownership.** `leagues.user_id` says whose league it is. Every resource reaches a
-  league (a player through its league, a game through its season), so one FastAPI
-  dependency per id type loads the resource, checks the league's owner, and returns
-  404 (not 403) for someone else's, so ids don't leak what exists. A test walks every
+  league (a player through its league, a game through its season), so one router
+  dependency (`api/access.py`) finds the league from any route's path ids, checks its
+  owner, and returns 404 (not 403) for someone else's, so ids don't leak what exists.
+  Routes without ids (the active franchise, the league list) scope their queries to the
+  user. A test walks every
   route in the OpenAPI schema and checks that a second user gets a 404 from each one.
 - **The active franchise is per user**: the user's most recently activated franchise.
   `current_franchise(db, user)` replaces today's global query.
 - **Pages:** sign up, sign in, sign out (in the sidebar), and an account page (change
-  password, delete the account and everything in it). A visitor who isn't signed in
-  lands on sign in; a new account goes straight to building its first league.
+  password, which signs out other browsers; delete the account and everything in it,
+  after the password). Signing in and up have their own root layout without the game's
+  sidebar (route groups `(auth)` and `(app)`). A visitor without a session cookie is sent
+  to sign in by `proxy.ts`, and back afterwards (`?next=`); a session the API turns away
+  does the same through `attempt()`. A new account goes straight to building its first
+  league.
 - **Password reset** needs email delivery. It comes with deployment (§5), through a
-  transactional email service; until then an admin command resets a password.
-- **Limits:** sign-in attempts are rate-limited per email and per IP. Each user may keep
+  transactional email service; until then an admin command resets a password
+  (`python -m app.accounts set-password EMAIL`, which asks for it and signs out
+  everywhere).
+- **Limits:** failed sign-ins are limited to 10 per email and 50 per address in 15
+  minutes (then 429), counted in the API process (with several instances, each counts
+  its own). Each user may keep
   up to 10 leagues (a setting), because each league with a few seasons is several MB.
 - **Existing data:** the migration adds `users` and `sessions` and leaves
   `leagues.user_id` empty for existing leagues. The first account created on an install
   claims them, so a developer's current saves carry over.
 - **Local development and tests:** `make setup` and `make reseed` create a local account
-  (`dev@example.test`, password in `.env`) owning the sample league. The e2e fixture signs
+  (`DEV_USER_EMAIL` and `DEV_USER_PASSWORD` in `backend/.env`; `dev@example.test` in the
+  example) owning the sample league. The e2e fixture signs
   in through the API and reuses the cookie (Playwright `storageState`). Backend tests get
   a signed-in client fixture. One e2e spec covers sign up, sign in, sign out, and that a
   second account can't see the first one's league.

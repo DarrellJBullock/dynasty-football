@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import type {
+  Credentials,
   Dashboard,
   PlayoffsOut,
   LeadersOut,
@@ -48,16 +50,27 @@ import type {
   PlayerUpdate,
   Position,
   TeamDetail,
+  User,
 } from "@/lib/types";
 
 const DEFAULT_API_URL = "http://localhost:8000";
 
-/** Server components read API_URL; the browser uses the inlined NEXT_PUBLIC_API_URL. */
+/**
+ * Where requests go. The browser calls the web app's own `/api` (same origin, so the
+ * session cookie goes along); Next.js proxies it to the game server (next.config.ts).
+ * Server components call the game server directly at API_URL.
+ */
 export function apiBaseUrl(): string {
-  if (typeof window === "undefined") {
-    return process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL;
-  }
-  return process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL;
+  if (typeof window === "undefined") return process.env.API_URL ?? DEFAULT_API_URL;
+  return "";
+}
+
+/** On the server, the visitor's cookies, so the game server knows who's asking. */
+async function forwardedHeaders(): Promise<Record<string, string>> {
+  if (typeof window !== "undefined") return {};
+  const { cookies } = await import("next/headers");
+  const cookie = (await cookies()).toString();
+  return cookie ? { cookie } : {};
 }
 
 export class ApiError extends Error {
@@ -77,10 +90,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const json = typeof init?.body === "string";
     response = await fetch(`${apiBaseUrl()}/api${path}`, {
       ...init,
-      headers: { ...(json ? { "Content-Type": "application/json" } : {}), ...init?.headers },
+      headers: {
+        ...(json ? { "Content-Type": "application/json" } : {}),
+        ...(await forwardedHeaders()),
+        ...init?.headers,
+      },
     });
   } catch {
-    throw new ApiError(0, `Cannot reach the game server at ${apiBaseUrl()}.`);
+    throw new ApiError(0, "Cannot reach the game server.");
   }
   if (!response.ok) {
     throw new ApiError(response.status, await errorMessage(response));
@@ -109,6 +126,17 @@ const post = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
 export const api = {
+  me: () => request<User>("/auth/me"),
+  signIn: (credentials: Credentials) => post<User>("/auth/signin", credentials),
+  signUp: (credentials: Credentials) => post<User>("/auth/signup", credentials),
+  signOut: () => post<void>("/auth/signout"),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<void>("/auth/password", {
+      method: "PUT",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
+  deleteAccount: (password: string) =>
+    request<void>("/auth/account", { method: "DELETE", body: JSON.stringify({ password }) }),
   franchise: () => request<Franchise>("/franchise"),
   dashboard: () => request<Dashboard>("/franchise/dashboard"),
   team: (teamId: number) => request<TeamDetail>(`/teams/${teamId}`),
@@ -235,6 +263,8 @@ export async function attempt<T>(load: () => Promise<T>): Promise<Result<T>> {
   try {
     return { ok: true, data: await load() };
   } catch (error) {
+    // Signed out (or the session expired): off to sign in, then back here.
+    if (error instanceof ApiError && error.status === 401) redirect("/signin");
     return { ok: false, error };
   }
 }

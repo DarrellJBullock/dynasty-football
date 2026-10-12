@@ -30,7 +30,7 @@ export default defineConfig({
       timeout: 60_000,
       env: {
         DATABASE_URL: E2E_DATABASE_URL,
-        CORS_ORIGINS: JSON.stringify([`http://localhost:${WEB_PORT}`]),
+        ALLOWED_ORIGINS: JSON.stringify([`http://localhost:${WEB_PORT}`]),
         WORKER_EMBEDDED: "1", // background jobs run in a thread of the API
       },
     },
@@ -42,8 +42,7 @@ export default defineConfig({
       timeout: 240_000,
       env: {
         NEXT_DIST_DIR: ".next-e2e",
-        NEXT_PUBLIC_API_URL: API_URL,
-        API_URL,
+        API_URL, // server components call it, and /api is proxied to it
       },
     },
   ],

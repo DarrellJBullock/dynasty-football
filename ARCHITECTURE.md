@@ -7,10 +7,11 @@
 │ Next.js 16 client: React 19, Tailwind v4, React Three Fiber     │
 │   interactive islands (roster editor, dialogs, 3D field)        │
 └──────────────┬───────────────────────────────▲──────────────────┘
-               │ fetch (mutations, lazy data)  │ streamed HTML/RSC
+               │ fetch /api/* (same origin)    │ streamed HTML/RSC
 ┌──────────────▼───────────────────────────────┴──────────────────┐
-│ Next.js server: Server Components fetch the API inside          │
-│ <Suspense>; static shell is prerendered (Partial Prerendering)  │
+│ Next.js server: proxies /api/* to FastAPI; Server Components    │
+│ fetch the API inside <Suspense> with the visitor's cookie;      │
+│ static shell is prerendered (Partial Prerendering)              │
 └──────────────┬──────────────────────────────────────────────────┘
                │ HTTP JSON  /api/*
 ┌──────────────▼──────────────────────────────────────────────────┐
@@ -27,8 +28,11 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-The browser talks to FastAPI directly for mutations (CORS allows `localhost:3000`);
-Server Components call it server-side for initial page data.
+The browser calls `/api/*` on the web app's own origin, which Next.js rewrites to FastAPI
+(`next.config.ts`), so the session cookie is first-party and there's no CORS. Server
+Components call FastAPI directly (`API_URL`) for initial page data, forwarding the
+visitor's cookie. Every route but `/api/health` and `/api/auth/*` needs a signed-in user
+and only reaches that user's leagues (`api/access.py`).
 
 ## Backend
 
@@ -56,7 +60,9 @@ players.team_id NULL  = free agent
 
 | Table | Key columns |
 |---|---|
-| `leagues` | name, abbreviation, salary_cap |
+| `users` | email (unique, lower-case), password_hash (Argon2) |
+| `sessions` | user_id, token_hash (SHA-256 of the cookie's token; unique), expires_at (30 days, extended as it's used) |
+| `leagues` | user_id (owner; empty only for leagues from before accounts, which the first account takes over), name, abbreviation, salary_cap |
 | `conferences`, `divisions` | name (+ abbreviation) |
 | `teams` | city, nickname, abbreviation (unique per league), primary/secondary colour, stadium |
 | `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status, injury? (description), injury_weeks (games still to miss), retired_year?, is_prospect, scouted, draft_year?, draft_round?, draft_pick? |
@@ -72,7 +78,7 @@ players.team_id NULL  = free agent
 | `games` | season_id, week, stage (regular \| playoff), playoff_round?, neutral_site, home/away team, scores (nullable), status, overtime, seed, sim_version, play_log (JSON/JSONB; from SIM_VERSION 1.2 each scrimmage play carries `personnel`, its 22 players and package, and kicks a `returner`) |
 | `player_game_stats` | game_id, player_id, team_id + one column per `sim.stats.PlayerLine` field |
 | `team_game_stats` | game_id, team_id + one column per `sim.stats.TeamLine` field |
-| `franchises` | name, league_id (unique — one career per league), team_id, activated_at (latest = active) |
+| `franchises` | name, league_id (unique — one career per league), team_id, activated_at (the user's latest = their active franchise) |
 | `jobs` | league_id, kind, status (queued / running / done / failed / cancelled; one queued or running per league, a partial unique index), progress / total, label, cancel_requested, result (the synchronous endpoint's response, JSON), error, started/finished/heartbeat times |
 | `depth_chart_entries` | team_id, slot (position), depth (1 = first string), player_id; unique per (team, slot, depth) and (team, slot, player) |
 
@@ -89,7 +95,12 @@ Design notes:
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/health` | Liveness |
+| `GET /api/health` | Liveness (no sign-in needed) |
+| `POST /api/auth/signup` `{email, password}` | Create an account and sign in (sets the `df_session` cookie); the first account takes over leagues from before accounts |
+| `POST /api/auth/signin` / `POST /api/auth/signout` | Sign in (401 on a wrong email or password, 429 after repeated failures) / out |
+| `GET /api/auth/me` | The signed-in account (`has_league` sends a new one to the league builder) |
+| `PUT /api/auth/password` `{current_password, new_password}` | Change the password; other sessions are signed out |
+| `DELETE /api/auth/account` `{password}` | Delete the account and every league in it |
 | `GET /api/franchise` | Active franchise (league, team, season) |
 | `GET /api/franchises` | Every franchise, most recently active first |
 | `POST /api/franchises/{id}/activate` | Make a franchise active |
@@ -155,13 +166,18 @@ Interactive docs: `http://localhost:8000/docs`.
 
 ## Frontend
 
-- **Routing:** App Router. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
+- **Routing:** App Router, in two route groups with their own root layouts: `(auth)` has
+  `/signin` and `/signup` (no sidebar); `(app)` has the game, with the sidebar and its
+  account menu (the email, Account, Sign out). `src/proxy.ts` sends visitors without a
+  session cookie to `/signin?next=…`. `/account` changes the password or deletes the
+  account. `/` dashboard, `/roster`, `/depth-chart`, `/league`,
   `/leagues` (saved franchises), `/leagues/new` (league builder), `/schedule?week=`,
   `/games/[id]`, `/playoffs`, `/contracts`, `/free-agency`, `/draft`, `/trades`, `/history`, `/stats?view=teams&category=`, `/players/[id]`. Every page reads the
   active franchise, so switching franchises re-points the whole app.
 - **Data loading:** each page renders a static shell + `<Suspense>` skeleton; an async
   Server Component fetches from the API (`src/lib/api.ts`) and streams in. Errors are
-  captured with `attempt()` and rendered by `ServerError` (offline / not seeded).
+  captured with `attempt()` and rendered by `ServerError` (offline / no league yet, with
+  a link to build one); a 401 there redirects to `/signin`.
 - **Interactivity:** the roster screen is a client component (`RosterManager`) seeded
   with server data, then mutating through the API and updating local state; the team
   header is re-fetched after each mutation.
@@ -264,6 +280,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Instant replay | Vitest + Testing Library | which plays get a replay (big runs from the reverse angle, passes from the skycam, ordinary plays none, kicks from the kick) and its stretch; on the Watch page the replay rolls after the play (angle, half speed, badge, the result held), straight-through play waits for it, then carries on; Skip replay and the setting; Coach Mode's reel replays in multi-play reels only |
 | Broadcast director | Vitest + Testing Library | shot lists for runs, short and deep passes, touchdowns, field goals and kicks; every shot held long enough (touchdowns cut at once); the shot at any moment; the new shots' framing (tight low and on the ball, wide high, reverse on the far side, skycam behind the offense either way); the Watch page defaults to Broadcast with the play's cues |
 | Broadcast graphics | pytest + Vitest + Testing Library | play logs record timeouts at the snap and each play's seconds; the running game clock (snap to whistle, old logs, never below zero), the pre-snap play clock, the score going up at the touchdown, down text, banners for every kind of moment and one at a time; the score bug's contents and timeouts, the clock running and the banner and points at the touchdown; the Watch page and Coach Mode reel carry it |
+| Accounts | pytest + Vitest + Testing Library + Playwright | sign up (normalized email, the cookie's flags, rules), sign in and out (the same answer for an unknown account), rate limiting and its window, the first account taking over leagues from before accounts, expired and extended sessions, only token hashes stored, changing the password signing out other browsers, deleting the account and its leagues, the admin reset, the seeded dev account; each account's own leagues and active franchise; **every route with an id answers 404 to another account** (walked from the OpenAPI schema), and the routes without ids are a known list; signed-out visitors get 401; the league limit; changes from other sites refused; the forms (sign in back to `?next=`, errors, sign up to the league builder, safe `next`), the account page and the sidebar menu; Playwright signs out, is sent to sign in, signs up a second account that can't open the first one's games, and signs back in to where it was headed |
 | Background jobs | pytest + Vitest + Testing Library + Playwright | every kind as a job (progress, labels, the same result as the synchronous endpoint), the season through the draft as jobs, a job that can't run fails with the reason, one job per league and the league lock (changes 409, reads fine, other leagues free), stopping between weeks and carrying on, one-step jobs finish once started, the worker's claim-and-run loop, dead workers' jobs failed, league deletion; the controls start jobs, show progress and Stop, report results and failures, and pick up a running job; Playwright sims the season in the background, leaves for the Dashboard and finds it running there |
 | Watch Mode | Vitest + Testing Library + Playwright | the highlight rule (scores, turnovers, 20-yard plays, missed kicks; not plays called back), stepping through just the highlights with the URL in step, opening straight into highlights playing through; Schedule cards with Watch (played) and Coach (the franchise's game this week) links; the box score's Highlights link; Playwright watches a game from the Schedule and steps through its highlights |
 | 3D playback | Vitest + Testing Library + Playwright | choreographer invariants for every play type (22 players on the field and in bounds, ordered paths and moments, the ball accounted for throughout, the recorded spot reached, tacklers meeting the carrier, touchdowns crossing the goal line, kicks returned to the recorded spot, field goals through or wide of the uprights, stand-ins filling kick units, determinism, hash spotting, ends switching by quarter); timeline sampling and the play clock; the Watch view's controls (play/pause, scrubbing, replay, speed, cameras, auto-advance, keyboard) with the scene mocked; Playwright watches a play from the play-by-play, scrubs, and steps through the game |
@@ -317,6 +334,6 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
 
 ### Later concerns
 
-Auth & multiple saves (franchise per user), league-wide export,
+League-wide export,
 stats tables (game_player_stats), records, deployment (containerised
 API + Postgres; Next.js on a Node host).

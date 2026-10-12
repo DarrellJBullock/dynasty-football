@@ -18,12 +18,15 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.api.access import SESSION_COOKIE
 from app.db import Base, get_db
 from app.main import create_app
-from app.models import Franchise, League
+from app.models import Franchise, League, User
 from app.seed.generator import generate_league
+from app.services.accounts import sign_up, start_session
 
 TEST_SEED = 7
+OWNER_EMAIL, OWNER_PASSWORD = "owner@example.test", "test-owner-password"
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
@@ -48,7 +51,8 @@ def engine() -> Iterator[Engine]:
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     with Session(engine) as session:
-        generate_league(session, seed=TEST_SEED)
+        league = generate_league(session, seed=TEST_SEED)
+        league.user_id = sign_up(session, OWNER_EMAIL, OWNER_PASSWORD).id
         session.commit()
     yield engine
     Base.metadata.drop_all(engine)
@@ -69,11 +73,36 @@ def db(engine: Engine) -> Iterator[Session]:
         connection.close()
 
 
-@pytest.fixture
-def client(db: Session) -> Iterator[TestClient]:
+def make_client(db: Session) -> TestClient:
     app = create_app()
     app.dependency_overrides[get_db] = lambda: db
-    with TestClient(app) as test_client:
+    return TestClient(app)
+
+
+def sign_in_as(client: TestClient, db: Session, user: User) -> TestClient:
+    """Give the client a session for the user (without the slow password check)."""
+    client.cookies.set(SESSION_COOKIE, start_session(db, user))
+    db.commit()  # (as signing in does: a later rollback mustn't sign the client out)
+    return client
+
+
+@pytest.fixture
+def owner(db: Session) -> User:
+    """The account that owns the sample league."""
+    return db.scalar(select(User).where(User.email == OWNER_EMAIL))
+
+
+@pytest.fixture
+def client(db: Session, owner: User) -> Iterator[TestClient]:
+    """An API client signed in as the sample league's owner."""
+    with make_client(db) as test_client:
+        yield sign_in_as(test_client, db, owner)
+
+
+@pytest.fixture
+def anonymous(db: Session) -> Iterator[TestClient]:
+    """An API client that isn't signed in."""
+    with make_client(db) as test_client:
         yield test_client
 
 

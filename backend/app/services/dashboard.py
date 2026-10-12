@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.domain.depth_chart import REPLACEMENT_LEVEL, unfilled_slots
 from app.domain.free_agency import MARKET_DAYS
 from app.domain.positions import ROSTER_MAX, STARTERS, Position, PositionGroup, group_of
-from app.models import Franchise, Game, Player
+from app.models import Franchise, Game, League, Player, User
 from app.schemas import (
     Alert,
     Dashboard,
@@ -32,10 +32,11 @@ RECENT_GAMES = 3
 TOP_PLAYERS = 6
 
 
-def current_franchise(db: Session) -> Franchise | None:
-    """The active franchise: the most recently activated one."""
+def current_franchise(db: Session, user: User) -> Franchise | None:
+    """The user's active franchise: their most recently activated one."""
     return db.scalars(
-        select(Franchise).order_by(Franchise.activated_at.desc(), Franchise.id.desc())
+        select(Franchise).join(Franchise.league).where(League.user_id == user.id)
+        .order_by(Franchise.activated_at.desc(), Franchise.id.desc())
     ).first()
 
 
