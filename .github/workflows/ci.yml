@@ -128,8 +128,68 @@ jobs:
       - name: Build
         run: npm run build
 
+  # The Unity viewer (docs/design/depth-and-unity.md §4): its edit-mode tests and the WebGL
+  # build the web image serves from /unity/. GameCI runs Unity in a container and needs the
+  # repository's Unity license secrets (docs/unity.md); without them this job says so and
+  # skips, and the site runs without the Unity renderer.
+  unity:
+    name: Unity (tests and WebGL build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      built: ${{ steps.build.outcome == 'success' }}
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    steps:
+      - name: Check for a Unity license
+        id: license
+        run: |
+          if [ -n "$UNITY_LICENSE" ] || { [ -n "$UNITY_EMAIL" ] && [ -n "$UNITY_PASSWORD" ]; }; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No Unity license in this repository's secrets (docs/unity.md): skipping Unity's tests and build."
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.license.outputs.present == 'true'
+
+      - uses: actions/cache@v4
+        if: steps.license.outputs.present == 'true'
+        with:
+          path: unity/Library
+          key: unity-library-${{ hashFiles('unity/Packages/**', 'unity/ProjectSettings/**', 'unity/Assets/**') }}
+          restore-keys: unity-library-
+
+      - name: Tests (edit mode)
+        if: steps.license.outputs.present == 'true'
+        uses: game-ci/unity-test-runner@v4
+        with:
+          projectPath: unity
+          testMode: editmode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: WebGL build
+        id: build
+        if: steps.license.outputs.present == 'true'
+        uses: game-ci/unity-builder@v4
+        with:
+          projectPath: unity
+          targetPlatform: WebGL
+          buildMethod: Dynasty.BuildScript.BuildWebGL
+          customParameters: -buildOutput /github/workspace/frontend/public/unity
+
+      - uses: actions/upload-artifact@v7
+        if: steps.build.outcome == 'success'
+        with:
+          name: unity-webgl
+          path: frontend/public/unity
+          retention-days: 30
+
   e2e:
     name: End-to-end (Playwright)
+    needs: unity # (its build, when there is one, so the Unity viewer's spec runs too)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -181,6 +241,13 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
+      - name: Unity viewer build
+        if: needs.unity.outputs.built == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: unity-webgl
+          path: frontend/public/unity
+
       - name: Run end-to-end tests
         working-directory: frontend
         run: npm run e2e
@@ -198,6 +265,7 @@ jobs:
 
   images:
     name: Container images (build and smoke test)
+    needs: unity
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -216,6 +284,13 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v7
+
+      - name: Unity viewer build (served by the web image)
+        if: needs.unity.outputs.built == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: unity-webgl
+          path: frontend/public/unity
 
       - name: Build the API image
         run: docker build -t dynasty-api --build-arg RELEASE=${{ github.sha }} backend

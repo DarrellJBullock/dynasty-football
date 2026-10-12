@@ -20,6 +20,7 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  actions: read # the CI run's Unity build
 
 env:
   REGISTRY: ghcr.io/darrelljbullock
@@ -35,6 +36,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.SHA }}
+      # The Unity viewer CI built for this commit, when the repository has a Unity license.
+      - name: Unity viewer build
+        if: github.event_name == 'workflow_run'
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: unity-webgl
+          path: frontend/public/unity
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Sign in to GitHub's container registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build and push the API image (API and worker)

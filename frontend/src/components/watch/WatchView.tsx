@@ -14,12 +14,25 @@ import { callLabel, formatSpot } from "@/lib/games";
 import { highlightIndexes } from "@/lib/highlights";
 import type { GamePlayback, PlaybackPlay } from "@/lib/types";
 import { usePrefersReducedMotion } from "@/lib/motion";
+import { unityBuild } from "@/lib/unity";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
 const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"), {
   ssr: false,
   loading: () => <div className="h-full w-full animate-pulse bg-turf/10" />,
 });
+
+// The Unity renderer (docs/design/depth-and-unity.md §4), when its build is installed.
+const UnityPlayScene = dynamic(() => import("@/components/field/unity/UnityPlayScene"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-turf/10" />,
+});
+
+type Renderer = "classic" | "unity";
+const RENDERERS: { key: Renderer; label: string }[] = [
+  { key: "classic", label: "Classic" }, { key: "unity", label: "Unity" },
+];
+const RENDERER_KEY = "dynasty.renderer"; // the visitor's choice, in localStorage
 
 const SPEEDS = [0.5, 1, 2];
 const AUTO_ADVANCE_PAUSE = 900; // ms between plays when playing the drive
@@ -67,6 +80,31 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   const [playing, setPlayingState] = useState(true);
   const [speed, setSpeedState] = useState(1);
   const [camera, setCamera] = useState<CameraChoice>("broadcast");
+  const [renderer, setRendererState] = useState<Renderer>("classic");
+  const [unityInstalled, setUnityInstalled] = useState(false);
+  const [unityProblem, setUnityProblem] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void unityBuild().then((files) => {
+      if (!live || !files) return;
+      setUnityInstalled(true);
+      try {
+        if (localStorage.getItem(RENDERER_KEY) === "unity") setRendererState("unity");
+      } catch { /* storage blocked: start on Classic */ }
+    });
+    return () => { live = false; };
+  }, []);
+  const setRenderer = (choice: Renderer) => {
+    setRendererState(choice);
+    setUnityProblem(null);
+    try { localStorage.setItem(RENDERER_KEY, choice); } catch { /* not remembered */ }
+  };
+  // Unity failed (no WebGL 2, a broken download…): back to Classic, here and next time.
+  const onUnityError = useCallback((message: string) => {
+    setRendererState("classic");
+    setUnityProblem(message);
+    try { localStorage.setItem(RENDERER_KEY, "classic"); } catch { /* not remembered */ }
+  }, []);
   const [follow, setFollow] = useState(true);
   const [auto, setAuto] = useState(initialAuto);
   // Instant replays, unless the visitor asked for less motion (then off until turned on).
@@ -227,10 +265,17 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="panel overflow-hidden" aria-label="Play viewer">
           <div className="relative aspect-video w-full bg-ink-950">
-            <PlayScene playback={playback} timeline={timeline} clock={clock}
-              camera={replay.replaying ? "broadcast" : camera}
-              cues={replay.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
-              follow={follow} onTick={onTick} />
+            {renderer === "unity" ? (
+              <UnityPlayScene playback={playback} timeline={timeline} clock={clock}
+                camera={replay.replaying ? "broadcast" : camera}
+                cues={replay.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
+                follow={follow} onTick={onTick} onError={onUnityError} />
+            ) : (
+              <PlayScene playback={playback} timeline={timeline} clock={clock}
+                camera={replay.replaying ? "broadcast" : camera}
+                cues={replay.replaying && plan ? [{ t: 0, shot: plan.shot }] : cues}
+                follow={follow} onTick={onTick} />
+            )}
             <BroadcastOverlay playback={playback} index={index} timeline={timeline} time={time}
               replay={replay.replaying} />
             {replay.replaying && <ReplayBadge key={plan?.from} onSkip={replay.skip} />}
@@ -274,6 +319,18 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
                   </button>
                 ))}
               </div>
+              <div role="group" aria-label="Renderer" className="flex gap-1 rounded-lg bg-white/[0.03] p-1">
+                {RENDERERS.map(({ key, label }) => (
+                  <button key={key} type="button" aria-pressed={renderer === key}
+                    disabled={key === "unity" && !unityInstalled}
+                    title={key === "unity" && !unityInstalled ? "The Unity viewer isn't installed on this server" : undefined}
+                    className={`rounded-md px-2 py-0.5 text-[11px] font-semibold disabled:opacity-40 ${
+                      renderer === key ? "bg-white/10 text-chalk" : "text-mist hover:text-chalk"}`}
+                    onClick={() => setRenderer(key)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
               <button type="button" aria-pressed={follow} disabled={camera === "broadcast"}
                 title={camera === "broadcast" ? "The broadcast camera always follows the ball" : undefined}
                 className={`rounded-md px-2 py-1 text-[11px] font-semibold ${
@@ -298,6 +355,11 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
                 Instant replays
               </label>
             </div>
+            {unityProblem && (
+              <p role="alert" className="text-xs text-amber-300">
+                The Unity viewer stopped: {unityProblem} Showing the classic viewer.
+              </p>
+            )}
 
             <div className="relative">
               <input type="range" aria-label="Play timeline" className="w-full accent-gold"

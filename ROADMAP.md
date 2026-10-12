@@ -152,8 +152,9 @@ Design: `docs/design/depth-and-unity.md`.
 - [x] Fatigue and substitutions (stamina drives energy, tired players sub out by the
       depth chart, a Rotation tendency, snap counts, tired players in Coach Mode; engine
       version 1.8)
-- [ ] Unity foundation (a WebGL renderer on the Watch page beside the current viewer,
-      fed the same play timelines; built in CI)
+- [x] Unity foundation (a WebGL renderer on the Watch page beside the current viewer,
+      fed the same play timelines, with the page's cameras; shared sampling fixtures;
+      built in CI once the repository has a Unity license; docs/unity.md)
 - [ ] Unity art and cameras (animated athletes in team uniforms, the stadium, broadcast
       cameras and replays)
 - [ ] Unity in Coach Mode and the parity check

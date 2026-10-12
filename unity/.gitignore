@@ -1,0 +1,17 @@
+# Unity: generated, local or built (the WebGL build goes to frontend/public/unity/).
+/Library/
+/Temp/
+/Logs/
+/obj/
+/Build/
+/Builds/
+/UserSettings/
+/MemoryCaptures/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.pidb
+*.booproj
+.vs/
+.idea/

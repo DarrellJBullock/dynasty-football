@@ -14,7 +14,7 @@ ARG RELEASE=""
 ENV NEXT_OUTPUT=standalone \
     NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
     NEXT_PUBLIC_RELEASE=$RELEASE
-RUN npm run build
+RUN npm run build && mkdir -p public
 
 FROM node:22-slim
 WORKDIR /app
@@ -22,6 +22,8 @@ ARG RELEASE=""
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 RELEASE=$RELEASE
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
+# Static files: the Unity viewer's build (public/unity/), when CI built it.
+COPY --from=build --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]

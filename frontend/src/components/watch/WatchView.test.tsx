@@ -15,6 +15,10 @@ vi.mock("next/dynamic", () => ({
   },
 }));
 
+// The Unity build: not installed unless a test says so.
+const unity = vi.hoisted(() => ({ build: null as unknown }));
+vi.mock("@/lib/unity", () => ({ unityBuild: () => Promise.resolve(unity.build) }));
+
 const H = team.id;
 const playback = makePlayback([
   makePlay({ text: "Nash runs for 6 yards.", result: { type: "run", yards: 6 }, score: { home: 0, away: 0 },
@@ -52,6 +56,55 @@ afterEach(() => {
 });
 
 describe("WatchView", () => {
+  describe("the renderer", () => {
+    afterEach(() => {
+      unity.build = null;
+      localStorage.clear();
+    });
+    const renderer = () => screen.getByRole("group", { name: "Renderer" });
+
+    it("offers Unity only when its build is installed", async () => {
+      render(<WatchView playback={playback} />);
+      const button = within(renderer()).getByRole("button", { name: "Unity" });
+      await act(async () => {});
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute("title", "The Unity viewer isn't installed on this server");
+      expect(within(renderer()).getByRole("button", { name: "Classic" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("switches to Unity and remembers it, and falls back to Classic if Unity fails", async () => {
+      unity.build = { loader: "Build/unity.loader.js" };
+      const { unmount } = render(<WatchView playback={playback} />);
+      const button = within(renderer()).getByRole("button", { name: "Unity" });
+      await act(async () => {});
+      expect(button).toBeEnabled();
+      expect(scene.props).not.toHaveProperty("onError"); // the classic scene
+      await userEvent.click(button);
+      expect(button).toHaveAttribute("aria-pressed", "true");
+      expect(scene.props).toHaveProperty("onError"); // the Unity scene, with the same playhead
+      expect(localStorage.getItem("dynasty.renderer")).toBe("unity");
+      unmount();
+
+      // Next visit: the remembered choice.
+      const again = render(<WatchView playback={playback} />);
+      await act(async () => {});
+      expect(within(renderer()).getByRole("button", { name: "Unity" })).toHaveAttribute("aria-pressed", "true");
+
+      const onError = (scene.props as unknown as { onError: (m: string) => void }).onError;
+      act(() => onError("No WebGL 2."));
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "The Unity viewer stopped: No WebGL 2. Showing the classic viewer.");
+      expect(within(renderer()).getByRole("button", { name: "Classic" })).toHaveAttribute("aria-pressed", "true");
+      expect(scene.props).not.toHaveProperty("onError");
+      again.unmount();
+
+      // A failure is remembered too: the next visit starts on Classic.
+      render(<WatchView playback={playback} />);
+      await act(async () => {});
+      expect(within(renderer()).getByRole("button", { name: "Classic" })).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+
   it("opens on the requested play with its situation and text", () => {
     render(<WatchView playback={playback} initialPlay={2} />);
     expect(screen.getByTestId("play-text")).toHaveTextContent("64 yards. TOUCHDOWN.");
