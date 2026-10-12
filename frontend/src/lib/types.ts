@@ -134,13 +134,15 @@ export interface Season {
 }
 
 export type JobKind = "sim_regular_season" | "sim_playoffs" | "advance_offseason" |
-  "finish_free_agency" | "finish_draft";
+  "finish_free_agency" | "finish_draft" | "sim_seasons";
 
 /** A background sim (`schemas.JobOut`): how far it's got, and once it's over, what it did. */
 export interface Job {
   id: number;
   league_id: number;
   kind: JobKind;
+  /** e.g. `{ seasons: 5 }` for sim ahead. */
+  params?: { seasons?: number } | null;
   status: "queued" | "running" | "done" | "failed" | "cancelled";
   progress: number;
   total: number;
@@ -394,6 +396,8 @@ export interface GameDetail {
   scoring_plays: PlayOut[];
   plays: PlayOut[];
   injuries?: GameInjury[];
+  /** An older season's game trimmed to its scoring plays and injuries. */
+  log_compacted?: boolean;
 }
 
 export interface GameInjury {
@@ -825,6 +829,8 @@ export interface GamePlayback {
   approximate: boolean;
   players: PlaybackPlayer[];
   plays: PlaybackPlay[];
+  /** Play-by-play wasn't kept for this older game: nothing to watch. */
+  log_compacted?: boolean;
 }
 
 // ---------- playbook ----------
@@ -916,4 +922,24 @@ export interface User {
 export interface Credentials {
   email: string;
   password: string;
+}
+
+/** One season of a Dynasty report: how it went, and the franchise's offseason after. */
+export interface DynastySeason {
+  season: SeasonHistory;
+  offseason: OffseasonRecap | null;
+}
+
+export interface DynastyReport {
+  from_year: number;
+  to_year: number;
+  /** Oldest first. */
+  seasons: DynastySeason[];
+}
+
+/** What a finished sim ahead returns (`Job.result`). */
+export interface SimAheadResult {
+  from_year: number;
+  to_year: number;
+  seasons: number;
 }

@@ -250,4 +250,9 @@ describe("WatchView", () => {
     expect(screen.getByText("This game has no plays to watch.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "← Box score" })).toHaveAttribute("href", "/games/7");
   });
+
+  it("explains an older game whose play-by-play wasn't kept", () => {
+    render(<WatchView playback={{ ...playback, plays: [], log_compacted: true }} />);
+    expect(screen.getByText(/Play-by-play isn't kept for this older game/)).toBeInTheDocument();
+  });
 });

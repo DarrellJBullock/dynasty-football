@@ -28,7 +28,7 @@ test("every page in a fresh league", async ({ page }) => {
   test.slow();
   const pages = ["/", "/roster", "/depth-chart", "/contracts", "/free-agency", "/draft", "/trades",
     "/schedule", "/playoffs", "/stats", "/league", "/history", "/leagues", "/leagues/new",
-    "/account", "/coach"];
+    "/account", "/coach", "/dynasty"];
   const problems: string[] = [];
   for (const url of pages) problems.push(...await audit(page, url));
   expect(problems, problems.join("\n")).toEqual([]);

@@ -52,7 +52,9 @@ export function useJob(initial: Job | null | undefined, onEnd: (job: Job) => voi
     /** The job while it's queued or running. */
     job: active ? job : null,
     /** Start a job (errors, like a 409 for a league that's busy, are thrown). */
-    start: async (leagueId: number, kind: JobKind) => settle(await api.startJob(leagueId, kind)),
+    start: async (leagueId: number, kind: JobKind, seasons?: number) =>
+      settle(await (seasons === undefined ? api.startJob(leagueId, kind)
+        : api.startJob(leagueId, kind, seasons))),
     /** Ask the job to stop after its current week (round, day). */
     cancel: async () => {
       if (job) settle(await api.cancelJob(job.id));

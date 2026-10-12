@@ -76,7 +76,7 @@ def asking(player: Player) -> ContractTerms:
 class _Market:
     """Rosters, payrolls, the pool, and team strength, loaded once per step."""
 
-    def __init__(self, db: Session, season: Season):
+    def __init__(self, db: Session, season: Season, autopilot: bool = False):
         self.db = db
         self.season = season
         self.league: League = season.league
@@ -96,7 +96,8 @@ class _Market:
         self.payrolls = {t.id: sum(c.salary for p in self.rosters[t.id]
                                    if (c := p.active_contract)) + dead[t.id]
                          for t in self.teams}
-        self.user_team = franchise_team_id(db, self.league.id)
+        # On autopilot (sim ahead) the franchise bids like an AI team.
+        self.user_team = None if autopilot else franchise_team_id(db, self.league.id)
         self.departed_from = {e["player"]: e["team"] for e in self.log.get("departed", [])}
 
     def lost(self, team_id: int) -> list[str]:
@@ -260,21 +261,22 @@ def _close(db: Session, market: _Market) -> None:
 
 
 def play_days(db: Session, season: Season, until: str,
-              on_step: Callable[[str, bool], None] | None = None) -> list[dict]:
+              on_step: Callable[[str, bool], None] | None = None,
+              autopilot: bool = False) -> list[dict]:
     """Play the next market day, or every remaining day (`until="end"`); the market closes
     after the last one. Returns the signings. `on_step` is called after each day with its
     label and whether more are to come (a background job's progress)."""
     _require_market(season)
     signings: list[dict] = []
     while season.phase == "free_agency":
-        market = _Market(db, season)
+        market = _Market(db, season, autopilot)
         signings += _resolve_day(db, market)
         day = season.free_agency_day
         season.free_agency_day += 1
         if season.free_agency_day > MARKET_DAYS:
-            _close(db, _Market(db, season))
+            _close(db, _Market(db, season, autopilot))
         else:
-            _ai_offers(db, _Market(db, season))
+            _ai_offers(db, _Market(db, season, autopilot))
         if until == "next_day":
             break
         if on_step:

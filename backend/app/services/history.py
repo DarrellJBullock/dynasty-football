@@ -149,11 +149,20 @@ def _franchise_result(db: Session, season: Season, team_id: int) -> str:
 
 
 def history_view(db: Session, league: League) -> HistoryOut:
+    return HistoryOut(seasons=season_histories(db, league), records=records(db, league))
+
+
+def season_histories(db: Session, league: League,
+                     years: range | None = None) -> list[SeasonHistory]:
+    """Each season (or those in `years`), latest first: champion, runner-up, awards, and
+    the franchise's record and result."""
     ensure_awards(db, league)
     team_id = franchise_team_id(db, league.id)
-    seasons = sorted(league.seasons, key=lambda s: -s.year)
+    seasons = sorted((s for s in league.seasons if years is None or s.year in years),
+                     key=lambda s: -s.year)
     awards: dict[int, list[Award]] = defaultdict(list)
-    for award in db.scalars(select(Award).where(Award.season_id.in_([s.id for s in seasons]))):
+    for award in db.scalars(select(Award).where(Award.season_id.in_([s.id for s in seasons]))
+                            .options(selectinload(Award.player))):
         awards[award.season_id].append(award)
     order = list(AWARDS)
     out = []
@@ -175,7 +184,7 @@ def history_view(db: Session, league: League) -> HistoryOut:
             franchise_record=Record(wins=record.wins, losses=record.losses,
                                     ties=record.ties) if record else None,
             franchise_result=_franchise_result(db, season, team_id) if team_id else ""))
-    return HistoryOut(seasons=out, records=records(db, league))
+    return out
 
 
 # ---------- records ----------

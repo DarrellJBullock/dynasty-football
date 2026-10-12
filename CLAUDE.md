@@ -156,6 +156,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   comes from `access.league_of`, as for ownership). Job runners
   commit after each step, so a sim service they call must leave the league consistent
   between steps (see `season.simulate`'s `on_step`).
+- **The franchise on autopilot:** the offseason, free agency and the draft take
+  `autopilot=True` (sim ahead), which treats the franchise like an AI team. Anything new
+  that skips the franchise for the user to decide needs the same flag.
 - **Big JSON columns are deferred** (`Game.play_log`, `Season.offseason_log`): lists of
   games or seasons never load them. Reading one on many rows is a query each; add
   `undefer(...)` to that query. Keep new reads under budget: `make perf`, and CI fails a

@@ -202,8 +202,11 @@ def _finishes(db: Session, season: Season, teams: list[Team]) -> list[Finish]:
 
 
 def _picks(db: Session, season: Season) -> list[DraftPick]:
+    # (with the players picked, for the board: one query each, not one per pick)
     return list(db.scalars(select(DraftPick).where(DraftPick.season_id == season.id)
-                           .order_by(DraftPick.number)))
+                           .order_by(DraftPick.number)
+                           .options(selectinload(DraftPick.player).options(
+                               selectinload(Player.ratings), selectinload(Player.contracts)))))
 
 
 def on_the_clock(db: Session, season: Season) -> DraftPick | None:
@@ -313,7 +316,7 @@ def user_pick(db: Session, league: League, player_id: int) -> DraftPick:
     return pick
 
 
-def play(db: Session, season: Season, until: str) -> list[DraftPick]:
+def play(db: Session, season: Season, until: str, autopilot: bool = False) -> list[DraftPick]:
     """Make picks until the franchise is on the clock (`my_pick`) or to the end (`end`,
     auto-picking for the franchise); after the last pick the draft wraps up."""
     if season.phase != "draft":
@@ -330,17 +333,18 @@ def play(db: Session, season: Season, until: str) -> list[DraftPick]:
         made.append(pick)
     db.flush()
     if on_the_clock(db, season) is None:
-        _finish(db, season)
+        _finish(db, season, autopilot)
     return made
 
 
-def _finish(db: Session, season: Season) -> None:
+def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
     """Fill the spots teams still lost — the best undrafted prospect at the position, then
     the best one left, then a veteran free agent on a one-year minimum deal — make the
-    rest of the class free agents, cut AI teams down to 53, and start the preseason."""
+    rest of the class free agents, cut AI teams down to 53, and start the preseason. On
+    autopilot (sim ahead) the franchise is cut down and fit under the cap like the rest."""
     league_id = season.league_id
     log = season.offseason_log
-    user_team = franchise_team_id(db, league_id)
+    user_team = None if autopilot else franchise_team_id(db, league_id)
     undrafted = _prospects(db, league_id, season.year)
     veterans = list(db.scalars(
         select(Player).where(Player.league_id == league_id, Player.team_id.is_(None),

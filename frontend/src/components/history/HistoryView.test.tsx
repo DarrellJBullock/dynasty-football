@@ -26,7 +26,9 @@ const history: HistoryOut = {
 describe("HistoryView", () => {
   it("lists seasons with champions, awards, and the franchise's result", () => {
     render(<HistoryView history={history} team={team} league="Dynasty Football League" />);
-    expect(screen.getByText("2 seasons · 1 Ironclads championship")).toBeInTheDocument();
+    expect(screen.getByText(/^2 seasons · 1 Ironclads championship/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dynasty report, 2026–2026 →" }))
+      .toHaveAttribute("href", "/dynasty?from=2026&to=2026");
     const finished = screen.getByRole("article", { name: "2026 season" });
     expect(finished).toHaveTextContent("Champion");
     expect(finished).toHaveTextContent(`over ${opponent.full_name}`);

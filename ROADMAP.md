@@ -129,6 +129,18 @@ Each milestone ends with working software, green tests, and updated docs.
       a CI ceiling; page LCP and layout shift budgets; WCAG 2.2 AA checked by axe on every
       page; keyboard and reduced-motion support) — design: `docs/design/platform.md` §7–8
 
+## M8 — Dynasty Mode
+
+Design: `docs/design/dynasty-mode.md`.
+
+- [x] Sim ahead (1–10 seasons at once as a background job, the franchise on autopilot
+      through each offseason, a Dynasty report, older play logs compacted)
+- [ ] Game plans (choose your plays and tendencies; the AI follows them when it calls
+      for you, and AI teams get plans that suit their rosters)
+- [ ] Audibles (a pre-snap look in Coach Mode, sometimes disguised; three audibles a side)
+- [ ] Penalties and injuries (about ten more fouls driven by awareness, questionable and
+      season-ending injuries; engine version 1.6)
+
 ## Later
 
 - [x] Women's leagues (a men's / women's choice in the league builder; women's leagues get

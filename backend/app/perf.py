@@ -83,6 +83,8 @@ def reads(client: TestClient) -> dict[str, str]:
         franchise = db.scalar(select(Franchise).where(Franchise.league_id == league.id))
         season = db.scalar(select(Season).where(Season.league_id == league.id)
                            .order_by(Season.year.desc()))
+        first_year = max(season.year - 10, db.scalar(
+            select(Season.year).where(Season.league_id == league.id).order_by(Season.year)))
         game = db.scalar(select(Game).where(Game.status == "final").order_by(Game.id.desc()))
         # A veteran with a few seasons of stats.
         player = db.scalar(select(PlayerGameStats.player_id)
@@ -101,6 +103,8 @@ def reads(client: TestClient) -> dict[str, str]:
                 or path.endswith(("/health", "/ready", "/coach"))):
             continue
         urls[path] = re.sub(r"{(\w+)}", lambda m: str(ids[m.group(1)]), path)
+        if path.endswith("/dynasty"):  # (every season played, as a Dynasty report)
+            urls[path] += f"?from_year={first_year}&to_year={season.year - 1}"
     return urls
 
 

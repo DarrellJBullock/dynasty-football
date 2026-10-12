@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { describeResult, gameLabel } from "@/lib/games";
 import type {
   DraftResult, DraftUntil, FreeAgencyResult, FreeAgencyUntil, Game, Job, JobKind, Season,
-  SimulateUntil, SimulationResult,
+  SimAheadResult, SimulateUntil, SimulationResult,
 } from "@/lib/types";
 import { JobProgress } from "./JobProgress";
 import { useJob } from "./useJob";
@@ -21,6 +21,33 @@ import { useJob } from "./useJob";
  * is a plain request.
  */
 export function SimControls({ season, teamId }: { season: Season; teamId: number }) {
+  const router = useRouter();
+  // A sim ahead can end in another phase than it started (free agency → the preseason
+  // seasons later): its outcome lives here, above whichever phase's controls show.
+  const [ahead, setAhead] = useState<Job | null>(null);
+  function aheadDone(job: Job) {
+    setAhead(job);
+    router.refresh();
+  }
+  const controls = season.phase === "free_agency"
+    ? <FreeAgencyControls season={season} onAheadDone={aheadDone} />
+    : season.phase === "draft"
+      ? <DraftControls season={season} onAheadDone={aheadDone} />
+      : <SeasonControls season={season} teamId={teamId} onAheadDone={aheadDone} />;
+  if (!ahead) return controls;
+  return (
+    <div className="space-y-2">
+      {controls}
+      <SimAheadOutcome job={ahead} />
+    </div>
+  );
+}
+
+/** Sim the next week (or round) or the rest of the season or playoffs; once a champion is
+ * crowned, run the offseason. */
+function SeasonControls({ season, teamId, onAheadDone }: {
+  season: Season; teamId: number; onAheadDone: (job: Job) => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<SimulateUntil | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -48,18 +75,22 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
     }
   }
 
-  async function startJob(kind: JobKind) {
+  async function startJob(kind: JobKind, seasons?: number) {
     setConfirming(false);
     setError(null);
     setNotice(null);
     try {
-      await run.start(season.league_id, kind);
+      await run.start(season.league_id, kind, seasons);
     } catch (e) {
       setError((e as Error).message);
     }
   }
 
   function finished(job: Job) {
+    if (job.kind === "sim_seasons") {
+      onAheadDone(job);
+      return;
+    }
     if (job.status === "failed") {
       setError(job.error ?? "The simulation failed.");
     } else if (job.status === "cancelled") {
@@ -81,13 +112,6 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
   }
 
   const progress = run.job && <JobProgress job={run.job} onStop={run.cancel} />;
-
-  if (season.phase === "free_agency") {
-    return <FreeAgencyControls season={season} />;
-  }
-  if (season.phase === "draft") {
-    return <DraftControls season={season} />;
-  }
 
   if (season.champion) {
     return (
@@ -112,6 +136,7 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
             Start free agency
           </button>
         ))}
+        {!progress && <SimAhead disabled={working} onStart={(n) => startJob("sim_seasons", n)} />}
         <Link href="/playoffs" className="text-gold hover:underline">Bracket →</Link>
         {latest && <ResultLink game={latest.game} label={latest.label} />}
         {notice && <span role="status" className="text-sm text-chalk">{notice}</span>}
@@ -149,6 +174,7 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
           {restLabel}
         </button>
       ))}
+      {!progress && <SimAhead disabled={working} onStart={(n) => startJob("sim_seasons", n)} />}
       {inPlayoffs && <Link href="/playoffs" className="text-sm text-gold hover:underline">Bracket →</Link>}
       {latest && <ResultLink game={latest.game} label={latest.label} />}
       {notice && <span role="status" className="text-sm text-chalk">{notice}</span>}
@@ -158,7 +184,9 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
 }
 
 /** Free agency: play the next market day, or the rest of the market (a background job). */
-function FreeAgencyControls({ season }: { season: Season }) {
+function FreeAgencyControls({ season, onAheadDone }: {
+  season: Season; onAheadDone: (job: Job) => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<FreeAgencyUntil | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -187,18 +215,19 @@ function FreeAgencyControls({ season }: { season: Season }) {
     }
   }
 
-  async function finish() {
+  async function finish(kind: JobKind = "finish_free_agency", seasons?: number) {
     setConfirming(false);
     setError(null);
     try {
-      await run.start(season.league_id, "finish_free_agency");
+      await run.start(season.league_id, kind, seasons);
     } catch (e) {
       setError((e as Error).message);
     }
   }
 
   function finished(job: Job) {
-    if (job.status === "failed") setError(job.error ?? "Free agency failed.");
+    if (job.kind === "sim_seasons") onAheadDone(job);
+    else if (job.status === "failed") setError(job.error ?? "Free agency failed.");
     else if (job.status === "cancelled") setSummary(job.progress ? `Stopped after ${job.label}` : "Stopped");
     else report("Free agency", job.result as FreeAgencyResult);
     router.refresh();
@@ -211,7 +240,7 @@ function FreeAgencyControls({ season }: { season: Season }) {
       </button>
       {run.job ? <JobProgress job={run.job} onStop={run.cancel} /> : confirming ? (
         <>
-          <button type="button" className="btn btn-ghost" disabled={working} onClick={finish}>
+          <button type="button" className="btn btn-ghost" disabled={working} onClick={() => finish()}>
             Confirm: finish free agency
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
@@ -224,6 +253,7 @@ function FreeAgencyControls({ season }: { season: Season }) {
           Finish free agency
         </button>
       )}
+      {!run.job && <SimAhead disabled={working} onStart={(n) => finish("sim_seasons", n)} />}
       <Link href="/free-agency" className="text-sm text-gold hover:underline">Free agents →</Link>
       {summary && <span role="status" className="text-sm text-chalk">{summary}</span>}
       {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
@@ -232,7 +262,9 @@ function FreeAgencyControls({ season }: { season: Season }) {
 }
 
 /** The draft: let AI teams pick until the franchise is up, or finish it (a background job). */
-function DraftControls({ season }: { season: Season }) {
+function DraftControls({ season, onAheadDone }: {
+  season: Season; onAheadDone: (job: Job) => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<DraftUntil | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -257,18 +289,19 @@ function DraftControls({ season }: { season: Season }) {
     }
   }
 
-  async function finish() {
+  async function finish(kind: JobKind = "finish_draft", seasons?: number) {
     setConfirming(false);
     setError(null);
     try {
-      await run.start(season.league_id, "finish_draft");
+      await run.start(season.league_id, kind, seasons);
     } catch (e) {
       setError((e as Error).message);
     }
   }
 
   function finished(job: Job) {
-    if (job.status === "failed") setError(job.error ?? "The draft failed.");
+    if (job.kind === "sim_seasons") onAheadDone(job);
+    else if (job.status === "failed") setError(job.error ?? "The draft failed.");
     else if (job.status === "done" && (job.result as DraftResult).season.phase !== "draft") {
       setSummary("The draft is complete");
     }
@@ -282,7 +315,7 @@ function DraftControls({ season }: { season: Season }) {
       </button>
       {run.job ? <JobProgress job={run.job} onStop={run.cancel} /> : confirming ? (
         <>
-          <button type="button" className="btn btn-ghost" disabled={working} onClick={finish}>
+          <button type="button" className="btn btn-ghost" disabled={working} onClick={() => finish()}>
             Confirm: finish the draft (auto-pick for me)
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
@@ -295,10 +328,59 @@ function DraftControls({ season }: { season: Season }) {
           Finish draft
         </button>
       )}
+      {!run.job && <SimAhead disabled={working} onStart={(n) => finish("sim_seasons", n)} />}
       <Link href="/draft" className="text-sm text-gold hover:underline">Draft board →</Link>
       {summary && <span role="status" className="text-sm text-chalk">{summary}</span>}
       {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
     </div>
+  );
+}
+
+/** Sim ahead 1–10 seasons, with the franchise on autopilot through each offseason. */
+function SimAhead({ disabled, onStart }: { disabled: boolean; onStart: (seasons: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [seasons, setSeasons] = useState(3);
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-ghost" disabled={disabled} onClick={() => setOpen(true)}>
+        Sim ahead…
+      </button>
+    );
+  }
+  return (
+    <span role="group" aria-label="Sim ahead" className="flex flex-wrap items-center gap-2 text-sm">
+      <label className="flex items-center gap-1.5">
+        Seasons
+        <select className="field-input w-auto py-1" value={seasons}
+          onChange={(e) => setSeasons(Number(e.target.value))}>
+          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </label>
+      <button type="button" className="btn btn-primary" disabled={disabled}
+        onClick={() => { setOpen(false); onStart(seasons); }}>
+        Confirm: sim ahead {seasons} season{seasons === 1 ? "" : "s"}
+      </button>
+      <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
+      <span className="text-xs text-mist">The AI runs your team through each offseason.</span>
+    </span>
+  );
+}
+
+/** How a sim ahead ended: a link to its Dynasty report, where it stopped, or why it failed. */
+function SimAheadOutcome({ job }: { job: Job }) {
+  if (job.status === "failed") {
+    return <p role="alert" className="text-sm text-rose-300">{job.error ?? "The sim ahead failed."}</p>;
+  }
+  if (job.status === "cancelled") {
+    return <p role="status" className="text-sm text-chalk">{job.progress ? `Stopped after ${job.label}` : "Stopped"}</p>;
+  }
+  const result = job.result as SimAheadResult;
+  return (
+    <Link href={`/dynasty?from=${result.from_year}&to=${result.to_year}`} role="status"
+      className="block text-sm text-gold underline-offset-4 hover:underline">
+      Simmed {result.seasons} season{result.seasons === 1 ? "" : "s"} · Dynasty report,{" "}
+      {result.from_year === result.to_year ? result.from_year : `${result.from_year}–${result.to_year}`} →
+    </Link>
   );
 }
 
