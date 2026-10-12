@@ -173,6 +173,8 @@ class Player(Base):
     # Set by simulated games: what it is and how many more games the player misses.
     injury: Mapped[str | None] = mapped_column(String(40))
     injury_weeks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Career injuries from games (proneness: each one raises the odds of the next a little).
+    injury_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     retired_year: Mapped[int | None] = mapped_column(Integer)  # last season played
     # Draft: prospects are in a class (draft_year) until drafted or let go after the draft.
     is_prospect: Mapped[bool] = mapped_column(default=False, server_default=false())

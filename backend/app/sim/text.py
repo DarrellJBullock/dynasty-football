@@ -2,12 +2,11 @@
 
 from typing import TYPE_CHECKING
 
+from app.sim.penalties import NAMES
+
 if TYPE_CHECKING:
     from app.sim.engine import PlayRecord
     from app.sim.teams import SimTeam
-
-PENALTY_NAMES = {"false_start": "False start", "holding": "Offensive holding",
-                 "pass_interference": "Defensive pass interference"}
 
 
 def spot_label(ball_on: int, offense: str, defense: str) -> str:
@@ -88,8 +87,9 @@ def describe(play: "PlayRecord", names: dict[int, str], teams: dict[str, "SimTea
         elif t == "injury":
             injuries.append(f"{name(e['player'])} ({e['team']}) is injured: {e['injury']}")
         elif t == "penalty":
-            label = PENALTY_NAMES.get(e["kind"], e["kind"])
+            label = NAMES.get(e["kind"], e["kind"])
             parts.append(f"PENALTY on {e['team']}: {label}, {e['yards']} yards"
+                         + (", loss of down" if play.result.get("loss_of_down") else "")
                          + (" (play nullified)" if play.result.get("nullified") else ""))
 
     text = ", ".join(parts) if parts else play.result.get("type", "play")

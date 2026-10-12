@@ -2,7 +2,7 @@ import Link from "next/link";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { RatingBar } from "@/components/ui/RatingBar";
 import { TeamCrest } from "@/components/ui/TeamCrest";
-import { formatAttribute, formatHeight, formatMoney, injuryDetail } from "@/lib/format";
+import { formatAttribute, formatHeight, formatMoney, injuryDetail, injuryHistory } from "@/lib/format";
 import { groupsFor } from "@/lib/stats";
 import type { CareerOut, PlayerDetail, PlayerSeasonStats } from "@/lib/types";
 
@@ -25,6 +25,7 @@ export function PlayerView({ player, stats, career }: {
             {player.retired_year
               ? `Retired after ${player.retired_year}`
               : <>{player.years_pro ? `${player.years_pro} yr pro` : "Rookie"} · {injuryDetail(player)}</>}
+            {injuryHistory(player.injury_count) && <> · {injuryHistory(player.injury_count)}</>}
             {player.contract && <> · {formatMoney(player.contract.salary)}/yr through {player.contract.end_year}</>}
             {player.draft_pick
               ? <> · Drafted {player.draft_year}, round {player.draft_round}, pick {player.draft_pick}</>

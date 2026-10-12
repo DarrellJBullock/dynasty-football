@@ -48,11 +48,13 @@ def contact_ids(events: Iterable[dict]) -> set[int]:
 
 def _base_chance(player: SimPlayer, t: Tuning) -> float:
     toughness = player.ratings.get("toughness", 70)
-    return t.injury_rate * max(0.4, 1.5 - toughness / 100)
+    history = 1 + t.injury_history_k * min(player.injuries, t.injury_history_cap)
+    return t.injury_rate * max(0.4, 1.5 - toughness / 100) * history
 
 
 def injury_chance(player: SimPlayer, contact: bool, t: Tuning) -> float:
-    """Per-snap chance; tougher players get hurt less, players in contact more."""
+    """Per-snap chance; tougher players get hurt less, players in contact more, and
+    players hurt before a little more."""
     return _base_chance(player, t) * (t.injury_contact_factor if contact else 1.0)
 
 

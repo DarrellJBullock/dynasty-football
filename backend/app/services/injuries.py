@@ -45,6 +45,7 @@ def after_week(db: Session, league_id: int, events: list[dict]) -> None:
         player = db.get(Player, event["player"])
         if player is None:
             continue
+        player.injury_count = (player.injury_count or 0) + 1
         # A questionable player can get hurt again; the worse injury wins.
         if player.injury is None or event["weeks"] >= player.injury_weeks:
             player.injury = event["injury"]

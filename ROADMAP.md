@@ -139,8 +139,9 @@ Design: `docs/design/dynasty-mode.md`.
       for you, and AI teams get plans that suit their rosters; engine version 1.6)
 - [x] Audibles (a pre-snap look in Coach Mode, sometimes disguised; three audibles a side,
       picked in the game plan)
-- [ ] Penalties and injuries (about ten more fouls driven by awareness, questionable and
-      season-ending injuries; engine version 1.7)
+- [x] Penalties and injuries (fourteen fouls with rates driven by awareness, about six
+      flags and 48 yards a team a game; questionable players play hurt; earlier injuries
+      raise the odds a little; engine version 1.7)
 
 ## Later
 

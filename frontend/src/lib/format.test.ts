@@ -6,6 +6,7 @@ import {
   formatRecord,
   injuryDetail,
   injuryDuration,
+  injuryHistory,
   injuryLabel,
   releaseCost,
   ratingTier,
@@ -70,7 +71,7 @@ describe("ratingTier", () => {
 
 describe("injuries", () => {
   it("describes how long a player is out", () => {
-    expect(injuryDuration(0)).toBe("Questionable");
+    expect(injuryDuration(0)).toBe("Questionable, playing hurt");
     expect(injuryDuration(1)).toBe("Out 1 game");
     expect(injuryDuration(3)).toBe("Out 3 games");
     expect(injuryDuration(99)).toBe("Out for the season");
@@ -81,6 +82,13 @@ describe("injuries", () => {
       .toBe("Knee sprain · Out 2 games");
     expect(injuryDetail({ injury_status: "injured_reserve", injury: null })).toBe("IR");
     expect(injuryDetail({ injury_status: "healthy" })).toBe("Healthy");
+  });
+
+  it("counts career injuries", () => {
+    expect(injuryHistory(0)).toBeNull();
+    expect(injuryHistory(undefined)).toBeNull();
+    expect(injuryHistory(1)).toBe("1 career injury");
+    expect(injuryHistory(3)).toBe("3 career injuries");
   });
 });
 

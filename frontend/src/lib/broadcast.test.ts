@@ -94,7 +94,15 @@ describe("banners", () => {
       events: [...run().events, { t: "penalty", team: "offense", kind: "holding", yards: 10,
                                   player: pid(H, "OT"), automatic_first: false }] });
     const banners = bannersFor(held, timelineOf(held));
-    expect(banners.map((b) => [b.text, b.tone])).toEqual([["Flag · holding", "flag"]]);
+    expect(banners.map((b) => [b.text, b.tone])).toEqual([["Flag · Offensive holding", "flag"]]);
+
+    // A personal foul: the play stands, then the flag.
+    const roughed = run({ result: { type: "run", yards: 4, first_down: true },
+      events: [...run().events, { t: "penalty", team: "AWY", kind: "unnecessary_roughness",
+                                  yards: 15, player: pid(A, "MLB"),
+                                  automatic_first: true }] });
+    expect(bannersFor(roughed, timelineOf(roughed)).map((b) => b.text))
+      .toContain("Flag · Unnecessary roughness");
 
     const miss = makePlay({ down: 4, distance: 6, ball_on: 60, personnel: null, defense: null,
       result: { type: "field_goal", good: false },

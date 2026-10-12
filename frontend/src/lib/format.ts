@@ -65,10 +65,11 @@ export function injuryLabel(status: string): string {
 
 export const SEASON_ENDING_WEEKS = 99;
 
-/** How long an injury keeps a player out: "Questionable", "1 game", "3 games", "Season". */
+/** How long an injury keeps a player out: "Questionable, playing hurt" (he plays at reduced
+ * speed and strength), "Out 1 game", "Out 3 games", "Out for the season". */
 export function injuryDuration(weeks: number): string {
   if (weeks >= SEASON_ENDING_WEEKS) return "Out for the season";
-  if (weeks <= 0) return "Questionable";
+  if (weeks <= 0) return "Questionable, playing hurt";
   return `Out ${weeks} game${weeks === 1 ? "" : "s"}`;
 }
 
@@ -77,6 +78,12 @@ export function injuryDetail(player: { injury_status: string; injury?: string | 
   if (player.injury_status === "healthy") return "Healthy";
   if (!player.injury) return injuryLabel(player.injury_status);
   return `${player.injury} · ${injuryDuration(player.injury_weeks ?? 0)}`;
+}
+
+/** "2 career injuries", or null for a player never hurt in a game. */
+export function injuryHistory(count: number | undefined): string | null {
+  if (!count) return null;
+  return `${count} career injur${count === 1 ? "y" : "ies"}`;
 }
 
 /** Contract years remaining including the current season. */

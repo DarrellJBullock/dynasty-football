@@ -96,8 +96,9 @@ describe("PlayerView", () => {
   };
 
   it("shows bio, season totals for relevant groups, and the game log", () => {
-    render(<PlayerView player={{ ...makePlayerDetail({ position: "QB" }), full_name: "Keegan Quarles" }} stats={stats} />);
+    render(<PlayerView player={{ ...makePlayerDetail({ position: "QB", injury_count: 2 }), full_name: "Keegan Quarles" }} stats={stats} />);
     expect(screen.getByRole("heading", { level: 1, name: "Keegan Quarles" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Player" })).toHaveTextContent("2 career injuries");
     const totals = screen.getByRole("region", { name: "Season totals" });
     expect(totals).toHaveTextContent("2026 season · 2 games");
     expect(totals).toHaveTextContent("40/60");

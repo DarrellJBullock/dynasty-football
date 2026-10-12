@@ -238,7 +238,8 @@ def _roster(team: SimTeam, injured: set[int] = frozenset()):
         first, _, last = p.name.partition(". ")
         players.append(SimpleNamespace(id=p.id, first_name=first, last_name=last,
                                        position=p.position, overall=p.overall,
-                                       injury_status="out" if p.id in injured else "healthy"))
+                                       injury_status="out" if p.id in injured else "healthy",
+                                       injury_count=p.injuries))
     return players
 
 

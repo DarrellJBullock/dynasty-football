@@ -92,6 +92,7 @@ class PlayerSummary(BaseModel):
     injury_status: str
     injury: str | None = None  # from a simulated game
     injury_weeks: int = 0  # games still to miss (99: rest of the season)
+    injury_count: int = 0  # career injuries from games
     retired_year: int | None = None
     draft_year: int | None = None
     draft_round: int | None = None
@@ -1035,10 +1036,10 @@ class FumbleEvent(_Event):
 class PenaltyEvent(_Event):
     t: Literal["penalty"]
     team: str  # abbreviation of the penalized team
-    kind: str  # false_start | holding | pass_interference
-    yards: int
+    kind: str  # a key of app/sim/penalties.py NAMES (holding, offside, face_mask, ...)
+    yards: int  # as enforced (half the distance to the goal at most)
     player: int | None = None
-    automatic_first: bool = False
+    automatic_first: bool = False  # defensive holding, illegal contact, DPI, personal fouls
 
 
 class InjuryEvent(_Event):

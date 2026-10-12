@@ -30,6 +30,8 @@ TARGETS: dict[str, tuple[float, float]] = {
     "third_down_pct": (35, 44),
     "touchdowns": (2.0, 2.9),
     "tie_pct": (0, 1.5),  # of games (one tie in 400 games = 0.25%)
+    "penalties": (5.0, 7.0),  # accepted
+    "penalty_yards": (40, 60),
 }
 
 
@@ -71,7 +73,7 @@ def measure(teams: Sequence[SimTeam], games: int, seed: int = 1,
         for team in box.teams.values():
             for key in ("points", "plays", "pass_att", "pass_cmp", "pass_yds", "rush_att",
                         "rush_yds", "sacks_allowed", "punts", "fg_att", "fg_made", "turnovers",
-                        "third_down_att", "third_down_conv"):
+                        "third_down_att", "third_down_conv", "penalties", "penalty_yds"):
                 add(key, getattr(team, key))
         add("interceptions", sum(p.pass_int for p in box.players.values()))
         rushers_fumbles += sum(p.fumbles_lost for p in box.players.values())
@@ -97,6 +99,8 @@ def measure(teams: Sequence[SimTeam], games: int, seed: int = 1,
         "third_down_pct": 100 * totals["third_down_conv"] / max(1, totals["third_down_att"]),
         "touchdowns": totals["touchdowns"] / team_games,
         "tie_pct": 100 * totals["ties"] / len(results),
+        "penalties": totals["penalties"] / team_games,
+        "penalty_yards": totals["penalty_yds"] / team_games,
         "home_win_pct": 100 * totals["home_wins"] / len(results),
         "overtime_pct": 100 * totals["overtime"] / len(results),
         "pass_rate": 100 * totals["pass_att"] / (totals["pass_att"] + totals["rush_att"]),

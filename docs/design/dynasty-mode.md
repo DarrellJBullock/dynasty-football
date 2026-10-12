@@ -151,8 +151,26 @@ kinds of penalties and injuries** that the players' ratings drive.
   - The injury report and the player page show the status, the injury and the expected
     return.
 - **Engine version** (decision 8): the new fouls change the order of random draws, so
-  `SIM_VERSION` goes to 1.6. A coached game in progress on 1.5 is offered to be abandoned,
-  as today. Completed games keep their records; new games play on 1.6.
+  `SIM_VERSION` goes to 1.7 (game plans took 1.6). A coached game in progress on 1.6 is
+  offered to be abandoned, as today. Completed games keep their records; new games play
+  on 1.7.
+- **As built** (`app/sim/penalties.py`):
+  - Fourteen fouls. Pre-snap: false start, delay of game, offside and neutral-zone
+    infraction. Offense, on plays that gained ground (play wiped out, down replayed):
+    holding (10), illegal formation (5) and offensive pass interference (10), plus
+    intentional grounding on throwaways (10 and loss of down). Defense: defensive holding
+    and illegal contact on passes that gained less than 5 (5 and an automatic first down),
+    pass interference as before (spot), and the personal fouls roughing the passer,
+    unnecessary roughness and face mask (15 added to the end of a play that stands, with
+    an automatic first down, never on a score or turnover).
+  - The rate factor is `1 + (72 − awareness) × 0.03`, held to 0.4–2.0, from the players
+    who could commit the foul; the one who does is picked by the same weight.
+  - Measured over 300 games: 5.8 accepted flags and 48 yards a team a game.
+  - Questionable players' speed, acceleration, agility and strength drop 6 points for the
+    game (in the snapshot, so replays match). Each career injury adds 8% to a player's
+    odds, up to five (`players.injury_count`).
+  - Live fouls used to be charged to the wrong team in the box score; their events now
+    carry the penalized team's abbreviation, as pre-snap ones did.
 
 ## 7. Testing
 
@@ -169,7 +187,7 @@ kinds of penalties and injuries** that the players' ratings drive.
 - **Penalties and injuries:** each foul's yards, spot and automatic first down; rates
   falling with awareness; calibration targets (fouls and yards per game, injury rates by
   severity); questionable players' reduced ratings; season-ending IR; the injury report;
-  the 1.5 → 1.6 coached-game handling.
+  the 1.6 → 1.7 coached-game handling.
 
 ## 8. Decisions
 
@@ -197,8 +215,8 @@ Recommended option first.
    **keep the three**.
 7. **Injuries:** **questionable players at reduced ratings, season-ending injuries, and
    proneness** (recommended); or **keep them as they are**.
-8. **Coached games across the engine change:** **bump `SIM_VERSION` to 1.6 and offer to
-   abandon a 1.5 game in progress**, as today (recommended); or **keep the 1.5 engine
+8. **Coached games across the engine change:** **bump `SIM_VERSION` to 1.7 and offer to
+   abandon a 1.6 game in progress**, as today (recommended); or **keep the 1.5 engine
    around** to finish old games (more code to keep).
 
 ## 9. Delivery plan (separate PRs, each with tests)
@@ -210,5 +228,5 @@ Recommended option first.
 3. **Audibles:** the pre-snap look, audibles in Coach Mode's call screen, recorded and
    replayed.
 4. **Penalties and injuries:** the new fouls and injury statuses in the engine
-   (`SIM_VERSION` 1.6), calibration, play-by-play, banners, the injury report and player
+   (`SIM_VERSION` 1.7), calibration, play-by-play, banners, the injury report and player
    pages.

@@ -9,6 +9,7 @@ import random
 from dataclasses import dataclass, field
 
 from app.domain.positions import Position as P
+from app.sim import penalties
 from app.sim import resolve as rs
 from app.sim.injuries import injury_details, roll_injuries
 from app.sim.look import defensive_look, offensive_look
@@ -21,7 +22,7 @@ from app.sim.tuning import DEFAULT_TUNING, Tuning
 # 1.1: in-game injuries; 1.2: personnel and returners in play logs; 1.3: named plays;
 # 1.4: onside kicks and squibs, and kicking decisions by the coach (Coach Mode);
 # 1.5: timeouts and play seconds in play logs (broadcast graphics)
-SIM_VERSION = "1.6"
+SIM_VERSION = "1.7"
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 
@@ -84,6 +85,13 @@ def simulate_game(home: SimTeam, away: SimTeam, seed: int, *, playoff: bool = Fa
     """`playoff`: overtime continues until there's a winner. `neutral`: no home edge
     ("home" is just the designated side, e.g. the higher seed in a championship)."""
     return _Game(home, away, seed, playoff, coaches, tuning, neutral).run()
+
+
+def _front_and_backers(lineup: list) -> tuple[list, list]:
+    """A pre-snap lineup (rs.defense_lineup) split into the line and the linebackers:
+    four linemen, then the outside backers and the middle backer, then the secondary."""
+    secondary = sum(1 for p in lineup[4:] if p.position in ("CB", "FS", "SS"))
+    return lineup[:4], lineup[4:len(lineup) - secondary]
 
 
 class _Game:
@@ -383,18 +391,13 @@ class _Game:
         off = rs.offense_personnel(offense, rng)
         offense_ids = [p.id for p in off.all]
 
-        if rng.random() < t.false_start_rate:
+        lineup = rs.defense_lineup(defense, dcall)
+        foul = penalties.pre_snap(off, *_front_and_backers(lineup), rng, t)
+        if foul:
             # (No snap: the defense is its base lineup for the package, with no rotation.)
             self.personnel = {"offense": offense_ids, "package": dcall.package,
-                              "defense": [p.id for p in rs.defense_lineup(defense, dcall)]}
-            yards = min(5, s.ball_on // 2)
-            event = {"t": "penalty", "team": offense.abbreviation, "kind": "false_start",
-                     "yards": yards, "player": rng.choice(off.line).id}
-            s.ball_on -= yards
-            s.distance += yards
-            self.clock_running = False
-            self.record(side, call, dcall.describe(), {"type": "penalty"}, [event], clock_before,
-                        situation)
+                              "defense": [p.id for p in lineup]}
+            self.pre_snap_foul(side, call, dcall, foul, clock_before, situation)
             return
 
         deff = rs.defense_personnel(defense, dcall, rng)
@@ -406,30 +409,11 @@ class _Game:
         else:
             obvious = s.down >= 3 and s.distance >= 5
             outcome = rs.resolve_pass(call, dcall, off, deff, s.ball_on, edge, rng, t, obvious)
-        rs.maybe_holding(outcome, off, rng, t)
+        outcome.penalty = outcome.penalty or penalties.live(outcome, off, deff, s.ball_on, rng, t)
         self.injure(offense, defense, off.all, deff.all, outcome.events)
         self.tick(outcome.duration, during_play=True)
-
-        penalty = outcome.penalty
-        if penalty:
-            events = [*outcome.events, {"t": "penalty", "team": (
-                offense if penalty["team"] == "offense" else defense).abbreviation, **penalty}]
-            self.clock_running = False
-            if penalty["team"] == "offense":
-                yards = min(penalty["yards"], s.ball_on // 2)
-                events[-1]["yards"] = yards
-                s.ball_on -= yards
-                s.distance += yards
-                self.record(side, call, dcall.describe(), {"type": "penalty"}, events,
-                            clock_before, situation, wiped=True)
-            else:
-                s.ball_on += penalty["yards"]
-                self.record(side, call, dcall.describe(),
-                            {"type": "penalty", "first_down": True}, events, clock_before,
-                            situation)
-                if s.ball_on >= 100:
-                    s.ball_on = 99
-                s.first_down()
+        if outcome.penalty and self.enforce(side, call, dcall, outcome, clock_before,
+                                            situation):
             return
 
         result = {"type": outcome.kind, "yards": outcome.yards}
@@ -444,6 +428,82 @@ class _Game:
         stops = outcome.clock_stops or (outcome.out_of_bounds and late)
         self.advance(side, outcome.yards, call, dcall.describe(), result, outcome.events,
                      situation, clock_before, stops)
+
+    def pre_snap_foul(self, side: Side, call, dcall, foul: dict, clock_before: int,
+                      situation) -> None:
+        """A foul before the snap: yards back (offense) or forward (defense: a first down
+        only if it reaches the line to gain), half the distance to the goal at most."""
+        s = self.s
+        team = self.teams[side if foul["team"] == "offense" else s.defense]
+        event = {"t": "penalty", **foul, "team": team.abbreviation}
+        del event["effect"]
+        result: dict = {"type": "penalty"}
+        self.clock_running = False
+        if foul["team"] == "offense":
+            event["yards"] = min(foul["yards"], s.ball_on // 2)
+            s.ball_on -= event["yards"]
+            s.distance += event["yards"]
+        else:
+            event["yards"] = min(foul["yards"], (100 - s.ball_on) // 2)
+            if event["yards"] >= s.distance:
+                result["first_down"] = True
+        self.record(side, call, dcall.describe(), result, [event], clock_before, situation)
+        if foul["team"] == "defense":
+            s.ball_on += event["yards"]
+            if result.get("first_down"):
+                s.first_down()
+            else:
+                s.distance -= event["yards"]
+
+    def enforce(self, side: Side, call, dcall, outcome: rs.Outcome, clock_before: int,
+                situation) -> bool:
+        """Enforce a foul during the play (penalties.py). False: the play stands and the
+        caller carries on (no foul is left to enforce)."""
+        s = self.s
+        foul = outcome.penalty
+        team = self.teams[side if foul["team"] == "offense" else s.defense]
+        effect = foul.get("effect", "first")
+        penalty = {"t": "penalty", **{k: v for k, v in foul.items() if k != "effect"},
+                   "team": team.abbreviation}
+        if effect in ("first", "after"):
+            penalty["automatic_first"] = True
+        self.clock_running = False
+        if effect == "after":
+            # Personal foul: the play stands, 15 yards from where it ended, first down.
+            spot = s.ball_on + outcome.yards
+            penalty["yards"] = min(foul["yards"], (100 - spot) // 2)
+            result = {"type": outcome.kind, "yards": outcome.yards, "first_down": True}
+            if outcome.result:
+                result["result"] = outcome.result
+            self.record(side, call, dcall.describe(), result, [*outcome.events, penalty],
+                        clock_before, situation)
+            s.ball_on = min(99, spot + penalty["yards"])
+            s.first_down()
+            return True
+        events = [*outcome.events, penalty]
+        if foul["team"] == "offense":
+            penalty["yards"] = min(foul["yards"], s.ball_on // 2)
+            s.ball_on -= penalty["yards"]
+            s.distance += penalty["yards"]
+            lost_down = effect == "loss_of_down"
+            self.record(side, call, dcall.describe(),
+                        {"type": "penalty", **({"loss_of_down": True} if lost_down else {})},
+                        events, clock_before, situation, wiped=True)
+            if lost_down:
+                s.down += 1
+                if s.down > 4:
+                    self.plays[-1].result["turnover_on_downs"] = True
+                    self.give_ball(other(side), 100 - s.ball_on)
+            return True
+        if not foul.get("automatic_first"):  # (spot fouls carry their own yardage)
+            penalty["yards"] = min(foul["yards"], (100 - s.ball_on) // 2)
+        s.ball_on += penalty["yards"]
+        self.record(side, call, dcall.describe(), {"type": "penalty", "first_down": True},
+                    events, clock_before, situation)
+        if s.ball_on >= 100:
+            s.ball_on = 99
+        s.first_down()
+        return True
 
     def injure(self, offense: SimTeam, defense: SimTeam, off_players, def_players,
                  events: list[dict]) -> None:

@@ -113,9 +113,18 @@ class Tuning:
                    "two_man": -0.3, "cover1": -0.15},
     })
 
-    # Penalties
-    false_start_rate: float = 0.011
-    holding_rate: float = 0.022
+    # Penalties (sim/penalties.py): base chance per snap of each foul, for players of
+    # average awareness; each point of awareness below the center adds k (×0.4–×2.0).
+    penalty_rates: dict[str, float] = field(default_factory=lambda: {
+        "false_start": 0.017, "delay_of_game": 0.004,
+        "offside": 0.008, "neutral_zone_infraction": 0.005,
+        "holding": 0.034, "illegal_formation": 0.006, "offensive_pass_interference": 0.008,
+        "intentional_grounding": 0.12,  # of throwaways
+        "defensive_holding": 0.02, "illegal_contact": 0.008,
+        "roughing_the_passer": 0.004, "unnecessary_roughness": 0.005, "face_mask": 0.003,
+    })
+    penalty_awareness_center: float = 72.0
+    penalty_awareness_k: float = 0.03
     pass_interference_rate: float = 0.055  # of medium/deep incompletions
 
     # Kicking
@@ -139,6 +148,11 @@ class Tuning:
     # multiplier for players in contact (ball carriers, tacklers, sacked QBs).
     injury_rate: float = 0.001
     injury_contact_factor: float = 3.0
+    # Proneness: each earlier injury in a player's career adds this much (up to the cap).
+    injury_history_k: float = 0.08
+    injury_history_cap: int = 5
+    # A questionable player plays hurt: his physical ratings drop by this many points.
+    questionable_drop: int = 6
 
 
 DEFAULT_TUNING = Tuning()
