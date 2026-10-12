@@ -20,7 +20,13 @@ let build: Promise<UnityBuild | null> | null = null;
 /** The installed build, or null when there isn't one (the Unity renderer is then off). */
 export function unityBuild(): Promise<UnityBuild | null> {
   build ??= fetch(`${BASE}build.json`, { cache: "no-cache" })
-    .then(async (r) => (r.ok ? ((await r.json()) as UnityBuild) : null))
+    .then(async (r) => {
+      if (r.ok) return (await r.json()) as UnityBuild;
+      // Not installed: the app's 404 page streams, so drop it rather than leave the request
+      // open (it would keep the page from ever going network-idle).
+      await r.body?.cancel().catch(() => {});
+      return null;
+    })
     .catch(() => null);
   return build;
 }

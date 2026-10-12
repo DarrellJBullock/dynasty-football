@@ -24,8 +24,10 @@ describe("the Unity bridge", () => {
     expect(fetch).toHaveBeenCalledTimes(1); // asked once
 
     resetUnityBuild();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    const cancel = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, body: { cancel } }));
     expect(await unityBuild()).toBeNull();
+    expect(cancel).toHaveBeenCalled(); // the 404 page isn't left streaming
     resetUnityBuild();
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     expect(await unityBuild()).toBeNull();
