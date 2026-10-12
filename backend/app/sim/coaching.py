@@ -20,7 +20,7 @@ from app.sim.state import GameState, Side, other
 from app.sim.teams import SimTeam
 from app.sim.tuning import DEFAULT_TUNING
 
-Role = Literal["offense", "defense", "kickoff", "conversion"]
+Role = Literal["offense", "defense", "kickoff", "conversion", "audible"]
 CHOICES: dict[str, tuple[str, ...]] = {
     "kickoff": ("normal", "squib", "onside"),
     "conversion": ("kick", "two"),
@@ -38,6 +38,8 @@ class CoachCall:
     play: str
     package: Package | None = None
     timeout: bool = False
+    # At the line (with audibles in the plan): "keep", or the audible switched to.
+    audible: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -62,6 +64,12 @@ class Situation:
     timeouts: dict[str, int]
     suggestion: str  # the AI's call: an offensive play or defensive call key
     suggested_package: Package | None  # with the AI's personnel, on defense
+    # At the line (role "audible"): the call made, what the other side shows, and the
+    # audibles from the plan ("keep" snaps the call as made).
+    audible_for: Literal["offense", "defense"] | None = None
+    called: str | None = None
+    look: dict | None = None
+    audibles: tuple[str, ...] = ()
 
 
 class OutOfStep(Exception):  # noqa: N818
@@ -83,6 +91,7 @@ class ScriptedCoach:
         self.used = 0
         self.pending: CoachCall | None = None
         self.autopilot = autopilot
+        self.plans = dict(plans or {})
         self.ai = AICoach(plans)  # (its suggestions and autopilot follow the game plan)
 
     def huddle(self, state: GameState, role: Role, clock_running: bool, offense: SimTeam,
@@ -118,6 +127,24 @@ class ScriptedCoach:
 
     def snap_done(self) -> None:
         self.pending = None
+
+    def audible(self, state: GameState, role: str, team_side: str, look: dict) -> str | None:
+        """At the line, for the user's side of the snap: the audible recorded with the call,
+        or stop and ask (when the plan has audibles; otherwise the call stands)."""
+        if not self.pending or self.pending.role != role:
+            return None
+        plan = self.plans.get(team_side)
+        audibles = plan.audibles(role) if plan else ()
+        if not audibles:
+            return None
+        if self.pending.audible is not None:
+            return None if self.pending.audible == "keep" else self.pending.audible
+        raise NeedCall(Situation(
+            role="audible", quarter=state.quarter, clock=state.clock, clock_running=False,
+            possession=state.possession, down=state.down, distance=state.distance,
+            ball_on=state.ball_on, score=dict(state.score), timeouts=dict(state.timeouts),
+            suggestion="keep", suggested_package=None, audible_for=role,  # type: ignore[arg-type]
+            called=self.pending.play, look=look, audibles=audibles))
 
     def _decide(self, role: Role, state: GameState, suggestion: str) -> str:
         """A kicking decision, made between snaps."""
@@ -185,6 +212,14 @@ def replay(home: SimTeam, away: SimTeam, seed: int, side: Side, calls: list[Coac
 
 def check_call(call: CoachCall, situation: Situation) -> str | None:
     """Why `call` can't be made in `situation`, or None if it can."""
+    if situation.role == "audible":
+        if call.role != "audible":
+            return "You're at the line: keep the call or audible."
+        if call.play != "keep" and call.play not in situation.audibles:
+            return f"Audible to one of: {', '.join(situation.audibles)} (or keep the call)."
+        if call.package or call.timeout:
+            return "At the line it's only the play: no personnel or timeouts."
+        return None
     if call.role != situation.role:
         if situation.role in CHOICES:
             return f"This is a {situation.role} decision."

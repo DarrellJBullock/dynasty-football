@@ -117,6 +117,19 @@ kinds of penalties and injuries** that the players' ratings drive.
 - **Replays stay exact:** an audible is recorded as part of the call (`{play, audible}`),
   so a coached game still replays from its calls. Seeing the look draws from its own
   random stream, so it doesn't shift the game's other draws.
+- **Built** (`sim/look.py`, `engine.at_the_line`, Coach Mode's **At the line** step):
+  - Audibles (up to three a side) live in the game plan; with none, there's no step and
+    every call snaps as made, so games without audibles are unchanged (no engine bump).
+  - After the user's play call (and the AI's call for the other side), the game stops
+    with an `audible` situation: the call made, the look, and the audibles. The answer
+    ("keep" or an audible) goes onto that snap's call; "let the AI call" keeps.
+  - The defense's look shows its personnel (never hidden), its safeties (two deep, one,
+    none) and a blitz showing; it's disguised 5–35% of the time by the safeties' and
+    middle linebacker's awareness (12% at 70): the safeties rotate, and half the time a
+    blitz is faked or hidden. The offense's formation can't be disguised.
+  - A switched play is recorded as such (`audible_from` on the play record's call).
+  - A test shows keeping every call plays exactly the same game as having no
+    audibles.
 
 ## 6. Penalties and injuries
 

@@ -31,6 +31,7 @@ const plan: GamePlan = {
   team_id: team.id, custom: false,
   offense: ["four_verts", "inside_zone", "toss"], defense: ["cover1", "cover3", "fire_zone"],
   tendencies: { pass_rate: 0, blitz: 0 }, suggested: { pass_rate: 0, blitz: 1 },
+  offense_audibles: [], defense_audibles: [],
   offense_choices: ["four_verts", "inside_zone", "toss"], defense_choices: ["cover1", "cover3", "fire_zone"],
   tendency_labels: { pass_rate: "Run or pass", blitz: "Blitzing" },
   required: [{ side: "offense", label: "a deep pass", keys: ["four_verts"] },
@@ -72,7 +73,7 @@ describe("GamePlanEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save game plan" }));
     expect(mocked.saveGamePlan).toHaveBeenCalledWith(team.id, {
       offense: ["four_verts", "inside_zone"], defense: ["cover1", "cover3", "fire_zone"],
-      tendencies: { pass_rate: 2, blitz: 0 } });
+      tendencies: { pass_rate: 2, blitz: 0 }, offense_audibles: [], defense_audibles: [] });
     expect(await screen.findByRole("status")).toHaveTextContent("Game plan saved.");
     expect(screen.getByText("Your plan")).toBeInTheDocument();
 
@@ -80,6 +81,21 @@ describe("GamePlanEditor", () => {
     expect(mocked.resetGamePlan).toHaveBeenCalledWith(team.id);
     expect(await screen.findByRole("status")).toHaveTextContent("Back to the plan for your roster.");
     expect(screen.getByRole("checkbox", { name: /Toss/ })).toBeChecked();
+  });
+
+  it("picks audibles from the plan, and drops one whose play leaves it", async () => {
+    mocked.saveGamePlan.mockResolvedValue(plan);
+    render(<GamePlanEditor initial={plan} playbook={playbook} team={team} />);
+    const first = screen.getByRole("combobox", { name: "Offensive audible 1" });
+    expect(within(first).getAllByRole("option").map((o) => o.textContent))
+      .toEqual(["—", "Inside Zone", "Toss", "Four Verticals"]);
+    await userEvent.selectOptions(first, "toss");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Offensive audible 2" }), "inside_zone");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Defensive audible 1" }), "cover1");
+    await userEvent.click(screen.getByRole("checkbox", { name: /Toss/ })); // out of the plan
+    await userEvent.click(screen.getByRole("button", { name: "Save game plan" }));
+    expect(mocked.saveGamePlan).toHaveBeenCalledWith(team.id, expect.objectContaining({
+      offense_audibles: ["inside_zone"], defense_audibles: ["cover1"] }));
   });
 
   it("shows the server's reasons", async () => {

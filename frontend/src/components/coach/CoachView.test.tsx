@@ -124,6 +124,41 @@ describe("CoachView", () => {
     expect(mocked.coachCall).toHaveBeenCalledWith(7, { play: "slants", package: null, timeout: true });
   });
 
+  it("at the line, shows the defense's look and keeps the call or audibles", async () => {
+    const user = userEvent.setup();
+    const atTheLine = state({ situation: situation({
+      role: "audible", audible_for: "offense", suggestion: "keep", suggestion_name: "Keep the call",
+      called: { key: "smash", name: "Smash" },
+      look: { package: "nickel", safeties: "two_high", blitz: true },
+      audibles: [{ key: "slants", name: "Slants" }, { key: "smash", name: "Smash" }],
+    }) });
+    mocked.coachCall.mockResolvedValue(atTheLine); // (stays at the line, to try both buttons)
+    renderView(atTheLine);
+    const call = screen.getByRole("region", { name: "Your call" });
+    expect(within(call).getByRole("heading", { name: "At the line" })).toBeInTheDocument();
+    expect(within(call).getByTestId("look")).toHaveTextContent(
+      "The defense shows nickel personnel, two deep safeties, and a blitz.");
+    // Only the play changes here: no playbook, personnel or timeout.
+    expect(within(call).queryByRole("button", { name: "Call it" })).not.toBeInTheDocument();
+    expect(within(call).queryByRole("checkbox", { name: /timeout/ })).not.toBeInTheDocument();
+    const audibles = within(call).getByRole("group", { name: "Audibles" });
+    expect(within(audibles).queryByRole("button", { name: "Audible: Smash" })).not.toBeInTheDocument();
+    await user.click(within(audibles).getByRole("button", { name: "Audible: Slants" }));
+    expect(mocked.coachCall).toHaveBeenLastCalledWith(7, { play: "slants" });
+    await user.click(within(audibles).getByRole("button", { name: "Keep: Smash" }));
+    expect(mocked.coachCall).toHaveBeenLastCalledWith(7, { play: "keep" });
+  });
+
+  it("on defense at the line, shows the offense's formation", () => {
+    renderView(state({ situation: situation({
+      role: "audible", audible_for: "defense", suggestion: "keep", suggestion_name: "Keep the call",
+      called: { key: "cover3", name: "Cover 3" }, look: { formation: "Shotgun" },
+      audibles: [{ key: "cover0", name: "Cover 0" }],
+    }) }));
+    expect(screen.getByTestId("look")).toHaveTextContent("The offense lines up in Shotgun.");
+    expect(screen.getByRole("button", { name: "Audible: Cover 0" })).toBeInTheDocument();
+  });
+
   it("on defense, picks the personnel too", async () => {
     const user = userEvent.setup();
     mocked.coachCall.mockResolvedValue(state());

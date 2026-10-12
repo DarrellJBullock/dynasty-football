@@ -47,6 +47,8 @@ def plan_view(db: Session, team: Team) -> GamePlanOut:
         offense=sorted(plan.offense) if plan.offense is not None else OFFENSE_CHOICES,
         defense=sorted(plan.defense) if plan.defense is not None else DEFENSE_CHOICES,
         tendencies={name: plan.level(name) for name in TENDENCIES},
+        offense_audibles=list(plan.offense_audibles),
+        defense_audibles=list(plan.defense_audibles),
         suggested={name: advice.level(name) for name in TENDENCIES},
         offense_choices=OFFENSE_CHOICES, defense_choices=DEFENSE_CHOICES,
         tendency_labels=TENDENCIES,
@@ -60,7 +62,9 @@ def save(db: Session, team: Team, franchise_team_id: int | None, payload: GamePl
     if team.id != franchise_team_id:
         raise RosterError("Only your own team's game plan can be changed.", 403)
     plan = GamePlan(offense=frozenset(payload.offense), defense=frozenset(payload.defense),
-                    tendencies={k: v for k, v in payload.tendencies.items() if v})
+                    tendencies={k: v for k, v in payload.tendencies.items() if v},
+                    offense_audibles=tuple(payload.offense_audibles),
+                    defense_audibles=tuple(payload.defense_audibles))
     if errors := validate(plan):
         raise RosterError(" ".join(errors), 422)
     row = db.get(TeamGamePlan, team.id)
