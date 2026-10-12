@@ -43,8 +43,11 @@ namespace Dynasty.Tests
                     Assert.That(y, Is.EqualTo(expected[1]).Within(Tolerance), $"{at}: y");
                     Assert.That(TimelineSampler.FacingAt(player, t), Is.EqualTo(expected[2]).Within(Tolerance),
                                 $"{at}: facing");
-                    Assert.That(TimelineSampler.LieAt(player, t), Is.EqualTo(expected[3]).Within(Tolerance),
-                                $"{at}: lie");
+                    var angles = TimelineSampler.AnglesAt(player, t);
+                    Assert.That(angles.ToArray(), Is.EqualTo(expected.Skip(3).Take(13).ToArray()).Within(Tolerance),
+                                $"{at}: joint angles");
+                    Assert.That(new Build(player.HeightIn, player.WeightLb).HipHeight(angles),
+                                Is.EqualTo(expected[16]).Within(Tolerance), $"{at}: hip height");
                 }
                 var ball = TimelineSampler.BallAt(timeline, t, id => byId[id]);
                 var b = sample["ball"].Select(v => (double)v).ToArray();

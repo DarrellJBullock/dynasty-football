@@ -26,6 +26,18 @@ namespace Dynasty
             Directory.CreateDirectory(Resources);
             EnsureMaterial("Lit", "Standard");
             EnsureMaterial("Line", "Unlit/Color");
+            EnsureMaterial("Crowd", "Dynasty/VertexColorLit");
+            // The light towers' lamps glow: a material asset with emission on, so the
+            // Standard shader's emissive variant is kept in the build.
+            if (EnsureMaterial("Lamps", "Standard") is { } lamps)
+            {
+                lamps.color = new Color(0.97f, 0.98f, 0.99f);
+                lamps.EnableKeyword("_EMISSION");
+                lamps.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                lamps.SetColor("_EmissionColor", new Color(1f, 0.97f, 0.84f) * 1.4f);
+                EditorUtility.SetDirty(lamps);
+            }
+            // (Jersey numbers use the runtime's built-in font, which ships with its own shader.)
             if (!File.Exists(ScenePath))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
@@ -36,11 +48,15 @@ namespace Dynasty
             AssetDatabase.SaveAssets();
         }
 
-        static void EnsureMaterial(string name, string shader)
+        /// <summary>Creates the material if it's missing (returning it), else null.</summary>
+        static Material EnsureMaterial(string name, string shader)
         {
             string path = $"{Resources}/{name}.mat";
-            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return;
-            AssetDatabase.CreateAsset(new Material(Shader.Find(shader)), path);
+            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return null;
+            var found = Shader.Find(shader) ?? throw new InvalidOperationException($"No shader {shader}.");
+            var material = new Material(found);
+            AssetDatabase.CreateAsset(material, path);
+            return material;
         }
 
         public static void BuildWebGL()

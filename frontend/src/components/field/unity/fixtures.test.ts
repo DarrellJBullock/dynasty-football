@@ -15,6 +15,7 @@ import type { PlaybackPlay, PlayEvent } from "@/lib/types";
 import { makePlay, makePlayback, opponent, pid, team } from "@/test/fixtures";
 import { choreographGame } from "../playback/choreograph";
 import { anglesAt, ballAt, facingAt, handsAt, positionAt, type PlayTimeline } from "../playback/timeline";
+import { build as buildOf, hipHeight, type JointAngles } from "../players/poses";
 
 const FILE = path.resolve(__dirname, "../../../../../unity/Assets/Dynasty/Tests/Fixtures/timelines.json");
 const STEP = 0.25; // seconds between samples
@@ -43,16 +44,23 @@ const PLAYS: Record<string, PlaybackPlay> = {
 
 const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
+/** JointAngles in a fixed order (Poses.cs JointAngles.ToArray). */
+const ANGLES: (keyof JointAngles)[] = ["hipL", "hipR", "kneeL", "kneeR", "shoulderL", "shoulderR",
+  "elbowL", "elbowR", "spreadL", "spreadR", "torso", "crouch", "lie"];
+
 function samples(timeline: PlayTimeline) {
   const players = new Map(timeline.players.map((p) => [p.id, p]));
   const out = [];
   for (let t = 0; t <= timeline.duration + 1e-9; t += STEP) {
     out.push({
       t: round(t),
-      // Per player, in timeline order: x, y, facing, lie.
+      // Per player, in timeline order: x, y, facing, the 13 joint angles (ANGLES), and how
+      // high his hips sit.
       players: timeline.players.map((p) => {
         const { x, y } = positionAt(p.path, t);
-        return [x, y, facingAt(p, t), anglesAt(p, t).lie].map(round);
+        const angles = anglesAt(p, t);
+        return [x, y, facingAt(p, t), ...ANGLES.map((k) => angles[k]),
+                hipHeight(buildOf(p.heightIn, p.weightLb), angles)].map(round);
       }),
       ball: ballAt(timeline, t, (id, at) => handsAt(players.get(id)!, at)).map(round),
     });

@@ -1,6 +1,6 @@
-// One play on the field: a figure for each of the 22 players in his team's colors, the
-// ball and the flag, posed from the timeline at the playhead. The foundation's figures are
-// simple capsules; the animated athletes come in Milestone 9, part 4.
+// One play on the field: an athlete for each of the 22 players in his team's uniform, the
+// football and the penalty flag, posed from the timeline at the playhead (as the browser's
+// PlayScene.tsx does). Built under the stage's mirrored root, in scene coordinates.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,93 +9,78 @@ namespace Dynasty.Playback
 {
     public sealed class PlayView
     {
-        const float YardsPerInch = 1f / 36f;
-
         readonly Transform root;
-        readonly Material lit;
-        readonly List<(TimelinePlayer Player, Transform Figure)> figures = new();
+        readonly Font font;
+        readonly List<(TimelinePlayer Player, Athlete Athlete)> athletes = new();
         readonly Dictionary<int, TimelinePlayer> byId = new();
         Transform ball;
         Transform flag;
 
         public PlayTimeline Timeline { get; private set; }
 
-        public PlayView(Transform parent)
+        public PlayView(Transform scene)
         {
-            root = new GameObject("Play").transform;
-            root.SetParent(parent, false);
-            lit = new Material(Resources.Load<Material>("Lit"));
+            root = Parts.Group(scene, "Play");
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         }
 
-        public int FigureCount => figures.Count;
+        public int FigureCount => athletes.Count;
 
-        public void Load(PlayTimeline timeline, IReadOnlyDictionary<int, Color> teamColors)
+        public void Load(PlayTimeline timeline, IReadOnlyDictionary<int, Kit> kits)
         {
-            foreach (Transform child in root) Object.Destroy(child.gameObject);
-            figures.Clear();
+            for (int i = root.childCount - 1; i >= 0; i--) Parts.Remove(root.GetChild(i).gameObject);
+            athletes.Clear();
             byId.Clear();
             Timeline = timeline;
             foreach (var player in timeline.Players)
             {
                 byId[player.Id] = player;
-                var color = teamColors.TryGetValue(player.TeamId, out var c) ? c : Color.gray;
-                figures.Add((player, Figure(player, color)));
+                var kit = kits.TryGetValue(player.TeamId, out var k) ? k : Kit.Plain;
+                athletes.Add((player, new Athlete(root, player, kit, font)));
             }
-            ball = Shape(PrimitiveType.Sphere, "Ball", new Vector3(0.25f, 0.18f, 0.18f),
-                         new Color(0.45f, 0.24f, 0.1f));
-            flag = Shape(PrimitiveType.Cube, "Flag", new Vector3(0.4f, 0.02f, 0.4f), new Color(0.98f, 0.8f, 0.08f));
+            ball = Football();
+            flag = Parts.Group(root, "Flag");
+            Parts.Box(flag, "Cloth", Vector3.zero, new Vector3(0.4f, 0.02f, 0.4f), Parts.Lit(Parts.Hex("#facc15"), 0.8f));
             flag.gameObject.SetActive(false);
         }
 
-        Transform Shape(PrimitiveType type, string name, Vector3 scale, Color color)
+        Transform Football()
         {
-            var shape = GameObject.CreatePrimitive(type);
-            Object.Destroy(shape.GetComponent<Collider>());
-            shape.name = name;
-            shape.transform.SetParent(root, false);
-            shape.transform.localScale = scale;
-            var renderer = shape.GetComponent<Renderer>();
-            renderer.sharedMaterial = lit;
-            renderer.material.color = color;
-            return shape.transform;
-        }
-
-        Transform Figure(TimelinePlayer player, Color color)
-        {
-            float height = (float)player.HeightIn * YardsPerInch;
-            float bulk = Mathf.Clamp((float)player.WeightLb / 230f, 0.8f, 1.4f);
-            var figure = new GameObject($"{player.Side} {player.Role}").transform;
-            figure.SetParent(root, false);
-            // The body stands on the figure's origin; the figure turns to face and tips over to lie.
-            var body = Shape(PrimitiveType.Capsule, "Body", new Vector3(0.55f * bulk, height / 2, 0.45f * bulk), color);
-            body.SetParent(figure, false);
-            body.localPosition = new Vector3(0, height / 2, 0);
-            var nose = Shape(PrimitiveType.Cube, "Facing", new Vector3(0.12f, 0.12f, 0.3f), Color.white);
-            nose.SetParent(figure, false);
-            nose.localPosition = new Vector3(0, height * 0.85f, 0.25f * bulk);
-            return figure;
+            var football = Parts.Group(root, "Football");
+            var leather = Parts.Lit(Parts.Hex("#7a3e16"), 0.6f);
+            var body = Parts.Sphere(football, "Ball", Vector3.zero, 1, leather);
+            body.localScale = new Vector3(0.31f, 0.19f, 0.19f); // a prolate spheroid
+            Parts.Box(football, "Laces", new Vector3(0, 0.093f, 0), new Vector3(0.06f, 0.006f, 0.012f),
+                      Parts.Lit(Parts.Hex("#f8fafc"), 0.6f));
+            return football;
         }
 
         /// <summary>Everything as it is at <paramref name="t"/> seconds into the play.</summary>
         public void Show(double t)
         {
             if (Timeline == null) return;
-            foreach (var (player, figure) in figures)
+            foreach (var (player, athlete) in athletes)
             {
                 var (x, y) = TimelineSampler.PositionAt(player.Path, t);
-                figure.localPosition = Field.ToWorld(x, y);
-                double lie = TimelineSampler.LieAt(player, t);
-                figure.localRotation = Field.Facing(TimelineSampler.FacingAt(player, t))
-                                       * Quaternion.Euler((float)lie * 90f * 0.95f, 0, 0);
+                athlete.Pose(x, y, TimelineSampler.FacingAt(player, t), TimelineSampler.AnglesAt(player, t));
             }
-            ball.localPosition = Field.ToWorld(TimelineSampler.BallAt(Timeline, t, id => byId[id]));
+            var at = TimelineSampler.BallAt(Timeline, t, id => byId[id]);
+            ball.localPosition = Field.ToScene(at);
+            bool flying = Timeline.Ball.Exists(s => s.Kind == BallKind.Flight && t >= s.From && t < s.To);
+            ball.localRotation = Quaternion.Euler(flying ? Parts.Deg(t * 25) : 0, 0, 0);
+
             var thrown = Timeline.Flag;
-            flag.gameObject.SetActive(thrown != null && t >= thrown.T);
-            if (thrown != null && t >= thrown.T)
+            bool down = thrown != null && t >= thrown.T;
+            flag.gameObject.SetActive(down);
+            if (down)
             {
-                double k = System.Math.Min(1, (t - thrown.T) / 0.7);
-                flag.localPosition = Field.ToWorld(thrown.X, Mathf.Clamp((float)thrown.Y, 0, Field.Width),
-                                                   2.4 * (1 - k * k) + 0.02);
+                double since = t - thrown.T;
+                double k = System.Math.Min(1, since / 0.7);
+                var spot = Field.ToScene(thrown.X, Mathf.Clamp((float)thrown.Y, 0, Field.Width));
+                flag.localPosition = new Vector3(spot.x, (float)(2.4 * (1 - k * k) + 0.02), spot.z);
+                // (three.js's Euler order: X, then Y.)
+                flag.localRotation = Quaternion.Euler(Parts.Deg(System.Math.Sin(since * 9) * 0.6 * (1 - k)), 0, 0)
+                                     * Quaternion.Euler(0, Parts.Deg(since * 3 * (1 - k)), 0);
             }
         }
     }
