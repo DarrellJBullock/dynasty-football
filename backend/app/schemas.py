@@ -243,11 +243,12 @@ class SeasonOut(BaseModel):
 
 
 JobKind = Literal["sim_regular_season", "sim_playoffs", "advance_offseason",
-                  "finish_free_agency", "finish_draft"]
+                  "finish_free_agency", "finish_draft", "sim_seasons"]
 
 
 class JobRequest(BaseModel):
     kind: JobKind
+    seasons: int | None = Field(default=None, ge=1, le=10)  # sim_seasons: how many
 
 
 class JobOut(BaseModel):
@@ -257,6 +258,7 @@ class JobOut(BaseModel):
     id: int
     league_id: int
     kind: JobKind
+    params: dict | None = None  # e.g. {"seasons": 5}
     status: Literal["queued", "running", "done", "failed", "cancelled"]
     progress: int
     total: int
@@ -365,6 +367,9 @@ class GameDetail(BaseModel):
     scoring_plays: list[PlayOut]
     plays: list[PlayOut]
     injuries: list["GameInjury"] = []
+    # An older season's game whose play-by-play was trimmed to its scoring plays and
+    # injuries (services/compaction.py): `plays` holds only those.
+    log_compacted: bool = False
 
 
 class GameInjury(BaseModel):
@@ -1103,6 +1108,8 @@ class GamePlayback(BaseModel):
     approximate: bool  # some plays' lineups were rebuilt (the game predates SIM_VERSION 1.2)
     players: list[PlaybackPlayer]
     plays: list[PlaybackPlay]
+    # Play-by-play wasn't kept for this older game: nothing to watch (`plays` is empty).
+    log_compacted: bool = False
 
 
 # ---------- playbook ----------
@@ -1215,3 +1222,15 @@ class ResetRequest(BaseModel):
 class PasswordResetIn(BaseModel):
     token: str = Field(max_length=128)
     password: str = Field(max_length=128)
+
+
+class DynastySeason(BaseModel):
+    """One season of a Dynasty report: how it went, and the franchise's offseason after."""
+    season: SeasonHistory
+    offseason: OffseasonRecap | None  # (none yet for the latest season)
+
+
+class DynastyReport(BaseModel):
+    from_year: int
+    to_year: int
+    seasons: list[DynastySeason]  # oldest first

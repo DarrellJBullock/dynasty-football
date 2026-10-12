@@ -17,11 +17,12 @@ from app.schemas import (
 )
 
 # Jobs that stop between steps when asked (the others run as one step).
-CANCELLABLE_JOBS = {"sim_regular_season", "sim_playoffs", "finish_free_agency"}
+CANCELLABLE_JOBS = {"sim_regular_season", "sim_playoffs", "finish_free_agency", "sim_seasons"}
 
 
 def job_out(job: Job) -> JobOut:
-    return JobOut(id=job.id, league_id=job.league_id, kind=job.kind, status=job.status,
+    return JobOut(id=job.id, league_id=job.league_id, kind=job.kind, params=job.params,
+                  status=job.status,
                   progress=job.progress, total=job.total, label=job.label,
                   cancellable=job.kind in CANCELLABLE_JOBS,
                   cancel_requested=job.cancel_requested, result=job.result, error=job.error)

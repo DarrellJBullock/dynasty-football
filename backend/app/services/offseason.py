@@ -58,7 +58,7 @@ def _leave_team(db: Session, player: Player) -> None:
     player.team_id = None
 
 
-def advance(db: Session, season: Season) -> Season:
+def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
     """Run the offseason after `season` and create the next one, in free agency."""
     if season.phase != "offseason":
         raise RosterError("Finish the playoffs before starting the next season.")
@@ -125,7 +125,9 @@ def advance(db: Session, season: Season) -> Season:
     salary_cap = league.salary_cap
     # The franchise decides its own re-signings (services/contracts.py); whoever it
     # didn't re-sign leaves.
-    user_team = db.scalar(select(Franchise.team_id).where(Franchise.league_id == league.id))
+    # On autopilot (sim ahead) the franchise re-signs like an AI team.
+    user_team = None if autopilot else db.scalar(
+        select(Franchise.team_id).where(Franchise.league_id == league.id))
     db.flush()
     dead = cap.dead_money_totals(db, [t.id for t in teams], year)
     for team in teams:
@@ -173,7 +175,10 @@ def advance(db: Session, season: Season) -> Season:
     db.add(new_season)
     _schedule(db, new_season, [t.id for t in teams], rng, weeks)
     db.flush()
-    from app.services import free_agency  # (it builds on this module's helpers)
+    # 6. Older seasons keep full play-by-play only where it matters (compaction.py).
+    from app.services import compaction, free_agency  # (they build on this module)
+
+    compaction.compact_old_seasons(db, league.id, year)
 
     free_agency.open_market(db, new_season)
     return new_season
@@ -185,22 +190,41 @@ def _sign(player: Player, team: Team, year: int, salary: int, years: int) -> Non
     player.contracts.append(Contract.signed(team.id, year, years, salary))
 
 
-def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":
-    """What the offseason before `season` meant for one team (plus notable retirements)."""
+def recap(db: Session, season: Season, team_id: int, roster: "list[Player] | None" = None,
+          teams: "dict[int, Team] | None" = None) -> "OffseasonRecap | None":
+    """What the offseason before `season` meant for one team (plus notable retirements).
+    Pass the team's roster (with ratings and contracts) and the league's teams when
+    recapping several seasons."""
     from app.schemas import OffseasonRecap, RecapMove, RecapRetirement, RecapSigning
     from app.services.serializers import player_summary, team_summary
 
     log = season.offseason_log
     if not log:
         return None
+    # Load (with ratings and contracts) only the players the recap shows: this team's
+    # moves, its rookies, and the league's most notable retirements.
     ids = {e["player"] for key in ("retired", "departed", "re_signed", "signed")
-           for e in log[key]}
+           for e in log[key] if e["team"] == team_id}
     drafted = [e["player"] for e in log.get("drafted", []) if e["team"] == team_id]
-    ids |= set(log["rookies"]) | set(drafted) | {int(k) for k in log["development"]}
+    ids |= set(drafted) | set(db.scalars(select(Player.id).where(
+        Player.id.in_(log["rookies"]), Player.team_id == team_id)))
+    retired_overall = dict(db.execute(select(Player.id, Player.overall).where(
+        Player.id.in_([e["player"] for e in log["retired"]]))).all())
+    notable = sorted((e for e in log["retired"] if e["player"] in retired_overall),
+                     key=lambda e: (-retired_overall[e["player"]], e["player"]))[:RECAP_MOVERS]
+    ids |= {e["player"] for e in notable}
+    loading = (selectinload(Player.ratings), selectinload(Player.contracts))
     players = {p.id: p for p in db.scalars(
-        select(Player).where(Player.id.in_(ids))
-        .options(selectinload(Player.ratings), selectinload(Player.contracts)))}
-    teams = {t.id: t for t in db.scalars(select(Team).where(Team.league_id == season.league_id))}
+        select(Player).where(Player.id.in_(ids)).options(*loading))}
+    # Risers and decliners: of the whole league's rating changes, only this team's
+    # players matter, so load its roster rather than every player who changed.
+    if roster is None:
+        roster = list(db.scalars(select(Player).where(Player.team_id == team_id)
+                                 .options(*loading)))
+    players.update({p.id: p for p in roster if str(p.id) in log["development"]})
+    if teams is None:
+        teams = {t.id: t for t in db.scalars(select(Team).where(
+            Team.league_id == season.league_id))}
 
     def mine(key: str) -> list:
         return [players[e["player"]] for e in log[key] if e["team"] == team_id]
@@ -211,10 +235,9 @@ def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":
 
     changes = [(players[int(pid)], before, after)
                for pid, (before, after) in log["development"].items()
-               if players[int(pid)].team_id == team_id]
+               if int(pid) in players and players[int(pid)].team_id == team_id]
     risers = sorted((c for c in changes if c[2] > c[1]), key=lambda c: (c[1] - c[2], c[0].id))
     decliners = sorted((c for c in changes if c[2] < c[1]), key=lambda c: (c[2] - c[1], c[0].id))
-    notable = sorted(log["retired"], key=lambda e: (-players[e["player"]].overall, e["player"]))
 
     return OffseasonRecap(
         from_year=log["from_year"], year=season.year,
@@ -223,7 +246,7 @@ def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":
         re_signed=signings("re_signed"),
         signed=signings("signed"),
         rookies=[player_summary(players[pid]) for pid in [*drafted, *log["rookies"]]
-                 if players[pid].team_id == team_id],  # draft picks, then undrafted
+                 if pid in players and players[pid].team_id == team_id],  # picks, then UDFAs
         risers=[RecapMove(player=player_summary(p), before=b, after=a)
                 for p, b, a in risers[:RECAP_MOVERS]],
         decliners=[RecapMove(player=player_summary(p), before=b, after=a)
@@ -231,5 +254,5 @@ def recap(db: Session, season: Season, team_id: int) -> "OffseasonRecap | None":
         league_retirements=[
             RecapRetirement(player=player_summary(players[e["player"]]),
                             team=team_summary(teams[e["team"]]) if e["team"] else None)
-            for e in notable[:RECAP_MOVERS]],
+            for e in notable],
     )

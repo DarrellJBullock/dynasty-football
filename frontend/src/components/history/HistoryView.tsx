@@ -10,6 +10,11 @@ export function HistoryView({ history, team, league }: {
 }) {
   const [view, setView] = useState<"single_season" | "career">("single_season");
   const titles = history.seasons.filter((s) => s.champion?.id === team.id).length;
+  // The last ten finished seasons (a report covers up to ten).
+  const finished = history.seasons.filter((s) => s.complete).map((s) => s.year);
+  const report = finished.length
+    ? { from: Math.max(Math.min(...finished), Math.max(...finished) - 9), to: Math.max(...finished) }
+    : null;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -19,6 +24,14 @@ export function HistoryView({ history, team, league }: {
         <p className="mt-1 text-sm text-mist">
           {history.seasons.length} season{history.seasons.length === 1 ? "" : "s"} ·{" "}
           {titles} {team.nickname} championship{titles === 1 ? "" : "s"}
+          {report && (
+            <>
+              {" · "}
+              <Link href={`/dynasty?from=${report.from}&to=${report.to}`} className="text-gold hover:underline">
+                Dynasty report, {report.from}–{report.to} →
+              </Link>
+            </>
+          )}
         </p>
       </div>
 
@@ -59,7 +72,8 @@ export function HistoryView({ history, team, league }: {
   );
 }
 
-function SeasonCard({ season, team }: { season: SeasonHistory; team: TeamSummary }) {
+/** One season: its champion, awards, and how the franchise did. */
+export function SeasonCard({ season, team }: { season: SeasonHistory; team: TeamSummary }) {
   const record = season.franchise_record;
   const won = season.champion?.id === team.id;
   return (

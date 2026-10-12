@@ -10,6 +10,7 @@ import type {
   DraftOut,
   DraftResult,
   DraftUntil,
+  DynastyReport,
   FreeAgencyOut,
   FreeAgencyResult,
   FreeAgencyUntil,
@@ -217,7 +218,10 @@ export const api = {
   coachAuto: (gameId: number, scope: "play" | "drive" | "game") =>
     post<CoachState>(`/games/${gameId}/coach/auto`, { scope }),
   advance: (seasonId: number) => post<Season>(`/seasons/${seasonId}/advance`),
-  startJob: (leagueId: number, kind: JobKind) => post<Job>(`/leagues/${leagueId}/jobs`, { kind }),
+  startJob: (leagueId: number, kind: JobKind, seasons?: number) =>
+    post<Job>(`/leagues/${leagueId}/jobs`, seasons ? { kind, seasons } : { kind }),
+  dynastyReport: (leagueId: number, fromYear: number, toYear: number) =>
+    request<DynastyReport>(`/leagues/${leagueId}/dynasty?from_year=${fromYear}&to_year=${toYear}`),
   job: (jobId: number) => request<Job>(`/jobs/${jobId}`),
   cancelJob: (jobId: number) => request<Job>(`/jobs/${jobId}`, { method: "DELETE" }),
   playoffs: (leagueId: number) => request<PlayoffsOut>(`/leagues/${leagueId}/playoffs`),

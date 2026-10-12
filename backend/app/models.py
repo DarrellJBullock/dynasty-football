@@ -372,6 +372,10 @@ class Game(Base):
     # Mode). Lists of games (standings, schedules, history) never load it.
     play_log: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"),
                                                   deferred=True)
+    # Older seasons keep only the plays the box score page needs (scores, injuries, the
+    # last play) for games that weren't the franchise's or the playoffs' (services/
+    # compaction.py); Watch Mode can't play them.
+    log_compacted: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     season: Mapped[Season] = relationship(back_populates="games")
     home_team: Mapped[Team] = relationship(foreign_keys=[home_team_id])
@@ -602,6 +606,8 @@ class Job(Base):
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
                                            index=True)
     kind: Mapped[str] = mapped_column(String(32))  # see services/jobs.KINDS
+    params: Mapped[dict | None] = mapped_column(  # e.g. {"seasons": 5} for sim ahead
+        JSON().with_variant(JSONB(), "postgresql"))
     # queued | running | done | failed | cancelled
     status: Mapped[str] = mapped_column(String(12), default="queued", index=True)
     progress: Mapped[int] = mapped_column(Integer, default=0)  # steps done ...

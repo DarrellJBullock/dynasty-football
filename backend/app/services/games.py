@@ -95,4 +95,5 @@ def game_detail(db: Session, game: Game) -> GameDetail:
         players=players,
         scoring_plays=[p for p in plays if p.scoring],
         plays=plays,
+        log_compacted=game.log_compacted,
     )

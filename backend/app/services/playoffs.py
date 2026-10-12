@@ -58,6 +58,11 @@ def round_name(db: Session, season: Season, playoff_round: int) -> str:
     return names[playoff_round - 1] if playoff_round <= len(names) else f"Round {playoff_round}"
 
 
+def round_count(db: Session, season: Season) -> int:
+    """How many playoff rounds the league plays."""
+    return len(_round_names(db, season))
+
+
 def rounds_left(db: Session, season: Season) -> int:
     """Playoff rounds still to play (all of them before the playoffs start)."""
     played = {g.playoff_round for g in _playoff_games(db, season) if g.status == "final"}

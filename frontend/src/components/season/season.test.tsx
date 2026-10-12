@@ -193,6 +193,57 @@ describe("SimControls in free agency", () => {
   });
 });
 
+describe("Sim ahead", () => {
+  const ahead = (overrides: Partial<Job> = {}) => job({ kind: "sim_seasons", params: { seasons: 5 },
+    total: 140, label: "Simming ahead", ...overrides });
+
+  it("sims several seasons ahead and links to the Dynasty report", async () => {
+    mocked.startJob.mockResolvedValue(ahead({ status: "running", progress: 3,
+      label: "Season 1 of 5 · 2026 · Week 5 of 17" }));
+    mocked.job.mockResolvedValue(ahead({ status: "done", progress: 140,
+      result: { from_year: 2026, to_year: 2030, seasons: 5 } }));
+    render(<SimControls season={season} teamId={team.id} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Sim ahead…" }));
+    const form = screen.getByRole("group", { name: "Sim ahead" });
+    expect(form).toHaveTextContent("The AI runs your team through each offseason.");
+    await userEvent.selectOptions(within(form).getByLabelText("Seasons"), "5");
+    await userEvent.click(within(form).getByRole("button", { name: "Confirm: sim ahead 5 seasons" }));
+    expect(mocked.startJob).toHaveBeenCalledWith(1, "sim_seasons", 5);
+    expect(screen.getByText("Season 1 of 5 · 2026 · Week 5 of 17")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sim ahead…" })).not.toBeInTheDocument();
+
+    const link = await screen.findByRole("status", {}, POLL);
+    expect(link).toHaveTextContent("Simmed 5 seasons · Dynasty report, 2026–2030 →");
+    expect(link).toHaveAttribute("href", "/dynasty?from=2026&to=2030");
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("can start from free agency, and says where a stopped run got to", async () => {
+    const market = { ...season, phase: "free_agency", free_agency_day: 2 };
+    mocked.startJob.mockResolvedValue(ahead({ status: "running", params: { seasons: 2 } }));
+    mocked.job.mockResolvedValue(ahead({ status: "cancelled", progress: 9,
+      label: "Season 1 of 2 · 2026 · Week 5 of 17" }));
+    render(<SimControls season={market} teamId={team.id} />);
+    const controls = screen.getByRole("group", { name: "Free agency" });
+    await userEvent.click(within(controls).getByRole("button", { name: "Sim ahead…" }));
+    await userEvent.selectOptions(screen.getByLabelText("Seasons"), "2");
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: sim ahead 2 seasons" }));
+    expect(mocked.startJob).toHaveBeenCalledWith(1, "sim_seasons", 2);
+    expect(await screen.findByText("Stopped after Season 1 of 2 · 2026 · Week 5 of 17", {}, POLL))
+      .toBeInTheDocument();
+  });
+
+  it("shows why it failed", async () => {
+    mocked.startJob.mockResolvedValue(ahead({ status: "failed",
+      error: "Finish the game you're coaching (or let the AI finish it) before simulating the week." }));
+    render(<SimControls season={season} teamId={team.id} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sim ahead…" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm: sim ahead 3 seasons" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Finish the game you're coaching");
+  });
+});
+
 describe("SimControls during the draft", () => {
   const drafting = { ...season, id: 6, year: 2027, phase: "draft", current_week: 1 };
 
@@ -294,6 +345,14 @@ describe("GameView", () => {
     expect(screen.getByRole("list", { name: "Quarter 1" })).toHaveTextContent("HFD 1st&10");
     expect(screen.getByRole("list", { name: "Quarter 1" })).toHaveTextContent("Smash vs Cover 2");
     expect(screen.getByText("Quarter 2")).toBeInTheDocument();
+  });
+
+  it("explains an older game whose play-by-play was trimmed, with nothing to watch", () => {
+    render(<GameView detail={{ ...detail, log_compacted: true }} />);
+    const panel = screen.getByRole("region", { name: "Play-by-play" });
+    expect(panel).toHaveTextContent("This game keeps its scoring plays and injuries.");
+    expect(within(panel).queryByRole("link", { name: "Watch in 3D" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Line score" })).toBeInTheDocument();
   });
 
   it("links the game and each play to the 3D viewer", () => {

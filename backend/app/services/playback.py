@@ -54,6 +54,9 @@ def _approximate(offense: SimTeam, defense: SimTeam, play: dict) -> Personnel:
 
 
 def game_playback(db: Session, game: Game) -> GamePlayback:
+    if game.log_compacted:  # (only its scoring plays are left: nothing to watch)
+        return GamePlayback(game=game_out(game), sim_version=game.sim_version,
+                            approximate=False, players=[], plays=[], log_compacted=True)
     log = game.play_log or _live_plays(db, game)
     sides = {"home": game.home_team, "away": game.away_team}
     by_abbreviation = {t.abbreviation: t for t in sides.values()}

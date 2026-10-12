@@ -90,18 +90,28 @@ export function GameView({ detail }: { detail: GameDetail }) {
               </ul>
             </Panel>
           )}
-          <Panel title="Play-by-play" action={
-            <div className="flex gap-2">
-              <Link href={`/games/${game.id}/watch?highlights=1&auto=1`} className="btn btn-ghost px-3 py-1 text-xs">
-                Highlights
-              </Link>
-              <Link href={`/games/${game.id}/watch?auto=1`} className="btn btn-primary px-3 py-1 text-xs">
-                Watch in 3D
-              </Link>
-            </div>
-          }>
-            <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} />
-          </Panel>
+          {detail.log_compacted ? (
+            <Panel title="Play-by-play">
+              <p className="mb-3 text-sm text-mist">
+                Full play-by-play is kept for the last two seasons, and for your games and the
+                playoffs before that. This game keeps its scoring plays and injuries.
+              </p>
+              <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} />
+            </Panel>
+          ) : (
+            <Panel title="Play-by-play" action={
+              <div className="flex gap-2">
+                <Link href={`/games/${game.id}/watch?highlights=1&auto=1`} className="btn btn-ghost px-3 py-1 text-xs">
+                  Highlights
+                </Link>
+                <Link href={`/games/${game.id}/watch?auto=1`} className="btn btn-primary px-3 py-1 text-xs">
+                  Watch in 3D
+                </Link>
+              </div>
+            }>
+              <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} />
+            </Panel>
+          )}
         </>
       )}
     </div>

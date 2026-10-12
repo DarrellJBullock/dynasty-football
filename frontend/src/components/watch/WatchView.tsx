@@ -204,7 +204,11 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <Link href={`/games/${game.id}`} className="text-sm text-gold hover:underline">← Box score</Link>
-        <p className="panel p-6 text-center text-sm text-mist">This game has no plays to watch.</p>
+        <p className="panel p-6 text-center text-sm text-mist">
+          {playback.log_compacted
+            ? "Play-by-play isn't kept for this older game: only its scoring plays and injuries, on the box score."
+            : "This game has no plays to watch."}
+        </p>
       </div>
     );
   }
