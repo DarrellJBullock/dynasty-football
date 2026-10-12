@@ -21,6 +21,7 @@ test("sidebar reaches every page", async ({ page }) => {
   const pages: [string, RegExp | string][] = [
     ["Roster", "Hartford Ironclads"],
     ["Depth Chart", "Hartford Ironclads"],
+    ["Game Plan", "Game plan"],
     ["Contracts", "Contracts"],
     ["Free Agency", "Free Agency"],
     ["Draft", /^\d{4} Draft$/],

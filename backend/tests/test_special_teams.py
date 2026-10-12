@@ -78,11 +78,11 @@ class TestAIDecisions:
         assert AICoach.kickoff_call(GameState(quarter=1, clock=12), "home") == "normal"
 
     def test_conversions(self):
-        assert AICoach.conversion_call(GameState(quarter=4, clock=250,
+        assert AICoach().conversion_call(GameState(quarter=4, clock=250,
                                                  score={"home": 15, "away": 17}), "home") == "two"
-        assert AICoach.conversion_call(GameState(quarter=4, clock=250,
+        assert AICoach().conversion_call(GameState(quarter=4, clock=250,
                                                  score={"home": 16, "away": 17}), "home") == "kick"
-        assert AICoach.conversion_call(GameState(quarter=3, clock=250,
+        assert AICoach().conversion_call(GameState(quarter=3, clock=250,
                                                  score={"home": 15, "away": 17}), "home") == "kick"
 
 

@@ -20,7 +20,7 @@ from app.sim.tuning import DEFAULT_TUNING, Tuning
 # 1.1: in-game injuries; 1.2: personnel and returners in play logs; 1.3: named plays;
 # 1.4: onside kicks and squibs, and kicking decisions by the coach (Coach Mode);
 # 1.5: timeouts and play seconds in play logs (broadcast graphics)
-SIM_VERSION = "1.5"
+SIM_VERSION = "1.6"
 MAX_PLAYS = 400  # safety valve; real games have ~130-180 records
 
 
@@ -98,7 +98,7 @@ class _Game:
         for team in self.teams.values():
             team.start_game()
         self.injury_base: dict[int, float] = {}
-        ai = AICoach()
+        ai = AICoach({"home": home.plan, "away": away.plan})
         self.coaches: dict[Side, Coach] = coaches or {"home": ai, "away": ai}
         self.t = tuning
         self.s = GameState()

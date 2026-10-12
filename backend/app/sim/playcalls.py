@@ -5,10 +5,21 @@ human coach can answer instead of `AICoach`.
 """
 
 import random
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from app.domain.positions import Position
+from app.sim.gameplan import (
+    BLITZ_STEP,
+    DEEP_STEP,
+    MAN_STEP,
+    PASS_RATE_STEP,
+    PLAY_ACTION_STEP,
+    GamePlan,
+    pick,
+    scaled,
+)
 from app.sim.playbook import AI_DEFENSES, AI_PASSES, AI_RUNS, DEFENSE_BY_KEY, OFFENSE_BY_KEY
 from app.sim.state import GameState
 from app.sim.teams import SimTeam
@@ -74,10 +85,6 @@ def _other(side: str) -> str:
     return "away" if side == "home" else "home"
 
 
-def _weighted(options: list[tuple[str, float]], rng: random.Random) -> str:
-    return rng.choices([k for k, _ in options], [w for _, w in options])[0]
-
-
 class Coach(Protocol):
     def offense(self, state: GameState, offense: SimTeam, defense: SimTeam,
                 rng: random.Random) -> PlayCall: ...
@@ -108,7 +115,12 @@ def kicker_range(team: SimTeam) -> int:
 
 
 class AICoach:
-    """Situational play calling for both sides of the ball."""
+    """Situational play calling for both sides of the ball, within each team's game plan
+    (`gameplan.py`: its plays and calls, and its tendencies). Plans for the kickoff and
+    conversion decisions come in here, by side; play calls read each team's own."""
+
+    def __init__(self, plans: Mapping[str, GamePlan] | None = None):
+        self.plans = dict(plans or {})
 
     def offense(self, state: GameState, offense: SimTeam, defense: SimTeam,
                 rng: random.Random) -> PlayCall:
@@ -126,12 +138,17 @@ class AICoach:
     def defense(self, state: GameState, offense: SimTeam, defense: SimTeam,
                 rng: random.Random) -> DefenseCall:
         s = state
+        plan = defense.plan
         passing_down = (s.down >= 3 and s.distance >= 6) or self._hurry(s, defending=True)
         package = self.package(s)
-        blitz_rate = 0.30 if passing_down else 0.24 if s.distance <= 2 else 0.17
-        coverage: Coverage = "man" if rng.random() < 0.45 else "zone"
+        blitz_rate = scaled(0.30 if passing_down else 0.24 if s.distance <= 2 else 0.17,
+                            BLITZ_STEP, plan.level("blitz"))
+        man_rate = 0.45 + MAN_STEP * plan.level("man_coverage")
+        coverage: Coverage = "man" if rng.random() < man_rate else "zone"
         blitz = rng.random() < blitz_rate
-        return DefenseCall.named(_weighted(AI_DEFENSES[(coverage, blitz)], rng), package)
+        call = (pick(AI_DEFENSES[(coverage, blitz)], plan.defense, rng)
+                or pick(AI_DEFENSES[(coverage, False)], plan.defense, rng))
+        return DefenseCall.named(call, package)
 
     @classmethod
     def package(cls, s: GameState) -> Package:
@@ -162,12 +179,19 @@ class AICoach:
             return "squib"
         return "normal"
 
-    @staticmethod
-    def conversion_call(s: GameState, side: str) -> ConversionChoice:
-        """Go for two late when it ties the game or pulls within a field goal."""
+    def conversion_call(self, s: GameState, side: str) -> ConversionChoice:
+        """Go for two late when it ties the game or pulls within a field goal. A plan
+        that likes going for two also goes to win (down one) or to go up three, from the
+        start of the fourth quarter (or, at its most, the third); one that doesn't, never."""
         margin = s.score[side] - s.score[_other(side)]
-        late = s.quarter == 4 and s.game_seconds_left <= 300
-        return "two" if late and margin in (-2, -5) else "kick"
+        level = self.plans[side].level("two_point") if side in self.plans else 0
+        if level < 0:
+            return "kick"
+        if level == 0:
+            late = s.quarter == 4 and s.game_seconds_left <= 300
+            return "two" if late and margin in (-2, -5) else "kick"
+        late = s.quarter >= (3 if level >= 2 else 4)
+        return "two" if late and margin in (-2, -5, -1, 1) else "kick"
 
     # ---------- offense helpers ----------
 
@@ -199,9 +223,17 @@ class AICoach:
             if in_range and s.margin >= -3 and (s.game_seconds_left <= 120 or s.distance > 4):
                 return PlayCall.named("field_goal")
             return self._scrimmage(s, offense, rng)
-        go = ((s.distance <= 1 and s.ball_on >= 45)
-              or (s.distance <= 2 and 60 <= s.ball_on < 70)
-              or (s.distance <= 3 and s.ball_on >= 97))
+        level = offense.plan.level("fourth_down")
+        if level == 0:
+            go = ((s.distance <= 1 and s.ball_on >= 45)
+                  or (s.distance <= 2 and 60 <= s.ball_on < 70)
+                  or (s.distance <= 3 and s.ball_on >= 97))
+        elif level > 0:  # (one more yard, and from five yards further back, per level)
+            go = ((s.distance <= 1 + level and s.ball_on >= 45 - 5 * level)
+                  or (s.distance <= 2 + level and 60 <= s.ball_on < 70)
+                  or (s.distance <= 3 + level and s.ball_on >= 97 - 2 * level))
+        else:  # (only a yard or less, from deep in the other team's end)
+            go = s.distance <= 1 and s.ball_on >= (60 if level == -1 else 80)
         if go and not (in_range and s.distance > 1 and s.ball_on < 97):
             return self._scrimmage(s, offense, rng)
         if in_range and s.ball_on >= 55:
@@ -209,14 +241,18 @@ class AICoach:
         return PlayCall.named("punt")
 
     def _scrimmage(self, s: GameState, offense: SimTeam, rng: random.Random) -> PlayCall:
+        plan = offense.plan
         pass_prob = self._pass_probability(s, offense)
         if rng.random() < pass_prob:
-            depth = self._pass_depth(s, rng)
-            play_action = s.down <= 2 and rng.random() < 0.2
-            return PlayCall.named(_weighted(AI_PASSES[(depth, play_action)], rng))
+            depth = self._pass_depth(s, rng, plan.level("deep_shots"))
+            play_action = s.down <= 2 and rng.random() < scaled(
+                0.2, PLAY_ACTION_STEP, plan.level("play_action"))
+            # (a plan without this play-action concept runs the straight drop-back)
+            return PlayCall.named(pick(AI_PASSES[(depth, play_action)], plan.offense, rng)
+                                  or pick(AI_PASSES[(depth, False)], plan.offense, rng))
         short = s.distance <= 2 or s.ball_on >= 95
         inside = rng.random() < (0.75 if short else 0.58)
-        return PlayCall.named(_weighted(AI_RUNS["inside" if inside else "outside"], rng))
+        return PlayCall.named(pick(AI_RUNS["inside" if inside else "outside"], plan.offense, rng))
 
     def _pass_probability(self, s: GameState, offense: SimTeam) -> float:
         if s.down == 1:
@@ -234,10 +270,12 @@ class AICoach:
         if s.ball_on >= 97:
             p -= 0.15
         p += 0.04 * offense.pass_lean
+        if level := offense.plan.level("pass_rate"):
+            p += PASS_RATE_STEP * level
         return min(0.95, max(0.12, p))
 
     @staticmethod
-    def _pass_depth(s: GameState, rng: random.Random) -> PassDepth:
+    def _pass_depth(s: GameState, rng: random.Random, deep_level: int = 0) -> PassDepth:
         to_goal = 100 - s.ball_on
         if to_goal <= 10:
             options, weights = ("short", "medium", "screen"), (0.65, 0.25, 0.10)
@@ -249,4 +287,7 @@ class AICoach:
             options, weights = ("short", "medium", "deep", "screen"), (0.62, 0.22, 0.10, 0.06)
         else:
             options, weights = ("deep", "medium", "short", "screen"), (0.14, 0.34, 0.40, 0.12)
+        if deep_level and "deep" in options:
+            weights = tuple(scaled(w, DEEP_STEP, deep_level) if o == "deep" else w
+                            for o, w in zip(options, weights, strict=True))
         return rng.choices(options, weights)[0]

@@ -1234,3 +1234,28 @@ class DynastyReport(BaseModel):
     from_year: int
     to_year: int
     seasons: list[DynastySeason]  # oldest first
+
+
+class GamePlanIn(BaseModel):
+    offense: list[str] = Field(max_length=100)  # the plays in the plan
+    defense: list[str] = Field(max_length=100)  # the calls in the plan
+    tendencies: dict[str, int] = {}  # each -2..2 (missing: 0)
+
+
+class PlanRequirement(BaseModel):
+    side: Literal["offense", "defense"]
+    label: str  # "an inside run"
+    keys: list[str]  # any one of these keeps the plan valid
+
+
+class GamePlanOut(BaseModel):
+    team_id: int
+    custom: bool  # saved by the user (otherwise drawn from the roster)
+    offense: list[str]
+    defense: list[str]
+    tendencies: dict[str, int]
+    suggested: dict[str, int]  # the roster-based plan's tendencies
+    offense_choices: list[str]
+    defense_choices: list[str]
+    tendency_labels: dict[str, str]
+    required: list[PlanRequirement]

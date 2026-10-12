@@ -620,3 +620,16 @@ class Job(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TeamGamePlan(Base):
+    """A team's saved game plan (the franchise edits its own; teams without one play to a
+    plan drawn from their roster, `sim.gameplan.generated`)."""
+
+    __tablename__ = "game_plans"
+
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"),
+                                         primary_key=True)
+    plan: Mapped[dict] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now,
+                                                 onupdate=_now)

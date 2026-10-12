@@ -27,6 +27,7 @@ from app.models import (
     PlayoffSeed,
     Season,
     Team,
+    TeamGamePlan,
     TeamGameStats,
     Trade,
     User,
@@ -99,6 +100,7 @@ def delete_league(db: Session, league: League, user: User | None = None) -> None
     conference_ids = select(Conference.id).where(Conference.league_id == league.id)
     for stmt in (
         delete(DepthChartEntry).where(DepthChartEntry.team_id.in_(team_ids)),
+        delete(TeamGamePlan).where(TeamGamePlan.team_id.in_(team_ids)),
         delete(Contract).where(Contract.player_id.in_(player_ids)),
         delete(DeadMoney).where(DeadMoney.team_id.in_(team_ids)),
         delete(PlayerRatings).where(PlayerRatings.player_id.in_(player_ids)),

@@ -9,6 +9,7 @@ from app.api import (
     coach,
     depth_chart,
     franchise,
+    gameplans,
     history,
     jobs,
     leagues,
@@ -66,8 +67,8 @@ def create_app() -> FastAPI:
     # (api/locks.py).
     api.include_router(auth.router, dependencies=[Depends(same_site)])
     locked = [Depends(same_site), Depends(owned_league), Depends(league_unlocked)]
-    for module in (franchise, leagues, teams, depth_chart, roster_import, players, season,
-                   stats, trades, history, playbook, coach):
+    for module in (franchise, leagues, teams, depth_chart, gameplans, roster_import, players,
+                   season, stats, trades, history, playbook, coach):
         api.include_router(module.router, dependencies=locked)
     api.include_router(franchise.franchises_router, dependencies=locked)
     api.include_router(jobs.router, dependencies=[Depends(same_site), Depends(owned_league)])
