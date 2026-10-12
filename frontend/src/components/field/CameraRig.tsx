@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { cameraShot, type CameraPreset, type ShotName } from "./layout";
+import { usePrefersReducedMotion } from "@/lib/motion";
 
 const EASE = 3.5; // higher is snappier
 
@@ -28,15 +29,19 @@ export function CameraRig({ preset, focus, direction = 1, follow, direct }: {
   const goal = useRef(new Vector3());
   const lastShot = useRef<ShotName | null>(null);
 
+  // Less motion: no orbiting, and every move is a cut.
+  const still = usePrefersReducedMotion();
+
   useFrame((state, delta) => {
     const camera = state.camera;
+    const time = still ? 0 : state.clock.elapsedTime;
     const directed = direct?.();
     const shot = directed
-      ? cameraShot(directed.shot, directed.x, direction, state.clock.elapsedTime, directed.y)
-      : cameraShot(preset, follow ? follow() : focus, direction, state.clock.elapsedTime);
+      ? cameraShot(directed.shot, directed.x, direction, time, directed.y)
+      : cameraShot(preset, follow ? follow() : focus, direction, time);
     const aim = new Vector3(...shot.target);
     goal.current.set(...shot.position);
-    const cut = directed !== undefined && directed.shot !== lastShot.current;
+    const cut = still || (directed !== undefined && directed.shot !== lastShot.current);
     lastShot.current = directed?.shot ?? null;
     if (cut) {
       camera.position.copy(goal.current);

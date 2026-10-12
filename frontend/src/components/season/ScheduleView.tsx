@@ -90,13 +90,13 @@ function GameCard({ game, highlight, coachable }: { game: Game; highlight: boole
         </span>
         {final && (
           <Link href={`/games/${game.id}/watch?auto=1`} aria-label={`Watch ${matchup}`}
-            className="relative text-xs font-semibold text-gold hover:underline">
+            className="relative inline-flex min-h-6 items-center text-xs font-semibold text-gold hover:underline">
             Watch
           </Link>
         )}
         {coachable && (
           <Link href="/coach" aria-label={`Coach ${matchup}`}
-            className="relative text-xs font-semibold text-gold hover:underline">
+            className="relative inline-flex min-h-6 items-center text-xs font-semibold text-gold hover:underline">
             Coach
           </Link>
         )}

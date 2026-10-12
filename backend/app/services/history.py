@@ -9,7 +9,7 @@ from collections import defaultdict
 from dataclasses import fields
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.domain.awards import AWARDS, Candidate, choose, summary
 from app.models import Award, Game, League, Player, PlayerGameStats, PlayoffSeed, Season, Team
@@ -182,31 +182,43 @@ def history_view(db: Session, league: League) -> HistoryOut:
 
 
 def records(db: Session, league: League) -> list[RecordCategory]:
-    categories = []
-    for key, label, stat in RECORD_CATEGORIES:
-        column = func.sum(getattr(PlayerGameStats, stat))
-        single = db.execute(_regular(
-            select(PlayerGameStats.player_id, Season.year, column.label("value"),
-                   func.count(PlayerGameStats.id).label("games")), league.id)
-            .group_by(PlayerGameStats.player_id, Season.year)
-            .having(column > 0)
-            .order_by(column.desc(), Season.year, PlayerGameStats.player_id)
-            .limit(RECORDS_SHOWN)).all()
-        career = db.execute(_regular(
-            select(PlayerGameStats.player_id, column.label("value"),
-                   func.count(PlayerGameStats.id).label("games")), league.id)
-            .group_by(PlayerGameStats.player_id)
-            .having(column > 0)
-            .order_by(column.desc(), PlayerGameStats.player_id)
-            .limit(RECORDS_SHOWN)).all()
-        ids = {r.player_id for r in [*single, *career]}
-        players = {p.id: p for p in db.scalars(select(Player).where(Player.id.in_(ids)))}
-        categories.append(RecordCategory(
+    """Single-season and career leaders for each record category. One pass sums every
+    category by player and season (rather than two scans of the league's stat lines per
+    category); ties go to the earlier season, then the lower player id."""
+    stats = [stat for _, _, stat in RECORD_CATEGORIES]
+    rows = db.execute(_regular(
+        select(PlayerGameStats.player_id, Season.year,
+               func.count(PlayerGameStats.id).label("games"),
+               *[func.sum(getattr(PlayerGameStats, stat)).label(stat) for stat in stats]),
+        league.id).group_by(PlayerGameStats.player_id, Season.year)).mappings().all()
+    careers: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for row in rows:
+        totals = careers[row["player_id"]]
+        totals["games"] += row["games"]
+        for stat in stats:
+            totals[stat] += row[stat] or 0
+    tops = {}
+    for _, _, stat in RECORD_CATEGORIES:
+        single = sorted(((row[stat], row["year"], row["player_id"], row["games"])
+                         for row in rows if (row[stat] or 0) > 0),
+                        key=lambda r: (-r[0], r[1], r[2]))[:RECORDS_SHOWN]
+        career = sorted(((totals[stat], pid, totals["games"])
+                         for pid, totals in careers.items() if totals[stat] > 0),
+                        key=lambda r: (-r[0], r[1]))[:RECORDS_SHOWN]
+        tops[stat] = (single, career)
+    ids = {r[2] for single, _ in tops.values() for r in single} | {
+        r[1] for _, career in tops.values() for r in career}
+    players = {p.id: p for p in db.scalars(select(Player).where(Player.id.in_(ids))
+                                           .options(selectinload(Player.team)))}
+    return [
+        RecordCategory(
             key=key, label=label,
-            single_season=[_record_row(players[r.player_id], r.value, r.games, r.year)
-                           for r in single],
-            career=[_record_row(players[r.player_id], r.value, r.games, None) for r in career]))
-    return categories
+            single_season=[_record_row(players[pid], value, games, year)
+                           for value, year, pid, games in tops[stat][0]],
+            career=[_record_row(players[pid], value, games, None)
+                    for value, pid, games in tops[stat][1]])
+        for key, label, stat in RECORD_CATEGORIES
+    ]
 
 
 def _record_row(player: Player, value: int, games: int, year: int | None) -> RecordRow:

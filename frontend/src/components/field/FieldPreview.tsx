@@ -27,6 +27,7 @@ export default function FieldPreview({ homeColor, homeAccent, awayColor, awayAcc
       camera={{ position: start.position, fov: start.fov, far: 600 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
+      role="img"
       aria-label="3D field preview"
     >
       <CameraRig preset={camera} />

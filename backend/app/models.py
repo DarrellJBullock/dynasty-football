@@ -336,8 +336,9 @@ class Season(Base):
     # Free agency market day to play next (phase "free_agency" only).
     free_agency_day: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # What happened in the offseason before this season (see services/offseason.py).
+    # Deferred: read only when the offseason, the market or the draft works on it.
     offseason_log: Mapped[dict | None] = mapped_column(
-        JSON().with_variant(JSONB(), "postgresql"))
+        JSON().with_variant(JSONB(), "postgresql"), deferred=True)
 
     league: Mapped[League] = relationship(back_populates="seasons")
     champion: Mapped["Team | None"] = relationship(foreign_keys=[champion_team_id])
@@ -365,7 +366,10 @@ class Game(Base):
     # Simulation provenance: replaying `seed` with `sim_version` reproduces `play_log`.
     seed: Mapped[int | None] = mapped_column(BigInteger)
     sim_version: Mapped[str | None] = mapped_column(String(16))
-    play_log: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    # Deferred: tens of KB a game, read one game at a time (box score, playback, Coach
+    # Mode). Lists of games (standings, schedules, history) never load it.
+    play_log: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"),
+                                                  deferred=True)
 
     season: Mapped[Season] = relationship(back_populates="games")
     home_team: Mapped[Team] = relationship(foreign_keys=[home_team_id])

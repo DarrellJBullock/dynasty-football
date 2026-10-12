@@ -15,7 +15,7 @@ TEST_DB_NAME ?= dynasty_football_test
 E2E_DB_NAME ?= dynasty_football_e2e
 TEST_DATABASE_URL ?= postgresql+psycopg://localhost:5432/$(TEST_DB_NAME)
 
-.PHONY: help setup setup-backend setup-frontend db-start db-create migrate seed reseed worker \
+.PHONY: help setup setup-backend setup-frontend db-start db-create migrate seed reseed worker perf \
         dev-backend dev-frontend test test-backend test-backend-fast test-frontend lint build \
         e2e-setup e2e
 
@@ -46,6 +46,12 @@ migrate: ## Apply database migrations
 
 seed: ## Create the sample fictional league (only if the DB is empty)
 	cd $(BACKEND) && .venv/bin/python -m app.seed
+
+perf: ## Time every API read on a league with seasons played (its own database)
+	-$(PG)createdb dynasty_football_perf 2>/dev/null || true
+	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/dynasty_football_perf .venv/bin/alembic upgrade head
+	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/dynasty_football_perf .venv/bin/python -m app.perf build --seasons 3
+	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/dynasty_football_perf .venv/bin/python -m app.perf measure --budget-ms 300 --max-queries 80
 
 reseed: ## Wipe all game data and regenerate the sample league
 	cd $(BACKEND) && .venv/bin/python -m app.seed --reset

@@ -125,7 +125,9 @@ Each milestone ends with working software, green tests, and updated docs.
       from `main` and production after approval on Render, migrations first; readiness,
       JSON logs with request ids, Sentry, an uptime check; password reset by email) —
       runbook: `docs/deploy.md`
-- [ ] Performance & accessibility pass
+- [x] Performance & accessibility pass (every API read under 300 ms on three seasons, with
+      a CI ceiling; page LCP and layout shift budgets; WCAG 2.2 AA checked by axe on every
+      page; keyboard and reduced-motion support) — design: `docs/design/platform.md` §7–8
 
 ## Later
 

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { PlayTimeline } from "@/components/field/playback/timeline";
-import { luminance } from "@/components/field/players/kit";
+import { contrast } from "@/components/field/players/kit";
 import { bannerAt, bannersFor, downText, formatClock, gameClockAt, playClockAt, scoreAt,
          type BannerTone } from "@/lib/broadcast";
 import { formatSpot } from "@/lib/games";
@@ -112,10 +112,13 @@ export function BroadcastOverlay({ playback, index, timeline, time, replay = fal
   );
 }
 
+const INK = "#05070a"; // --color-ink-950
+
 function TeamCell({ team, score, timeouts, ball }: {
   team: TeamSummary; score: number; timeouts: number | undefined; ball: boolean;
 }) {
-  const light = luminance(team.primary_color) > 0.45;
+  // Dark text on light team colours, white on dark: whichever reads better.
+  const light = contrast(team.primary_color, INK) > contrast(team.primary_color, "#ffffff");
   return (
     <div className="flex items-center gap-2 px-2.5 py-1" style={{ backgroundColor: team.primary_color }}
       data-testid={`bug-${team.abbreviation}`}>
@@ -123,13 +126,13 @@ function TeamCell({ team, score, timeouts, ball }: {
         {team.abbreviation}
       </span>
       <span className={`flex w-3 justify-center text-[10px] ${light ? "text-ink-950" : "text-white"}`}
-        aria-label={ball ? "has the ball" : undefined}>
+        role={ball ? "img" : undefined} aria-label={ball ? "has the ball" : undefined}>
         {ball ? "●" : ""}
       </span>
       <div className="flex flex-col items-end">
         <span className={`stat-number text-lg ${light ? "text-ink-950" : "text-white"}`}>{score}</span>
         {timeouts != null && (
-          <span className="flex gap-0.5" aria-label={`${timeouts} timeouts`}>
+          <span className="flex gap-0.5" role="img" aria-label={`${timeouts} timeouts`}>
             {[0, 1, 2].map((i) => (
               <span key={i} className={`h-0.5 w-2 rounded ${i < timeouts ? (light ? "bg-ink-950" : "bg-white") : "bg-black/25"}`} />
             ))}

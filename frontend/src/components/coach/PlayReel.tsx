@@ -11,6 +11,7 @@ import { replayPlan } from "@/components/field/playback/replay";
 import { useInstantReplay } from "@/components/field/playback/useInstantReplay";
 import { callLabel } from "@/lib/games";
 import type { GamePlayback } from "@/lib/types";
+import { usePrefersReducedMotion } from "@/lib/motion";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
 const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"), {
@@ -44,7 +45,8 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
     shown.current = t;
     setTime(t);
   }, []);
-  const instant = useInstantReplay({ clock, plan, enabled: reel.length > 1, ended, playKey: index,
+  const reducedMotion = usePrefersReducedMotion(); // (no replays for less motion)
+  const instant = useInstantReplay({ clock, plan, enabled: reel.length > 1 && !reducedMotion, ended, playKey: index,
                                      duration: current?.timeline.duration ?? 0, onSeek });
   const { track, settled, cancel } = instant;
 

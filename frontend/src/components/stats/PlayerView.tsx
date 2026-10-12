@@ -50,15 +50,17 @@ export function PlayerView({ player, stats, career }: {
             <p className="text-sm text-mist">No stats yet this season.</p>
           ) : (
             groups.map((group) => (
-              <dl key={group.title} className="grid grid-cols-[6rem_repeat(5,minmax(0,1fr))] items-center gap-2 text-sm">
-                <dt className="eyebrow">{group.title}</dt>
-                {group.columns.map(([label, value]) => (
-                  <div key={label} className="text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-mist">{label}</div>
-                    <dd className="stat-number text-xl">{value(stats.totals)}</dd>
-                  </div>
-                ))}
-              </dl>
+              <div key={group.title} className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-sm">
+                <h3 className="eyebrow">{group.title}</h3>
+                <dl className="grid grid-cols-5 gap-2">
+                  {group.columns.map(([label, value]) => (
+                    <div key={label} className="text-center">
+                      <dt className="text-[10px] uppercase tracking-wider text-mist">{label}</dt>
+                      <dd className="stat-number text-xl">{value(stats.totals)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             ))
           )}
         </section>
