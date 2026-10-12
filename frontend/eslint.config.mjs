@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     ".next-e2e/**",
     "playwright-report/**",
     "test-results/**",
+    // The Unity viewer's WebGL build (make unity-build)
+    "public/unity/**",
   ]),
 ]);
 

@@ -283,6 +283,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Season stats | pytest | leaders equal summed box scores (and "long" columns are maxima), released players keep their last team, player totals equal the game log, team totals reconcile with standings and league-wide (yards gained = allowed, turnovers = takeaways) |
 | Playoffs | pytest | seed counts, pairing and reseeding, round names, each tiebreaker, division winners seeded first; full bracket to a neutral-site champion, offseason 409s, playoff games excluded from standings and stats, projected bracket, small one-conference leagues |
 | Offseason | pytest | growth/decline/retirement curves, contract lengths; rollover creates the next season and schedule, ages players, retires and refills (full rosters, under the cap, one active contract each), determinism, retired players leave free agency, dashboard recap, a full season → next season through the API, multi-year stability |
+| Unity viewer | Unity Test Framework + Vitest + Testing Library + Playwright | Unity's sampler against the browser's own samples of a run, a pass and a punt (shared fixtures, rewritten by a Vitest test that fails when they're stale); the page's messages and the coordinate mapping; the bridge (finding the build, starting, loading plays, frames, errors before ready); the camera's motion (cuts, easing, following, less motion); the Renderer switch (only with a build, remembered, falling back to Classic on an error and remembering that); Playwright loads Unity in Chromium, plays, steps to the next play, reloads into Unity and switches back (skipped without a build) |
 | Fatigue | pytest + Vitest + Testing Library | energy cost by position, play length and stamina; recovery on the sideline and at breaks (fresh players kept out of the table); tired players' physical ratings (cached copies) and injury odds; subs out below the line and back only above the sub-in line, in depth order, never QBs or linemen, thin depth playing on, stand-ins last; the Rotation tendency and generated plans leaning on depth; in games: starters most, backups rotating in, determinism, low-stamina lines wearing down, snap counts equal to the recorded personnel (not pre-snap fouls); Coach Mode's tired players; the game page's snap counts and shares, and the call screen's energy meters |
 | Penalties | pytest + Vitest | every foul named and rated; awareness scaling (bounded) and sloppier players drawing more flags; which plays allow which fouls (offensive fouls only on gains, defensive holding only short of its yards, no personal foul on a score, grounding only on throwaways, nothing on turnovers); enforcement: false start and holding back the offense (half the distance at most), offside forward (a first down only past the line to gain), defensive holding an automatic first down, a personal foul added to a play that stands, grounding costs the down; the box score charges the team that fouled; calibration (5–7 flags, 40–60 yards a team a game); the FLAG banner and 3D replay name the foul |
 | Injuries | pytest | earlier injuries raising the odds (capped), questionable players playing hurt (and snapshots keeping it), the career count, contact and toughness odds, injury table ranges, injured players sit for the rest of the game, play outcomes unchanged before the first injury, determinism, status mapping, weekly countdown (hand-set statuses untouched), lineups skip the injured, dashboard report, game-page list, manual healing, offseason healing |
@@ -363,6 +364,13 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
   with broadcast sideline, end zone and all-22 cameras, follow-ball, and scrubbing.
 - Later: per-player state machines from playbook assignments (M5), richer camera rigs and
   instant replay (M6).
+- **The Unity viewer** (M9, `unity/`, `docs/unity.md`): a second renderer for the Watch
+  page, picked with its Renderer switch when the WebGL build is installed
+  (`frontend/public/unity/`). The page keeps the choreographer, clock, director and camera
+  (`cameraFollow.ts`, shared with the three.js rig) and sends Unity each play's timeline
+  and each frame's time and camera; Unity samples the timeline itself (`TimelineSampler.cs`,
+  checked against fixtures the frontend writes). It falls back to the classic viewer if
+  Unity can't start.
 
 ### Deployment
 

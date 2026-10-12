@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# the Unity viewer's WebGL build (make unity-build, or CI)
+/public/unity/
+
 # next.js
 /.next/
 /out/

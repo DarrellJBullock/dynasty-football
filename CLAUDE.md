@@ -26,6 +26,7 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
   app/worker.py   background job worker (`python -m app.worker`; long sims, services/jobs.py)
   alembic/        migrations
   tests/          pytest
+unity/      Unity 6 project: the Unity viewer's WebGL renderer (C#; docs/unity.md)
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
   src/app/(app)/  the game (with the sidebar): / (dashboard), /roster, /depth-chart,
                   /schedule, /games/[id], /games/[id]/watch (3D), /games/[id]/coach and
@@ -52,6 +53,8 @@ make e2e              # Playwright: real browser, own DB and ports (8001/3001)
 make lint             # ruff + eslint + tsc
 make reseed           # wipe and regenerate the sample league
 make perf             # time every API read on a league with seasons played
+make unity-test       # Unity's edit-mode tests (needs Unity installed)
+make unity-build      # the Unity viewer's WebGL build into frontend/public/unity
 scripts/smoke-test-images.sh API_IMAGE WEB_IMAGE  # (CI) run the built images together
 ```
 
@@ -157,6 +160,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (healthy, not resting, as tired copies). In the engine, never pick on-field players with
   `team.at` directly; the in-game energy lives on the `SimTeam` and resets in
   `start_game`. Fatigue makes no random draws.
+- **The Unity viewer** (`docs/unity.md`) only draws: the page's choreographer, clock,
+  director and camera rig (`field/cameraFollow.ts`) drive it. `TimelineSampler.cs` ports
+  `timeline.ts`; after changing either (or the choreographer), rewrite the shared fixtures
+  (`UPDATE_UNITY_FIXTURES=1`) and run `make unity-test`. Its canvas needs an `id` (Unity's
+  runtime looks it up). Without a build in `frontend/public/unity/` the Renderer switch
+  disables Unity and `e2e/unity.spec.ts` skips.
 - **Penalties** (`app/sim/penalties.py`): a play whose result type is `"penalty"` was wiped
   out and counts only the foul in stats; a personal foul keeps the play's own type (the
   play stands) and adds a penalty event. Add a foul in `FOULS`, `NAMES`,

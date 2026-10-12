@@ -137,18 +137,32 @@ week an injured player is expected back.
   - Playwright loads the Unity renderer on the Watch page, waits for `Ready`, plays a
     play, and checks it reports the same playhead; and checks the fallback to Classic.
 
+### 4.3a As built (part 3, the foundation)
+
+- Unity 6000.6.5f1, Built-in render pipeline, packages trimmed to the test framework,
+  Newtonsoft JSON and the few modules used. The stage (field, end zones in the home
+  color, yard lines, the line of scrimmage and line to gain, light) and the play (capsule
+  figures in the uniforms' jersey colors with a facing marker, tipping over to lie; the
+  ball; the flag) are built in code; the only assets are two materials and an empty scene.
+- The page sends the camera itself (`cameraFollow.ts`, shared with the three.js rig), so
+  presets, following the ball, the director's cuts and replays look the same in both.
+- Build: Gzip with the loader's decompression fallback (no server headers needed), about
+  7.7 MB in all; `build.json` names the files. The web image now copies `public/`.
+- Tests: 7 edit-mode tests (the sampler against 3 shared fixtures, a run, a pass and a
+  punt; messages; coordinates), Vitest for the bridge, the camera and the Renderer switch,
+  and `e2e/unity.spec.ts` (loads, plays, next play, remembered, back to Classic) in
+  headless Chromium.
+
 ### 4.4 What you need to do
 
 I can't install Unity, create a Unity ID or accept its license for you. Before the Unity
 parts can be built and checked:
 
-1. Install **Unity Hub** and **Unity 6 LTS** with the **WebGL Build Support** module, and
-   sign in with a Unity ID (Unity Personal is free under its revenue limit).
-2. Add the license secrets for GameCI to the GitHub repository (I'll give the exact steps).
+1. ~~Install Unity Hub and Unity 6 with WebGL Build Support, and sign in~~ (done:
+   6000.6.5f1).
+2. Add the license secrets for GameCI to the GitHub repository (`docs/unity.md`); until
+   then CI skips the Unity job and the deployed site has no Unity renderer.
 3. Approve any paid assets, if you want better than the free ones.
-
-Until then I can write the C# and the bridge, but nothing proves it compiles or renders,
-so I'd hold those PRs.
 
 ## 5. Small follow-ups
 
