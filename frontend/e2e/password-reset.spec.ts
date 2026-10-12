@@ -3,11 +3,13 @@ import path from "node:path";
 import { EMAIL_OUTBOX, E2E_USER } from "./support/env";
 import { expect, test } from "./support/fixtures";
 
-/** The newest email's reset link. */
-function resetLink(): string {
-  const newest = fs.readdirSync(EMAIL_OUTBOX).filter((f) => f.endsWith(".eml")).sort().at(-1)!;
+/** The newest email's reset link, if one has arrived. */
+function resetLink(): string | undefined {
+  if (!fs.existsSync(EMAIL_OUTBOX)) return undefined;
+  const newest = fs.readdirSync(EMAIL_OUTBOX).filter((f) => f.endsWith(".eml")).sort().at(-1);
+  if (!newest) return undefined;
   const text = fs.readFileSync(path.join(EMAIL_OUTBOX, newest), "utf8");
-  return text.match(/http:\/\/localhost:\d+\/reset-password\?token=\S+/)![0];
+  return text.match(/http:\/\/localhost:\d+\/reset-password\?token=\S+/)?.[0];
 }
 
 test("resets a forgotten password with the emailed link", async ({ page }) => {
@@ -22,7 +24,9 @@ test("resets a forgotten password with the emailed link", async ({ page }) => {
   await forgot.getByRole("button", { name: "Email me a link" }).click();
   await expect(forgot.getByRole("status")).toContainText("a reset link is on its way");
 
-  await page.goto(resetLink());
+  // The email goes out just after the answer, as real mail arrives a little later.
+  await expect.poll(resetLink).toBeTruthy();
+  await page.goto(resetLink()!);
   const reset = page.getByRole("form", { name: "Choose a new password" });
   await reset.getByLabel("New password", { exact: true }).fill("a-brand-new-password");
   await reset.getByLabel("New password again").fill("a-brand-new-password");
