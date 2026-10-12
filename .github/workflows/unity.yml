@@ -1,0 +1,73 @@
+name: Unity
+
+# The Unity viewer (docs/unity.md): its edit-mode tests and the WebGL build, on a
+# self-hosted runner on the Mac that has Unity installed and signed in (Unity Personal),
+# so no Unity secrets are needed. Set up with scripts/setup-unity-runner.sh, which also
+# sets the repository variable UNITY_RUNNER=true; until then every run is skipped.
+#
+# The repository is public: a self-hosted runner must never run code from someone else's
+# fork, so this runs only for pushes to main, pull requests from this repository's own
+# branches, and runs started by hand. It's separate from CI, so a Mac that's off or asleep
+# never holds up CI; the deploy workflow ships the latest successful build from main.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: unity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unity:
+    name: Unity (tests and WebGL build, self-hosted)
+    if: >-
+      vars.UNITY_RUNNER == 'true' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, macOS, ARM64, unity]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          clean: false # (keep unity/Library between runs: incremental imports are fast)
+
+      - name: Tests (edit mode)
+        run: |
+          result=unity/Logs/test-results.xml
+          mkdir -p unity/Logs && rm -f "$result" # (never pass on an old run's results)
+          make unity-test > unity/Logs/unity-test.log 2>&1 || true
+          if [ ! -f "$result" ]; then
+            tail -40 unity/Logs/unity-test.log
+            echo "::error::Unity didn't produce test results (see the log above)."
+            exit 1
+          fi
+          summary=$(grep -oE 'total="[0-9]+" passed="[0-9]+" failed="[0-9]+"' "$result" | head -1)
+          echo "Unity tests: $summary"
+          echo "$summary" | grep -q 'failed="0"' || { echo "::error::Unity tests failed: $summary"; exit 1; }
+
+      - name: WebGL build
+        run: |
+          make unity-build > unity/Logs/unity-build.log 2>&1 || { tail -60 unity/Logs/unity-build.log; exit 1; }
+          grep -E "WebGL build:" unity/Logs/unity-build.log || true
+          test -f frontend/public/unity/build.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: unity-webgl
+          path: frontend/public/unity
+          retention-days: 90
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: unity-logs
+          path: |
+            unity/Logs/*.log
+            unity/Logs/test-results.xml
+          retention-days: 14
