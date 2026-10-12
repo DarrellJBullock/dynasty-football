@@ -1,0 +1,91 @@
+name: Deploy
+
+# After CI passes on main: build the images once, push them to GitHub's container
+# registry, deploy them to staging, and, after a reviewer approves the `production`
+# environment, deploy the same images to production. Setup: docs/deploy.md. Until the
+# Render secrets exist, the images are still pushed and the deploy steps say they're
+# skipped.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: # redeploy main by hand
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io/darrelljbullock
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  images:
+    name: Push images
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+      - name: Sign in to GitHub's container registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build and push the API image (API and worker)
+        run: |
+          docker build -t $REGISTRY/dynasty-football-api:$SHA -t $REGISTRY/dynasty-football-api:main \
+            --build-arg RELEASE=$SHA backend
+          docker push --all-tags $REGISTRY/dynasty-football-api
+      - name: Build and push the web image
+        run: |
+          docker build -t $REGISTRY/dynasty-football-web:$SHA -t $REGISTRY/dynasty-football-web:main \
+            --build-arg RELEASE=$SHA --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ vars.NEXT_PUBLIC_SENTRY_DSN }}" \
+            frontend
+          docker push --all-tags $REGISTRY/dynasty-football-web
+
+  staging:
+    name: Deploy to staging
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: staging
+      url: ${{ vars.SITE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+      - name: Deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: scripts/deploy-environment.sh "${{ vars.RENDER_API_SERVICE_ID }}" "${{ vars.RENDER_WORKER_SERVICE_ID }}" "${{ vars.RENDER_WEB_SERVICE_ID }}" "${{ vars.SITE_URL }}"
+
+  production:
+    name: Deploy to production
+    needs: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Required reviewers on the `production` environment make this wait for approval.
+    environment:
+      name: production
+      url: ${{ vars.SITE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+      - name: Tag the approved images `production`
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for name in dynasty-football-api dynasty-football-web; do
+            docker buildx imagetools create -t $REGISTRY/$name:production $REGISTRY/$name:$SHA
+          done
+      - name: Deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: scripts/deploy-environment.sh "${{ vars.RENDER_API_SERVICE_ID }}" "${{ vars.RENDER_WORKER_SERVICE_ID }}" "${{ vars.RENDER_WEB_SERVICE_ID }}" "${{ vars.SITE_URL }}"

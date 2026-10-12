@@ -39,6 +39,9 @@ No Homebrew Postgres? `docker compose up -d db` and set `DATABASE_URL` in `backe
 
 ## Docs
 
+Deploying and running it: [`docs/deploy.md`](docs/deploy.md).
+
+
 - [GAME_DESIGN.md](GAME_DESIGN.md) — game rules and vision
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system design, data model, API
 - [ROADMAP.md](ROADMAP.md) — milestones

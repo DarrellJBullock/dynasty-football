@@ -25,6 +25,7 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = accounts.user_for_token(db, token) if token else None
     if user is None:
         raise HTTPException(401, "Sign in to continue.")
+    request.state.user_id = user.id  # (for the request's log line)
     return user
 
 

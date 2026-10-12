@@ -136,14 +136,22 @@ accessibility pass** sets budgets and keeps them in CI.
 ## 5. Deployment
 
 - **Containers.** Dockerfiles for the API and worker (one image, two commands) and for the
-  web app (Next.js standalone output). CI builds them on every push to `main` and pushes
-  them to GitHub's container registry, tagged with the commit.
-- **Hosting:** the web app, the API and the worker run as services on one container
-  platform, with a managed Postgres, defined in a config file in the repo (§9, decision 7).
-  Same-origin `/api` makes the web app the only public service.
+  web app (Next.js standalone output). Every PR builds them and smoke-tests them together
+  against Postgres (`scripts/smoke-test-images.sh`); after CI passes on `main` they're
+  pushed to GitHub's container registry, tagged with the commit. The web app reads the
+  API's address at request time (`src/proxy.ts`, `API_URL` or `API_HOSTPORT`), so one
+  image serves every environment.
+- **Hosting:** **Render** (§9, decision 7): the web app (a web service), the API (a
+  private service) and the worker (a background worker) run the images, with a managed
+  Postgres, all defined in `render.yaml` as a project with `staging` and `production`
+  environments. Same-origin `/api` makes the web app the only public service.
 - **Environments:** **staging** deploys automatically from `main`. **Production** deploys
-  the same images after a manual approval in GitHub Actions. Each has its own database.
-- **Migrations** run as a release step (`alembic upgrade head`) before the new API starts.
+  the same images after a manual approval in GitHub Actions (required reviewers on the
+  `production` environment). Each has its own database. The Deploy workflow
+  (`.github/workflows/deploy.yml`) deploys through Render's API: the API, then the worker,
+  then the web app, then checks `/api/ready`.
+- **Migrations** run as a release step (Render's pre-deploy command, `alembic upgrade
+  head`) before the new API starts.
   Migrations stay backward compatible for one release, so the old and new versions can
   run side by side during a deploy.
 - **Secrets** (database URL, session secret, error-reporting and email keys) live in the
@@ -151,7 +159,13 @@ accessibility pass** sets budgets and keeps them in CI.
 - **Backups:** the managed database's daily backups plus point-in-time recovery, and a
   documented restore drill.
 - **Setting it up needs you.** I can write all the configuration, but creating the hosting
-  and error-reporting accounts, and connecting them to GitHub, is yours to do.
+  and error-reporting accounts, and connecting them to GitHub, is yours to do. The runbook
+  is `docs/deploy.md`.
+- **Password reset email:** "Forgot your password?" emails a one-time link, good for an
+  hour (`password_resets` keeps only its token's SHA-256), sent through any email
+  service's SMTP; the answer is the same whether or not the account exists, and an
+  address gets at most 5 an hour. Locally the email is logged; the e2e tests read it from
+  an outbox folder.
 
 ## 6. Monitoring
 
@@ -161,9 +175,11 @@ accessibility pass** sets budgets and keeps them in CI.
   and on into jobs, the route, the user id (never an email), status and duration.
 - **Error tracking** with Sentry on the API, the worker and the web app (server and
   browser), with releases tagged by commit. Personal data is scrubbed.
-- **Uptime:** an external check on the sign-in page and `/api/ready` every minute,
-  alerting by email.
-- **Job metrics** in the logs: queue wait, run time, failures by kind.
+- **Uptime:** a scheduled GitHub Actions workflow checks the sign-in page and
+  `/api/ready` of each environment every 10 minutes (the shortest schedule Actions keeps
+  reliably); GitHub emails when it fails. Sentry's uptime monitors can check every minute.
+- **Job metrics** in the logs: each job's queued, started and finished lines (kind,
+  status, progress, run time), the queued line carrying the request id that started it.
 
 ## 7. Performance
 

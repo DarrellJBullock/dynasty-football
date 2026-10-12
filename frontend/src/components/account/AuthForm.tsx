@@ -42,13 +42,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-6 flex items-center justify-center gap-3">
-        <Logo />
-        <div className="leading-none">
-          <div className="font-display text-lg font-bold uppercase tracking-wide">Dynasty</div>
-          <div className="eyebrow mt-0.5 text-[10px] text-gold">Football · Next Gen</div>
-        </div>
-      </div>
+      <Brand />
       <form onSubmit={submit} className="panel space-y-4 p-6"
         aria-label={signingUp ? "Create an account" : "Sign in"}>
         <h1 className="font-display text-2xl font-bold uppercase tracking-wide">
@@ -73,6 +67,11 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <button type="submit" className="btn btn-primary w-full justify-center" disabled={busy}>
           {busy ? (signingUp ? "Creating…" : "Signing in…") : signingUp ? "Create account" : "Sign in"}
         </button>
+        {!signingUp && (
+          <p className="text-center text-sm">
+            <Link className="text-mist hover:text-chalk" href="/forgot-password">Forgot your password?</Link>
+          </p>
+        )}
         <p className="text-center text-sm text-mist">
           {signingUp ? "Already have an account? " : "New here? "}
           <Link className="text-gold hover:underline" href={signingUp ? "/signin" : "/signup"}>
@@ -80,6 +79,19 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           </Link>
         </p>
       </form>
+    </div>
+  );
+}
+
+/** The logo and name above the sign-in forms. */
+export function Brand() {
+  return (
+    <div className="mb-6 flex items-center justify-center gap-3">
+      <Logo />
+      <div className="leading-none">
+        <div className="font-display text-lg font-bold uppercase tracking-wide">Dynasty</div>
+        <div className="eyebrow mt-0.5 text-[10px] text-gold">Football · Next Gen</div>
+      </div>
     </div>
   );
 }

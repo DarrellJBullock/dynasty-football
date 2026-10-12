@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -7,14 +7,23 @@ from app.api.errors import roster_errors
 from app.config import get_settings
 from app.db import get_db
 from app.models import League, User
-from app.schemas import AccountDeletion, Credentials, PasswordChange, UserOut
-from app.services import accounts
+from app.schemas import (
+    AccountDeletion,
+    Credentials,
+    PasswordChange,
+    PasswordResetIn,
+    ResetRequest,
+    UserOut,
+)
+from app.services import accounts, email
 
 router = APIRouter(prefix="/auth", tags=["accounts"])
 
 # Failed sign-ins: 10 per email and 50 per address in 15 minutes.
 by_email = accounts.RateLimiter(limit=10)
 by_address = accounts.RateLimiter(limit=50)
+# Reset emails: 5 per email address an hour.
+resets = accounts.RateLimiter(limit=5, window=3600)
 
 
 def user_out(db: Session, user: User) -> UserOut:
@@ -98,3 +107,34 @@ def delete_account(confirm: AccountDeletion, response: Response,
     with roster_errors(db):
         accounts.delete_account(db, user, confirm.password)
     response.delete_cookie(SESSION_COOKIE, path="/")
+
+
+@router.post("/forgot", status_code=202)
+def forgot_password(request: ResetRequest, background: BackgroundTasks,
+                    db: Session = Depends(get_db)) -> dict[str, str]:
+    """Email a one-time reset link (good for an hour) to the account's address. The
+    answer is the same whether or not the account exists."""
+    key = f"reset:{accounts.normalize_email(request.email)}"
+    answer = {"detail": "If there's an account for that email, a reset link is on its way."}
+    if resets.blocked(key):
+        return answer
+    resets.failed(key)
+    found = accounts.request_reset(db, request.email)
+    db.commit()
+    if found:
+        user, token = found
+        link = f"{get_settings().site_url.rstrip('/')}/reset-password?token={token}"
+        background.add_task(
+            email.send, user.email, "Reset your Dynasty Football password",
+            "Someone (hopefully you) asked to reset the password for this account.\n\n"
+            f"Choose a new password here (the link works once, for an hour):\n{link}\n\n"
+            "If it wasn't you, ignore this email: your password stays as it is.")
+    return answer
+
+
+@router.post("/reset", status_code=204)
+def reset_password(reset: PasswordResetIn, db: Session = Depends(get_db)):
+    """Set a new password with a reset link's token; the account is signed out
+    everywhere, and signs in again with the new password."""
+    with roster_errors(db):
+        accounts.reset_password(db, reset.token, reset.password)

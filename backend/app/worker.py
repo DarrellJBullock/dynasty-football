@@ -15,6 +15,7 @@ from contextlib import AbstractContextManager
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.observability import configure_logging, init_sentry
 from app.services import jobs
 
 log = logging.getLogger("app.worker")
@@ -31,12 +32,17 @@ def run_once(session: Sessions = SessionLocal) -> bool:
         job = jobs.claim(db)
         if job is None:
             return False
-        log.info("job %s (%s) started for league %s", job.id, job.kind, job.league_id)
+        fields = {"job_id": job.id, "kind": job.kind, "league_id": job.league_id}
+        log.info("job %s (%s) started for league %s", job.id, job.kind, job.league_id,
+                 extra=fields)
+        started = time.monotonic()
         try:
             jobs.run(db, job)
         except Exception:  # recorded on the job by run(); keep working
-            log.exception("job %s failed", job.id)
-        log.info("job %s %s", job.id, job.status)
+            log.exception("job %s failed", job.id, extra=fields)
+        log.info("job %s %s", job.id, job.status, extra={
+            **fields, "status": job.status, "progress": job.progress, "total": job.total,
+            "duration_ms": round((time.monotonic() - started) * 1000)})
         return True
 
 
@@ -65,7 +71,8 @@ def start_thread() -> threading.Event:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    configure_logging()
+    init_sentry("worker")
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: stop.set())

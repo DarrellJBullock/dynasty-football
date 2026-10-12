@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Credentials,
   Dashboard,
@@ -53,15 +54,13 @@ import type {
   User,
 } from "@/lib/types";
 
-const DEFAULT_API_URL = "http://localhost:8000";
-
 /**
  * Where requests go. The browser calls the web app's own `/api` (same origin, so the
- * session cookie goes along); Next.js proxies it to the game server (next.config.ts).
- * Server components call the game server directly at API_URL.
+ * session cookie goes along); src/proxy.ts passes it on to the game server.
+ * Server components call the game server directly (`gameServerUrl`).
  */
 export function apiBaseUrl(): string {
-  if (typeof window === "undefined") return process.env.API_URL ?? DEFAULT_API_URL;
+  if (typeof window === "undefined") return gameServerUrl();
   return "";
 }
 
@@ -130,6 +129,9 @@ export const api = {
   signIn: (credentials: Credentials) => post<User>("/auth/signin", credentials),
   signUp: (credentials: Credentials) => post<User>("/auth/signup", credentials),
   signOut: () => post<void>("/auth/signout"),
+  forgotPassword: (email: string) => post<{ detail: string }>("/auth/forgot", { email }),
+  resetPassword: (token: string, password: string) =>
+    post<void>("/auth/reset", { token, password }),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<void>("/auth/password", {
       method: "PUT",

@@ -167,3 +167,35 @@ jobs:
             frontend/playwright-report
             frontend/test-results
           retention-days: 14
+
+  images:
+    name: Container images (build and smoke test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dynasty
+          POSTGRES_PASSWORD: dynasty
+          POSTGRES_DB: dynasty_football
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dynasty"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the API image
+        run: docker build -t dynasty-api --build-arg RELEASE=${{ github.sha }} backend
+
+      - name: Build the web image
+        run: docker build -t dynasty-web --build-arg RELEASE=${{ github.sha }} frontend
+
+      - name: Smoke test (migrate, then the API, worker and web app as deployed)
+        run: scripts/smoke-test-images.sh dynasty-api dynasty-web
+        env:
+          DATABASE_URL: postgresql://dynasty:dynasty@localhost:5432/dynasty_football
