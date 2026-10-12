@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { API_PORT, API_URL, BACKEND_DIR, E2E_DATABASE_URL, E2E_PYTHON, WEB_PORT } from "./e2e/support/env";
+import { API_PORT, API_URL, BACKEND_DIR, E2E_DATABASE_URL, E2E_PYTHON, EMAIL_OUTBOX, WEB_PORT } from "./e2e/support/env";
 
 // End-to-end tests run the real app against a dedicated database on their own ports,
 // so they never touch your dev servers (3000/8000) or dev data.
@@ -32,6 +32,8 @@ export default defineConfig({
         DATABASE_URL: E2E_DATABASE_URL,
         ALLOWED_ORIGINS: JSON.stringify([`http://localhost:${WEB_PORT}`]),
         WORKER_EMBEDDED: "1", // background jobs run in a thread of the API
+        EMAIL_OUTBOX, // emails become files the tests read
+        SITE_URL: `http://localhost:${WEB_PORT}`,
       },
     },
     {

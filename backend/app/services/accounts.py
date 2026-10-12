@@ -16,10 +16,11 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import League, User, UserSession
+from app.models import League, PasswordReset, User, UserSession
 from app.services.errors import RosterError
 
 SESSION_DAYS = 30
+RESET_VALID = timedelta(hours=1)
 EXTEND_AFTER = timedelta(days=1)  # extend a session's expiry at most once a day
 MIN_PASSWORD, MAX_PASSWORD = 8, 128
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -131,6 +132,36 @@ def change_password(db: Session, user: User, current: str, new: str, keep_token:
                                          UserSession.token_hash != _token_hash(keep_token)))
 
 
+def request_reset(db: Session, email: str) -> tuple[User, str] | None:
+    """A one-time password reset link's token for the account with this email (None if
+    there's no such account; the caller answers the same either way)."""
+    user = db.scalar(select(User).where(User.email == normalize_email(email)))
+    if user is None:
+        return None
+    token = secrets.token_urlsafe(32)
+    db.add(PasswordReset(user_id=user.id, token_hash=_token_hash(token),
+                         expires_at=_now() + RESET_VALID))
+    db.flush()
+    return user, token
+
+
+def reset_password(db: Session, token: str, password: str) -> User:
+    """Set a new password with a reset link's token: good once, within the hour. Signs
+    the account out everywhere and spends its other links."""
+    reset = db.scalar(select(PasswordReset).where(PasswordReset.token_hash == _token_hash(token)))
+    if reset is None or reset.used_at is not None or _aware(reset.expires_at) <= _now():
+        raise AuthError("This reset link has expired or was already used. Ask for a new one.",
+                        400)
+    _check_password(password)
+    user = db.get(User, reset.user_id)
+    user.password_hash = _hasher.hash(password)
+    db.execute(update(PasswordReset).where(PasswordReset.user_id == user.id,
+                                           PasswordReset.used_at.is_(None))
+               .values(used_at=_now()))
+    db.execute(delete(UserSession).where(UserSession.user_id == user.id))
+    return user
+
+
 def set_password(db: Session, email: str, password: str) -> User:
     """Admin reset (`python -m app.accounts`): set a password and sign out everywhere."""
     user = db.scalar(select(User).where(User.email == normalize_email(email)))
@@ -151,6 +182,7 @@ def delete_account(db: Session, user: User, password: str) -> None:
     for league in db.scalars(select(League).where(League.user_id == user.id)).all():
         delete_league(db, league)
     db.execute(delete(UserSession).where(UserSession.user_id == user.id))
+    db.execute(delete(PasswordReset).where(PasswordReset.user_id == user.id))
     db.delete(user)
     db.flush()
 

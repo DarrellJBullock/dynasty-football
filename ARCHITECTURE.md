@@ -62,6 +62,7 @@ players.team_id NULL  = free agent
 |---|---|
 | `users` | email (unique, lower-case), password_hash (Argon2) |
 | `sessions` | user_id, token_hash (SHA-256 of the cookie's token; unique), expires_at (30 days, extended as it's used) |
+| `password_resets` | user_id, token_hash (SHA-256 of the emailed link's token; unique), expires_at (an hour), used_at |
 | `leagues` | user_id (owner; empty only for leagues from before accounts, which the first account takes over), name, abbreviation, salary_cap |
 | `conferences`, `divisions` | name (+ abbreviation) |
 | `teams` | city, nickname, abbreviation (unique per league), primary/secondary colour, stadium |
@@ -96,11 +97,14 @@ Design notes:
 | Method & path | Purpose |
 |---|---|
 | `GET /api/health` | Liveness (no sign-in needed) |
+| `GET /api/ready` | Readiness: the database answers and its schema is at this build's newest migration (503 otherwise) |
 | `POST /api/auth/signup` `{email, password}` | Create an account and sign in (sets the `df_session` cookie); the first account takes over leagues from before accounts |
 | `POST /api/auth/signin` / `POST /api/auth/signout` | Sign in (401 on a wrong email or password, 429 after repeated failures) / out |
 | `GET /api/auth/me` | The signed-in account (`has_league` sends a new one to the league builder) |
 | `PUT /api/auth/password` `{current_password, new_password}` | Change the password; other sessions are signed out |
 | `DELETE /api/auth/account` `{password}` | Delete the account and every league in it |
+| `POST /api/auth/forgot` `{email}` | Email a one-time reset link (202; the same answer for any address; 5 an hour per address) |
+| `POST /api/auth/reset` `{token, password}` | Set a new password with the link's token; signs the account out everywhere (400 for a used or expired link) |
 | `GET /api/franchise` | Active franchise (league, team, season) |
 | `GET /api/franchises` | Every franchise, most recently active first |
 | `POST /api/franchises/{id}/activate` | Make a franchise active |
@@ -280,6 +284,7 @@ Interactive docs: `http://localhost:8000/docs`.
 | Instant replay | Vitest + Testing Library | which plays get a replay (big runs from the reverse angle, passes from the skycam, ordinary plays none, kicks from the kick) and its stretch; on the Watch page the replay rolls after the play (angle, half speed, badge, the result held), straight-through play waits for it, then carries on; Skip replay and the setting; Coach Mode's reel replays in multi-play reels only |
 | Broadcast director | Vitest + Testing Library | shot lists for runs, short and deep passes, touchdowns, field goals and kicks; every shot held long enough (touchdowns cut at once); the shot at any moment; the new shots' framing (tight low and on the ball, wide high, reverse on the far side, skycam behind the offense either way); the Watch page defaults to Broadcast with the play's cues |
 | Broadcast graphics | pytest + Vitest + Testing Library | play logs record timeouts at the snap and each play's seconds; the running game clock (snap to whistle, old logs, never below zero), the pre-snap play clock, the score going up at the touchdown, down text, banners for every kind of moment and one at a time; the score bug's contents and timeouts, the clock running and the banner and points at the touchdown; the Watch page and Coach Mode reel carry it |
+| Deployment and monitoring | pytest + Vitest + Playwright + CI | readiness (unmigrated vs current schema), request ids (given or made), each request logged with its route template and user, JSON log lines, Sentry off without a DSN and its scrubbing, email to an outbox or the log, password reset (the emailed link works once, signs out everywhere, expires, the same answer for unknown addresses, a few an hour, removed with the account); the proxy (`/api` to `API_URL` or `API_HOSTPORT` with a request id, sign-in redirects, public pages); the forgot and reset forms; Playwright resets a password from the emailed link; CI builds both images and smoke-tests them together (migrate, API ready, web app up, sign up through the proxy, worker running) |
 | Accounts | pytest + Vitest + Testing Library + Playwright | sign up (normalized email, the cookie's flags, rules), sign in and out (the same answer for an unknown account), rate limiting and its window, the first account taking over leagues from before accounts, expired and extended sessions, only token hashes stored, changing the password signing out other browsers, deleting the account and its leagues, the admin reset, the seeded dev account; each account's own leagues and active franchise; **every route with an id answers 404 to another account** (walked from the OpenAPI schema), and the routes without ids are a known list; signed-out visitors get 401; the league limit; changes from other sites refused; the forms (sign in back to `?next=`, errors, sign up to the league builder, safe `next`), the account page and the sidebar menu; Playwright signs out, is sent to sign in, signs up a second account that can't open the first one's games, and signs back in to where it was headed |
 | Background jobs | pytest + Vitest + Testing Library + Playwright | every kind as a job (progress, labels, the same result as the synchronous endpoint), the season through the draft as jobs, a job that can't run fails with the reason, one job per league and the league lock (changes 409, reads fine, other leagues free), stopping between weeks and carrying on, one-step jobs finish once started, the worker's claim-and-run loop, dead workers' jobs failed, league deletion; the controls start jobs, show progress and Stop, report results and failures, and pick up a running job; Playwright sims the season in the background, leaves for the Dashboard and finds it running there |
 | Watch Mode | Vitest + Testing Library + Playwright | the highlight rule (scores, turnovers, 20-yard plays, missed kicks; not plays called back), stepping through just the highlights with the URL in step, opening straight into highlights playing through; Schedule cards with Watch (played) and Coach (the franchise's game this week) links; the box score's Highlights link; Playwright watches a game from the Schedule and steps through its highlights |
@@ -332,8 +337,15 @@ Design and calibration targets: [`docs/design/simulation-engine.md`](docs/design
 - Later: per-player state machines from playbook assignments (M5), richer camera rigs and
   instant replay (M6).
 
+### Deployment
+
+Docker images for the API (also the worker) and the web app (Next.js standalone), built
+and smoke-tested in CI, run on Render: a public web service, a private API, a worker and
+managed Postgres per environment (`render.yaml`), staging from `main` and production after
+approval (`.github/workflows/deploy.yml`). Logs are JSON lines with request ids
+(`app/observability.py`), errors go to Sentry, `/api/ready` gates deploys, and a scheduled
+workflow checks uptime. Runbook: [`docs/deploy.md`](docs/deploy.md).
+
 ### Later concerns
 
-League-wide export,
-stats tables (game_player_stats), records, deployment (containerised
-API + Postgres; Next.js on a Node host).
+League-wide export, stats tables (game_player_stats), records.

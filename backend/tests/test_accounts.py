@@ -206,7 +206,8 @@ class TestLeaguesBelongToTheirOwner:
         assert checked > 50
         # Routes without ids answer for the signed-in user only (or are the same for all).
         assert unscoped == {
-            "GET /api/health", "POST /api/auth/signup", "POST /api/auth/signin",
+            "GET /api/health", "GET /api/ready", "POST /api/auth/signup", "POST /api/auth/signin",
+            "POST /api/auth/forgot", "POST /api/auth/reset",
             "POST /api/auth/signout", "GET /api/auth/me", "PUT /api/auth/password",
             "DELETE /api/auth/account", "GET /api/franchise", "GET /api/franchise/dashboard",
             "GET /api/franchise/next-game", "GET /api/franchises", "GET /api/leagues",

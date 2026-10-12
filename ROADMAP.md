@@ -121,7 +121,10 @@ Each milestone ends with working software, green tests, and updated docs.
 - [x] Background workers for long sims (the rest of the season, the playoffs, the offseason,
       finishing free agency and the draft run as jobs with a progress bar and Stop; one per
       league, which waits meanwhile) — design: `docs/design/platform.md`
-- [ ] Deployment pipeline, monitoring
+- [x] Deployment pipeline, monitoring (Docker images built and smoke-tested in CI; staging
+      from `main` and production after approval on Render, migrations first; readiness,
+      JSON logs with request ids, Sentry, an uptime check; password reset by email) —
+      runbook: `docs/deploy.md`
 - [ ] Performance & accessibility pass
 
 ## Later

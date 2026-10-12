@@ -57,6 +57,20 @@ class UserSession(Base):
     user: Mapped[User] = relationship()
 
 
+class PasswordReset(Base):
+    """A password reset link sent by email: good once, for an hour. Only the SHA-256 of
+    its token is stored."""
+
+    __tablename__ = "password_resets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class League(Base):
     __tablename__ = "leagues"
 

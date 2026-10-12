@@ -1,0 +1,147 @@
+# Render Blueprint: staging and production, each with the web app (public), the API
+# (private), the job worker and a managed Postgres. Services run images CI builds and
+# pushes to GitHub's container registry; .github/workflows/deploy.yml deploys each
+# commit's images (staging on every push to main, production after approval).
+# Setting it up: docs/deploy.md. Values marked `sync: false` are entered in Render's
+# dashboard (secrets never live in this file).
+projects:
+  - name: dynasty-football
+    environments:
+      - name: staging
+        databases:
+          - name: dynasty-db-staging
+            plan: basic-256mb
+            postgresMajorVersion: "17"
+        services:
+          # The web app: the only public service. /api/* goes on to the API privately.
+          - type: web
+            name: dynasty-web-staging
+            runtime: image
+            image:
+              url: ghcr.io/darrelljbullock/dynasty-football-web:main
+              creds: { fromRegistryCreds: { name: ghcr } }
+            plan: starter
+            healthCheckPath: /signin
+            envVars:
+              - key: API_HOSTPORT
+                fromService: { type: pserv, name: dynasty-api-staging, property: hostport }
+              - key: SENTRY_DSN
+                sync: false
+              - key: SENTRY_ENVIRONMENT
+                value: staging
+          # The game server, on the private network only. New versions migrate first.
+          - type: pserv
+            name: dynasty-api-staging
+            runtime: image
+            image:
+              url: ghcr.io/darrelljbullock/dynasty-football-api:main
+              creds: { fromRegistryCreds: { name: ghcr } }
+            plan: starter
+            preDeployCommand: alembic upgrade head
+            envVars:
+              - key: DATABASE_URL
+                fromDatabase: { name: dynasty-db-staging, property: connectionString }
+              - key: ENVIRONMENT
+                value: staging
+              - key: SENTRY_DSN
+                sync: false
+              - key: COOKIE_SECURE
+                value: "true"
+              - key: SITE_URL          # e.g. https://dynasty.example (links in emails)
+                sync: false
+              - key: ALLOWED_ORIGINS   # JSON list, e.g. ["https://dynasty.example"]
+                sync: false
+              - key: SMTP_HOST
+                sync: false
+              - key: SMTP_USER
+                sync: false
+              - key: SMTP_PASSWORD
+                sync: false
+              - key: EMAIL_FROM
+                sync: false
+          # Background jobs (long sims).
+          - type: worker
+            name: dynasty-worker-staging
+            runtime: image
+            image:
+              url: ghcr.io/darrelljbullock/dynasty-football-api:main
+              creds: { fromRegistryCreds: { name: ghcr } }
+            plan: starter
+            dockerCommand: python -m app.worker
+            envVars:
+              - key: DATABASE_URL
+                fromDatabase: { name: dynasty-db-staging, property: connectionString }
+              - key: ENVIRONMENT
+                value: staging
+              - key: SENTRY_DSN
+                sync: false
+      - name: production
+        permissions:
+          protection: enabled
+        databases:
+          - name: dynasty-db-production
+            plan: basic-1gb
+            postgresMajorVersion: "17"
+        services:
+          # The web app: the only public service. /api/* goes on to the API privately.
+          - type: web
+            name: dynasty-web-production
+            runtime: image
+            image:
+              url: ghcr.io/darrelljbullock/dynasty-football-web:production
+              creds: { fromRegistryCreds: { name: ghcr } }
+            plan: starter
+            healthCheckPath: /signin
+            envVars:
+              - key: API_HOSTPORT
+                fromService: { type: pserv, name: dynasty-api-production, property: hostport }
+              - key: SENTRY_DSN
+                sync: false
+              - key: SENTRY_ENVIRONMENT
+                value: production
+          # The game server, on the private network only. New versions migrate first.
+          - type: pserv
+            name: dynasty-api-production
+            runtime: image
+            image:
+              url: ghcr.io/darrelljbullock/dynasty-football-api:production
+              creds: { fromRegistryCreds: { name: ghcr } }
+            plan: starter
+            preDeployCommand: alembic upgrade head
+            envVars:
+              - key: DATABASE_URL
+                fromDatabase: { name: dynasty-db-production, property: connectionString }
+              - key: ENVIRONMENT
+                value: production
+              - key: SENTRY_DSN
+                sync: false
+              - key: COOKIE_SECURE
+                value: "true"
+              - key: SITE_URL          # e.g. https://dynasty.example (links in emails)
+                sync: false
+              - key: ALLOWED_ORIGINS   # JSON list, e.g. ["https://dynasty.example"]
+                sync: false
+              - key: SMTP_HOST
+                sync: false
+              - key: SMTP_USER
+                sync: false
+              - key: SMTP_PASSWORD
+                sync: false
+              - key: EMAIL_FROM
+                sync: false
+          # Background jobs (long sims).
+          - type: worker
+            name: dynasty-worker-production
+            runtime: image
+            image:
+              url: ghcr.io/darrelljbullock/dynasty-football-api:production
+              creds: { fromRegistryCreds: { name: ghcr } }
+            plan: starter
+            dockerCommand: python -m app.worker
+            envVars:
+              - key: DATABASE_URL
+                fromDatabase: { name: dynasty-db-production, property: connectionString }
+              - key: ENVIRONMENT
+                value: production
+              - key: SENTRY_DSN
+                sync: false

@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 
 export const API_PORT = 8001;
@@ -10,3 +11,5 @@ export const E2E_DATABASE_URL =
 export const E2E_PYTHON = process.env.E2E_PYTHON ?? path.join(BACKEND_DIR, ".venv/bin/python");
 // The account the seeded league belongs to; every test starts signed in as it.
 export const E2E_USER = { email: "e2e@example.test", password: "e2e-test-password" };
+// The e2e API writes emails (password resets) here instead of sending them.
+export const EMAIL_OUTBOX = path.join(os.tmpdir(), "dynasty-e2e-outbox");

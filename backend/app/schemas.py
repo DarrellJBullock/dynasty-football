@@ -1200,3 +1200,12 @@ class PasswordChange(BaseModel):
 
 class AccountDeletion(BaseModel):
     password: str = Field(max_length=128)
+
+
+class ResetRequest(BaseModel):
+    email: str = Field(max_length=254)
+
+
+class PasswordResetIn(BaseModel):
+    token: str = Field(max_length=128)
+    password: str = Field(max_length=128)

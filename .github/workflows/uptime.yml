@@ -1,0 +1,35 @@
+name: Uptime
+
+# Every 10 minutes: is each deployed site answering, and its API ready? A failure shows
+# here and GitHub emails the repository's watchers about failed scheduled runs.
+# Set the repository variables STAGING_URL and PRODUCTION_URL (docs/deploy.md).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check ${{ matrix.site }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - site: staging
+            url: ${{ vars.STAGING_URL }}
+          - site: production
+            url: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Sign-in page and API readiness
+        env:
+          URL: ${{ matrix.url }}
+        run: |
+          if [ -z "$URL" ]; then echo "::notice::No URL set for ${{ matrix.site }} yet."; exit 0; fi
+          curl -fsS --retry 3 --retry-delay 10 --retry-all-errors -o /dev/null "$URL/signin"
+          curl -fsS --retry 3 --retry-delay 10 --retry-all-errors "$URL/api/ready"

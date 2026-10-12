@@ -51,6 +51,7 @@ make e2e-setup        # once: e2e database + Playwright Chromium
 make e2e              # Playwright: real browser, own DB and ports (8001/3001)
 make lint             # ruff + eslint + tsc
 make reseed           # wipe and regenerate the sample league
+scripts/smoke-test-images.sh API_IMAGE WEB_IMAGE  # (CI) run the built images together
 ```
 
 PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binaries).
@@ -125,10 +126,19 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   `game_id`, `franchise_id`, `job_id`) and answers 404 for someone else's. A new route
   keyed by another id needs a case there; `test_accounts.py` walks every route and fails
   otherwise. Routes without ids must scope their queries to the user themselves.
-- **The browser calls `/api` on the web app's own origin** (rewritten to the game server
-  in `next.config.ts`), so the session cookie goes along; server components call
-  `API_URL` and forward the visitor's cookie (`lib/api.ts`). Never call the game server's
-  URL from client code. A 401 in `attempt()` redirects to `/signin`.
+- **The browser calls `/api` on the web app's own origin**, which `src/proxy.ts` passes on
+  to the game server at request time (`lib/gameServer.ts`: `API_URL`, or `API_HOSTPORT`
+  on Render), so the session cookie goes along and one build serves every environment;
+  server components call it directly and forward the visitor's cookie (`lib/api.ts`).
+  Never call the game server's URL from client code, and don't put the API address in
+  `next.config.ts` (it's baked in at build time). A 401 in `attempt()` redirects to
+  `/signin`. New public pages go in `PUBLIC` in `proxy.ts`.
+- **Deployment** (`docs/deploy.md`): `render.yaml`, `backend/Dockerfile`,
+  `frontend/Dockerfile`, `.github/workflows/deploy.yml`. Migrations run before a new API
+  starts while the old one still serves, so keep each migration compatible with the
+  previous release. New settings go in `app/config.py` and, if deployed, `render.yaml`.
+- **Logging:** use `logging.getLogger("app.…")` with `extra={...}` for fields; never log
+  emails, passwords or tokens (Sentry events are scrubbed by `observability.scrub`).
 - **Tests sign in:** the backend's `client` fixture is signed in as the sample league's
   owner (`anonymous` isn't); every e2e test starts signed in as `E2E_USER`
   (`e2e/support/fixtures.ts`), which the reseed recreates.

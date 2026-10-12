@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,7 @@ from app.services import jobs as job_service
 from app.services.serializers import job_out
 
 router = APIRouter(tags=["jobs"])
+log = logging.getLogger("app.jobs")
 
 
 def jobs_inline() -> bool:
@@ -33,6 +36,9 @@ def start_job(request: JobRequest, league: League = Depends(get_league),
     progress; its `result` is what the matching synchronous endpoint would have returned."""
     with roster_errors(db):
         job = job_service.enqueue(db, league, request.kind)
+    # (with the request id, this ties the job's worker log lines back to who started it)
+    log.info("job %s (%s) queued for league %s", job.id, job.kind, league.id,
+             extra={"job_id": job.id, "kind": job.kind, "league_id": league.id})
     if inline:
         job_service.run(db, job_service.begin(db, job))
     return job_out(job)

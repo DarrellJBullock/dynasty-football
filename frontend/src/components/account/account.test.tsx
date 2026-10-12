@@ -6,6 +6,7 @@ import { hardNavigate } from "@/lib/navigation";
 import { AccountMenu } from "@/components/shell/AccountMenu";
 import { AccountView } from "./AccountView";
 import { AuthForm, safeNext } from "./AuthForm";
+import { ForgotPasswordForm, ResetPasswordForm } from "./PasswordReset";
 
 const search = { value: "" };
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(search.value) }));
@@ -13,7 +14,8 @@ vi.mock("@/lib/navigation", () => ({ hardNavigate: vi.fn() }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return { ...actual, api: { signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), me: vi.fn(),
-    changePassword: vi.fn(), deleteAccount: vi.fn() } };
+    changePassword: vi.fn(), deleteAccount: vi.fn(), forgotPassword: vi.fn(),
+    resetPassword: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 const user = { id: 1, email: "coach@example.test", has_league: true };
@@ -114,5 +116,48 @@ describe("AccountMenu", () => {
     await userEvent.click(within(menu).getByRole("button", { name: "Sign out" }));
     expect(mocked.signOut).toHaveBeenCalled();
     expect(hardNavigate).toHaveBeenCalledWith("/signin");
+  });
+});
+
+describe("Password reset", () => {
+  it("is linked from signing in", () => {
+    render(<AuthForm mode="signin" />);
+    expect(screen.getByRole("link", { name: "Forgot your password?" }))
+      .toHaveAttribute("href", "/forgot-password");
+  });
+
+  it("emails a link", async () => {
+    mocked.forgotPassword.mockResolvedValue({ detail: "If there's an account for that email, a reset link is on its way." });
+    render(<ForgotPasswordForm />);
+    await userEvent.type(screen.getByLabelText("Email"), "coach@example.test");
+    await userEvent.click(screen.getByRole("button", { name: "Email me a link" }));
+    expect(mocked.forgotPassword).toHaveBeenCalledWith("coach@example.test");
+    expect(await screen.findByRole("status")).toHaveTextContent("a reset link is on its way");
+  });
+
+  it("sets a new password with the link's token", async () => {
+    search.value = "token=abc123";
+    mocked.resetPassword.mockRejectedValueOnce(new ApiError(400, "This reset link has expired or was already used."))
+      .mockResolvedValueOnce(undefined);
+    render(<ResetPasswordForm />);
+    await userEvent.type(screen.getByLabelText("New password"), "new-password");
+    await userEvent.type(screen.getByLabelText("New password again"), "different");
+    await userEvent.click(screen.getByRole("button", { name: "Set new password" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("don't match");
+
+    await userEvent.clear(screen.getByLabelText("New password again"));
+    await userEvent.type(screen.getByLabelText("New password again"), "new-password");
+    await userEvent.click(screen.getByRole("button", { name: "Set new password" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("expired");
+    await userEvent.click(screen.getByRole("button", { name: "Set new password" }));
+    expect(mocked.resetPassword).toHaveBeenLastCalledWith("abc123", "new-password");
+    expect(await screen.findByRole("status")).toHaveTextContent("Your password is changed");
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
+  });
+
+  it("needs the link's token", () => {
+    render(<ResetPasswordForm />);
+    expect(screen.getByRole("button", { name: "Set new password" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Ask for one" })).toHaveAttribute("href", "/forgot-password");
   });
 });
