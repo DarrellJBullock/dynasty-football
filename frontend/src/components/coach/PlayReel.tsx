@@ -13,6 +13,8 @@ import { callLabel } from "@/lib/games";
 import type { GamePlayback } from "@/lib/types";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { RendererSwitch, UnityPlayScene, UnityProblem, useRenderer } from "@/components/field/unity/renderer";
+import { SoundControls } from "@/components/sound/SoundControls";
+import { useGameSound } from "@/lib/sound/useGameSound";
 
 // WebGL only exists in the browser, so the scene is never server-rendered.
 const PlayScene = dynamic(() => import("@/components/field/playback/PlayScene"), {
@@ -53,15 +55,19 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   const instant = useInstantReplay({ clock, plan, enabled: reel.length > 1 && !reducedMotion, ended, playKey: index,
                                      duration: current?.timeline.duration ?? 0, onSeek });
   const { track, settled, cancel } = instant;
+  const sound = useGameSound({ game: playback.game, play: current?.play, timeline: current?.timeline,
+                               replaying: instant.replaying });
+  const { onTime: soundTime } = sound;
 
   const onTick = useCallback((t: number, justEnded: boolean) => {
+    soundTime(t);
     if (justEnded) setEnded(true);
     if (justEnded || Math.abs(t - shown.current) >= 0.1) {
       shown.current = t;
       setTime(t);
     }
     track(t);
-  }, [track]);
+  }, [soundTime, track]);
 
   // On to the next play in the reel after a short pause (and any replay).
   useEffect(() => {
@@ -138,6 +144,7 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
           )}
           <UnityProblem problem={problem} />
         </div>
+        <SoundControls settings={sound.settings} onChange={sound.update} />
         <RendererSwitch renderer={renderer} installed={installed} onChange={setRenderer} />
         {done ? (
           <button type="button" className="btn btn-ghost px-3 py-1 text-xs" onClick={replay}>Replay</button>
