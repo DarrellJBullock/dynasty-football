@@ -321,7 +321,7 @@ runs in a rolled-back SAVEPOINT.
 End-to-end tests (`frontend/e2e/`, `make e2e`) start their own API (port 8001) and
 production Next.js build (port 3001, built into `.next-e2e/`) against the
 `dynasty_football_e2e` database, reseeding it before every test, so they never touch dev
-servers or dev data. CI runs them as a third job and uploads traces on failure.
+servers or dev data. CI runs them in their own job and uploads traces on failure.
 
 ## Future architecture (planned)
 

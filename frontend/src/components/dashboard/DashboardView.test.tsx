@@ -56,7 +56,8 @@ describe("DashboardView", () => {
     ] }} />);
     const items = within(panel()).getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("IR");
-    expect(items[0]).toHaveTextContent("High ankle sprain · Out 5 games");
+    // (the fixture's season is about to play week 1 of 17)
+    expect(items[0]).toHaveTextContent("High ankle sprain · Out 5 games · back week 6");
     expect(items[1]).toHaveTextContent("Back spasms · Questionable, playing hurt");
   });
 

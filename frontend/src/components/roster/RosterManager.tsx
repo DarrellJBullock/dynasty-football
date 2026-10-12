@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, type InjurySeason } from "@/lib/format";
 import {
   DEFAULT_SORT,
   filterRoster,
@@ -44,11 +44,14 @@ export function RosterManager({
   leagueId,
   seasonYear,
   capYear = seasonYear,
+  season,
 }: {
   initialTeam: TeamDetail;
   initialRoster: PlayerSummary[];
   leagueId: number;
   seasonYear: number;
+  /** For injured players' return weeks. */
+  season?: InjurySeason;
   capYear?: number; // the cap a release counts against
 }) {
   const [team, setTeam] = useState(initialTeam);
@@ -226,6 +229,7 @@ export function RosterManager({
         <PlayerPanel
           playerId={selectedId}
           seasonYear={seasonYear}
+          season={season}
           capYear={capYear}
           onClose={closePanel}
           onUpdated={handleUpdated}

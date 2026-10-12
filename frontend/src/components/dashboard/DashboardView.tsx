@@ -4,7 +4,7 @@ import { SimControls } from "@/components/season/SimControls";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
-import { formatMoney, formatPhase, formatRecord, injuryDetail, injuryLabel, ratingTier, TIER_BAR } from "@/lib/format";
+import { formatMoney, formatPhase, formatRecord, injuryDetail, injuryLabel, type InjurySeason, ratingTier, TIER_BAR } from "@/lib/format";
 import { gameLabel, OUTCOME_STYLES, resultFor } from "@/lib/games";
 import { OffseasonRecap } from "./OffseasonRecap";
 import type { Alert, Dashboard, Game, PlayerSummary, PositionGroupSummary, TeamSummary } from "@/lib/types";
@@ -84,7 +84,7 @@ export function DashboardView({ data }: { data: Dashboard }) {
             <Alerts alerts={data.alerts} />
           </Panel>
           <Panel title="Injury report">
-            <InjuryReport players={data.injury_report ?? []} />
+            <InjuryReport players={data.injury_report ?? []} season={data.franchise.season} />
           </Panel>
         </div>
       </div>
@@ -371,7 +371,7 @@ function Alerts({ alerts }: { alerts: Alert[] }) {
   );
 }
 
-function InjuryReport({ players }: { players: PlayerSummary[] }) {
+function InjuryReport({ players, season }: { players: PlayerSummary[]; season: InjurySeason }) {
   if (!players.length) return <p className="text-sm text-mist">Everyone is healthy.</p>;
   return (
     <ul className="space-y-2" aria-label="Injured players">
@@ -385,7 +385,7 @@ function InjuryReport({ players }: { players: PlayerSummary[] }) {
               <span className="mr-1.5 text-xs text-mist">{player.position}</span>
               {player.full_name}
             </Link>
-            <div className="truncate text-xs text-mist">{injuryDetail(player)}</div>
+            <div className="truncate text-xs text-mist">{injuryDetail(player, season)}</div>
           </div>
           <OvrBadge value={player.overall} />
         </li>
