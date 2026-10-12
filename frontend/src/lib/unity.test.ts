@@ -1,6 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { PlayTimeline } from "@/components/field/playback/timeline";
-import { frameMessage, resetUnityBuild, startUnity, unityBuild, type UnityBuild } from "./unity";
+import {
+  frameMessage, leaseUnity, resetUnityBuild, resetUnitySession, startUnity, unityBuild, type UnityBuild,
+} from "./unity";
 
 const FILES: UnityBuild = { loader: "Build/unity.loader.js", data: "Build/unity.data.unityweb",
   framework: "Build/unity.framework.js.unityweb", code: "Build/unity.wasm.unityweb" };
@@ -78,5 +80,89 @@ describe("the Unity bridge", () => {
     });
     await expect(startUnity(document.createElement("canvas"), FILES, vi.fn())).rejects.toThrow("No WebGL 2.");
     expect(instance.Quit).toHaveBeenCalled();
+  });
+});
+
+describe("one Unity for the page", () => {
+  let instance: { SendMessage: Mock<(object: string, method: string, value?: string) => void>;
+                  Quit: Mock<() => Promise<void>> };
+  beforeEach(() => {
+    resetUnitySession();
+    instance = { SendMessage: vi.fn<(object: string, method: string, value?: string) => void>(),
+                 Quit: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) };
+    window.createUnityInstance = vi.fn(async () => {
+      setTimeout(() => say("ready"), 0);
+      return instance;
+    });
+  });
+  afterEach(() => {
+    delete window.createUnityInstance;
+    resetUnitySession();
+  });
+  const box = () => document.body.appendChild(document.createElement("div"));
+  const sent = (method: string) => instance.SendMessage.mock.calls.filter(([, m]) => m === method).map(([, , v]) => v);
+
+  it("starts once and moves its canvas to whichever viewer is shown, parking it between", async () => {
+    const first = box();
+    const a = leaseUnity(first, FILES, vi.fn());
+    await a.player;
+    const canvas = first.querySelector("canvas")!;
+    expect(canvas.id).toBe("unity-canvas");
+    expect(canvas).toHaveAttribute("aria-label", "3D play");
+
+    a.release();
+    expect(canvas.parentElement!.hidden).toBe(true); // parked, out of sight
+    await Promise.resolve();
+    expect(sent("SetActive")).toEqual(["1", "0"]);
+
+    const second = box();
+    const b = leaseUnity(second, FILES, vi.fn());
+    await b.player;
+    expect(second.querySelector("canvas")).toBe(canvas); // the same Unity
+    expect(window.createUnityInstance).toHaveBeenCalledTimes(1);
+    expect(sent("SetActive").at(-1)).toBe("1");
+  });
+
+  it("doesn't park a canvas the next viewer has already taken", async () => {
+    const first = box();
+    const a = leaseUnity(first, FILES, vi.fn());
+    const second = box();
+    const b = leaseUnity(second, FILES, vi.fn()); // (mounted before the first lets go)
+    await b.player;
+    a.release();
+    expect(second.querySelector("canvas")).not.toBeNull();
+  });
+
+  it("paints a game's field once, and tells only the viewers still listening", async () => {
+    const heard = vi.fn();
+    const a = leaseUnity(box(), FILES, heard);
+    const paint = vi.fn(() => "iVBORw0KGgo=");
+    await a.setField("7", paint, ["#123456"]);
+    await a.setField("7", paint, ["#123456"]);
+    expect(paint).toHaveBeenCalledTimes(1);
+    expect(sent("SetField")).toHaveLength(1);
+    await a.setField("8", paint, ["#654321"]);
+    expect(sent("SetField")).toHaveLength(2);
+
+    say("loaded", "22");
+    expect(heard).toHaveBeenCalledWith({ type: "loaded", detail: "22" });
+    a.release();
+    say("loaded", "22");
+    expect(heard.mock.calls.filter(([e]) => e.type === "loaded")).toHaveLength(1);
+  });
+
+  it("tries again for the next viewer if Unity couldn't start", async () => {
+    window.createUnityInstance = vi.fn(async () => {
+      setTimeout(() => say("error", "No WebGL 2."), 0);
+      return instance;
+    });
+    const a = leaseUnity(box(), FILES, vi.fn());
+    await expect(a.player).rejects.toThrow("No WebGL 2.");
+    window.createUnityInstance = vi.fn(async () => {
+      setTimeout(() => say("ready"), 0);
+      return instance;
+    });
+    await leaseUnity(box(), FILES, vi.fn()).player;
+    expect(window.createUnityInstance).toHaveBeenCalledTimes(1); // (the new one)
   });
 });

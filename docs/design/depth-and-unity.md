@@ -175,6 +175,29 @@ week an injured player is expected back.
   and instant replays drive Unity's camera exactly as the classic one.
 - The build stays about 7 MB.
 
+### 4.3c As built (part 5, Coach Mode and the parity check)
+
+- **Coach Mode:** the reel after each call has the Renderer switch too (the choice is
+  shared with the Watch page, `field/unity/renderer.tsx`).
+- **One Unity for the page:** starting Unity takes seconds and Coach Mode shows a new reel
+  after every call, so the page keeps one Unity running (`leaseUnity` in lib/unity.ts):
+  each viewer borrows its canvas while shown; between viewers it's parked out of sight and
+  idle (a new `SetActive` message turns its camera off and drops it to 2 frames a second).
+  Each game's field is sent once. A failed start isn't kept, so the next viewer retries.
+- **Parity check** (Chromium, headless; the same play and moment in both renderers, 45%
+  and 92% of the way through): run, completion, incompletion, interception, sack, fumble,
+  rushing and passing touchdowns, punt, kickoff, field goal, extra point, two-point try,
+  kneel, a pre-snap foul and a flag during a play. Framing, players, poses, end zones,
+  banners and the overlay match in all 16; Unity's turf reads a little lighter, and it
+  draws soft shadows under the players (the classic viewer has none).
+- **Performance:** in the same headless browser (software rendering, so a comparison, not
+  a benchmark) both ran at the same frame rate (7.3 vs 7.4 a second); the build is about
+  7 MB, cached after the first load. A real-GPU check on a mid-range laptop is still worth
+  doing before making Unity the default.
+- **Accessibility:** axe (WCAG 2.2 AA) finds nothing serious on the Watch page with Unity
+  drawing; the canvas keeps its accessible name and the overlay stays HTML.
+- **The default:** Classic stays the default (decision 5): switching is your call.
+
 ### 4.4 What you need to do
 
 I can't install Unity, create a Unity ID or accept its license for you. Before the Unity

@@ -57,6 +57,8 @@ export interface UnityPlayer {
   loadPlay(timeline: PlayTimeline, kits: Record<number, Kit>): void;
   /** This frame's playhead and camera. */
   setFrame(time: number, camera: CameraShot): void;
+  /** Drawing (a viewer shows it) or parked. */
+  setActive(active: boolean): void;
   quit(): Promise<void>;
 }
 
@@ -122,9 +124,111 @@ export async function startUnity(canvas: HTMLCanvasElement, files: UnityBuild,
     setFrame(time, camera) {
       unity.SendMessage("Bridge", "SetFrame", frameMessage(time, camera));
     },
+    setActive(active) {
+      unity.SendMessage("Bridge", "SetActive", active ? "1" : "0");
+    },
     async quit() {
       window.removeEventListener("dynasty-unity", listener);
       await unity.Quit().catch(() => {});
     },
   };
+}
+
+// ---------- one Unity for the page's session ----------
+
+/**
+ * The page keeps one Unity running (starting it takes seconds): each viewer borrows its
+ * canvas while it's shown, and between viewers it's parked out of sight, idle. Coach Mode
+ * shows a new reel after every call, and stepping between Watch pages remounts the viewer,
+ * so this is what makes switching instant.
+ */
+interface Session {
+  canvas: HTMLCanvasElement;
+  player: Promise<UnityPlayer>;
+  listeners: Set<(event: UnityEvent) => void>;
+  progress: Set<(progress: number) => void>;
+  field: string | null; // the field it has (so it isn't painted again for the same game)
+}
+
+let session: Session | null = null;
+const PARKING_ID = "unity-parking";
+
+function parking(): HTMLElement {
+  let lot = document.getElementById(PARKING_ID);
+  if (!lot) {
+    lot = document.createElement("div");
+    lot.id = PARKING_ID;
+    lot.hidden = true; // (in the document, as Unity's runtime needs, but not shown)
+    document.body.appendChild(lot);
+  }
+  return lot;
+}
+
+export interface UnityLease {
+  player: Promise<UnityPlayer>;
+  /** Sends the field unless Unity already has it (`key` names it: the home team). */
+  setField(key: string, paint: () => string | null, crowd: string[]): Promise<void>;
+  /** Gives the canvas back: parked, idle, for the next viewer. */
+  release(): void;
+}
+
+/** Borrows the page's Unity into `container` (starting it the first time). */
+export function leaseUnity(container: HTMLElement, files: UnityBuild, onEvent: (event: UnityEvent) => void,
+                           onProgress?: (progress: number) => void): UnityLease {
+  if (!session) {
+    const canvas = document.createElement("canvas");
+    canvas.id = "unity-canvas"; // (Unity's runtime finds its canvas by id)
+    canvas.className = "h-full w-full";
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "3D play");
+    canvas.tabIndex = -1;
+    const listeners = new Set<(event: UnityEvent) => void>();
+    const progress = new Set<(progress: number) => void>();
+    container.appendChild(canvas);
+    const created: Session = {
+      canvas, listeners, progress, field: null,
+      player: startUnity(canvas, files, (e) => listeners.forEach((l) => l(e)),
+                         (p) => progress.forEach((l) => l(p))),
+    };
+    // A failed start isn't kept: the next viewer tries again.
+    created.player.catch(() => {
+      if (session === created) session = null;
+      canvas.remove();
+    });
+    session = created;
+  }
+  const current = session;
+  container.appendChild(current.canvas);
+  current.listeners.add(onEvent);
+  if (onProgress) current.progress.add(onProgress);
+  void current.player.then((p) => p.setActive(true)).catch(() => {});
+  let released = false;
+  return {
+    player: current.player,
+    async setField(key, paint, crowd) {
+      if (current.field === key) return;
+      const player = await current.player;
+      const image = paint();
+      if (!image) return;
+      player.setField(image, crowd);
+      current.field = key;
+    },
+    release() {
+      if (released) return;
+      released = true;
+      current.listeners.delete(onEvent);
+      if (onProgress) current.progress.delete(onProgress);
+      if (session !== current) return; // (it failed and was dropped)
+      // Only if it's still here: the next viewer may have taken it already.
+      if (current.canvas.parentElement !== container) return;
+      parking().appendChild(current.canvas);
+      void current.player.then((p) => p.setActive(false)).catch(() => {});
+    },
+  };
+}
+
+/** (Tests: forget the page's Unity.) */
+export function resetUnitySession() {
+  session = null;
+  document.getElementById(PARKING_ID)?.remove();
 }

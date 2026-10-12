@@ -8,7 +8,7 @@ import { shotAt } from "../playback/director";
 import type { PlaySceneProps } from "../playback/PlayScene";
 import { ballAt, handsAt } from "../playback/timeline";
 import { usePrefersReducedMotion } from "@/lib/motion";
-import { startUnity, unityBuild, type UnityPlayer } from "@/lib/unity";
+import { leaseUnity, unityBuild, type UnityLease, type UnityPlayer } from "@/lib/unity";
 
 export interface UnityPlaySceneProps extends PlaySceneProps {
   /** Unity couldn't start or failed (the page falls back to the classic viewer). */
@@ -18,11 +18,13 @@ export interface UnityPlaySceneProps extends PlaySceneProps {
 /**
  * One play drawn by Unity (docs/design/depth-and-unity.md §4): the same props as the
  * classic PlayScene. The page's clock, director and camera rig run here, every frame, and
- * Unity is told the time and the camera; it draws the play from the timeline.
+ * Unity is told the time and the camera; it draws the play from the timeline. It borrows
+ * the page's one Unity (lib/unity.ts leaseUnity) and gives it back when it goes away.
  */
 export default function UnityPlayScene(props: UnityPlaySceneProps) {
   const { playback, timeline } = props;
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const lease = useRef<UnityLease | null>(null);
   const latest = useRef(props);
   useEffect(() => { latest.current = props; });
   const [player, setPlayer] = useState<UnityPlayer | null>(null);
@@ -32,38 +34,40 @@ export default function UnityPlayScene(props: UnityPlaySceneProps) {
   const stillRef = useRef(still);
   useEffect(() => { stillRef.current = still; }, [still]);
 
-  // Start Unity once, and quit it when the scene goes away.
+  // Borrow the page's Unity (starting it the first time), and give it back on the way out.
   useEffect(() => {
     let cancelled = false;
-    let started: UnityPlayer | null = null;
     const fail = (message: string) => { if (!cancelled) latest.current.onError(message); };
-    unityBuild()
-      .then((files) => {
-        if (!files) throw new Error("The Unity viewer isn't installed on this server.");
-        return startUnity(canvas.current!, files, (event) => {
-          if (event.type === "error") fail(event.detail);
-          if (event.type === "loaded") setPlays((n) => n + 1);
-        }, setProgress);
-      })
-      .then((unity) => {
-        if (cancelled) { void unity.quit(); return; }
-        started = unity;
-        setPlayer(unity);
-      })
-      .catch((error: Error) => fail(error.message));
+    void unityBuild().then((files) => {
+      if (cancelled) return;
+      if (!files) {
+        fail("The Unity viewer isn't installed on this server.");
+        return;
+      }
+      lease.current = leaseUnity(container.current!, files, (event) => {
+        if (event.type === "error") fail(event.detail);
+        if (event.type === "loaded") setPlays((n) => n + 1);
+      }, setProgress);
+      lease.current.player
+        .then((unity) => { if (!cancelled) setPlayer(unity); })
+        .catch((error: Error) => fail(error.message));
+    });
     return () => {
       cancelled = true;
-      void started?.quit();
+      lease.current?.release();
+      lease.current = null;
     };
   }, []);
 
-  // Each game: the field, painted as the classic viewer paints it, and the home crowd.
+  // Each game: the field, painted as the classic viewer paints it, and the home crowd
+  // (only if Unity doesn't already have this game's).
   const { home, away } = playback.game;
   useEffect(() => {
-    if (!player) return;
-    const image = paintedField({ primary: home.primary_color, secondary: home.secondary_color,
-                                 nickname: home.nickname, abbreviation: home.abbreviation });
-    if (image) player.setField(image, [home.primary_color, home.secondary_color]);
+    if (!player || !lease.current) return;
+    void lease.current.setField(`${home.id}`, () => paintedField({
+      primary: home.primary_color, secondary: home.secondary_color,
+      nickname: home.nickname, abbreviation: home.abbreviation,
+    }), [home.primary_color, home.secondary_color]);
   }, [player, home]);
 
   // Each play: its timeline and both teams' uniforms.
@@ -112,9 +116,8 @@ export default function UnityPlayScene(props: UnityPlaySceneProps) {
   return (
     <div className="relative h-full w-full" data-renderer="unity"
       data-unity-state={player ? "ready" : "loading"} data-unity-plays={plays}>
-      {/* (Unity's runtime finds its canvas by id; there's one viewer on a page.) */}
-      <canvas ref={canvas} id="unity-canvas" className="h-full w-full" role="img" aria-label="3D play"
-        tabIndex={-1} />
+      {/* (The page's one Unity canvas is moved in here while this viewer is shown.) */}
+      <div ref={container} className="h-full w-full" />
       {!player && (
         <p className="absolute inset-0 grid place-items-center text-sm text-mist" role="status">
           Loading the Unity viewer… {Math.round(progress * 100)}%
