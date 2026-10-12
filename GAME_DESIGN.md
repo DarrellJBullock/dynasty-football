@@ -48,6 +48,11 @@ Create a league from **My Leagues → Create league**:
 - **Teams** start from a pool of 40 fictional identities; every city, nickname,
   abbreviation (unique per league), color, stadium, and conference/division name is
   editable. Teams in any league can be edited later from the League page.
+- **Players:** a **men's** or **women's** league. Generated players (the rosters, free
+  agents, draft classes and offseason refills) get fictional names and heights and
+  weights by position to match; ratings, the engine, contracts and everything else are
+  the same, since ratings are relative to the league. The 3D players are built from their
+  heights and weights. Messages about players are pronoun-neutral.
 - **Rosters:** generated fictional players (53 per team, under the cap), or empty for
   building through roster import and free agency. A 64-player free-agent pool is always
   created.

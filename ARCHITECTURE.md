@@ -63,7 +63,7 @@ players.team_id NULL  = free agent
 | `users` | email (unique, lower-case), password_hash (Argon2) |
 | `sessions` | user_id, token_hash (SHA-256 of the cookie's token; unique), expires_at (30 days, extended as it's used) |
 | `password_resets` | user_id, token_hash (SHA-256 of the emailed link's token; unique), expires_at (an hour), used_at |
-| `leagues` | user_id (owner; empty only for leagues from before accounts, which the first account takes over), name, abbreviation, salary_cap |
+| `leagues` | user_id (owner; empty only for leagues from before accounts, which the first account takes over), name, abbreviation, salary_cap, players (`men` / `women`: generated players' names and builds, `seed.generator.BODY` / `BODY_WOMEN`) |
 | `conferences`, `divisions` | name (+ abbreviation) |
 | `teams` | city, nickname, abbreviation (unique per league), primary/secondary colour, stadium |
 | `players` | league_id, team_id?, name, position, jersey (0–99), age, height_in, weight_lb, college, years_pro, **overall** (cached), potential, development_trait, injury_status, injury? (description), injury_weeks (games still to miss), retired_year?, is_prospect, scouted, draft_year?, draft_round?, draft_pick? |

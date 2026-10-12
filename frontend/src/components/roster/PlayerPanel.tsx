@@ -218,9 +218,9 @@ function PlayerCard({
       {confirming && player.team_id !== null && (
         <p role="status" className="text-sm text-amber-200">
           {releaseCost(player.contract, capYear) > 0
-            ? `Releasing him leaves ${formatMoney(releaseCost(player.contract, capYear))} of dead ` +
-              `money (the rest of his signing bonus) on your ${capYear} cap.`
-            : "No dead money: he has no signing bonus left."}
+            ? `Releasing leaves ${formatMoney(releaseCost(player.contract, capYear))} of dead ` +
+              `money (the rest of the signing bonus) on your ${capYear} cap.`
+            : "No dead money: no signing bonus is left."}
         </p>
       )}
       {player.team_id !== null && (

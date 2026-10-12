@@ -215,7 +215,7 @@ function OfferDialog({ row, demand, capSpace, onClose }: {
       <form className="space-y-4" onSubmit={submit}>
         <p className="text-sm text-mist">
           {player.position} · Age {player.age} · {player.overall} OVR · asking {terms(asking)} ·{" "}
-          {row.offers} offer(s) so far · {formatMoney(capSpace)} cap space. He decides when the day
+          {row.offers} offer(s) so far · {formatMoney(capSpace)} cap space. The decision comes when the day
           is played; other lengths cost more.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">

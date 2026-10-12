@@ -44,7 +44,7 @@ export function LeagueBuilder() {
           current
             ? { ...template, name: current.name, abbreviation: current.abbreviation,
                 salary_cap: current.salary_cap, season_year: current.season_year,
-                weeks: current.weeks, rosters: current.rosters }
+                weeks: current.weeks, rosters: current.rosters, players: current.players }
             : template,
         );
         setError(null);
@@ -171,6 +171,31 @@ export function LeagueBuilder() {
               ))}
             </div>
           ))}
+        </section>
+      )}
+
+      {spec && (
+        <section className="panel space-y-3 p-5" aria-label="Players">
+          <h2 className="eyebrow">Players</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["men", "Men's league", "Fictional men's names; builds of the men's game."],
+                ["women", "Women's league", "Fictional women's names; builds of the women's game."],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <label key={value}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 ${
+                  spec.players === value ? "border-gold/50 bg-gold/[0.05]" : "border-white/10 hover:border-white/20"}`}>
+                <input type="radio" name="players" value={value} checked={spec.players === value}
+                  onChange={() => set("players", value)} className="mt-1 accent-[var(--color-gold)]" />
+                <span>
+                  <span className="block text-sm font-medium">{label}</span>
+                  <span className="block text-xs text-mist">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
         </section>
       )}
 

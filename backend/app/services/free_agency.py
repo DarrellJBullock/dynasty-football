@@ -317,7 +317,7 @@ def withdraw_offer(db: Session, player: Player) -> None:
     _require_market(season)
     offer = _user_offer(db, season, player.id, franchise_team_id(db, player.league_id))
     if offer is None:
-        raise RosterError("You haven't made him an offer.", 404)
+        raise RosterError("You haven't made this player an offer.", 404)
     db.delete(offer)
     db.flush()
 

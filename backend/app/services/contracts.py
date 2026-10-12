@@ -100,7 +100,7 @@ def negotiate(db: Session, player: Player, offer: ReSignOffer) -> NegotiationRes
     if re_signed(player, season):
         raise RosterError(f"{player.full_name} has already re-signed.")
     if not is_expiring(player, season):
-        raise RosterError(f"{player.full_name} isn't in the final year of his contract.")
+        raise RosterError(f"{player.full_name} isn't in the final year of the contract.")
 
     needed = required_salary(Position(player.position), player.overall, player.age,
                              offer.years)

@@ -82,6 +82,8 @@ class League(Base):
     name: Mapped[str] = mapped_column(String(80))
     abbreviation: Mapped[str] = mapped_column(String(8))
     salary_cap: Mapped[int] = mapped_column(Integer)  # whole dollars
+    # Who plays: "men" or "women" (names and builds of generated players).
+    players: Mapped[str] = mapped_column(String(8), default="men", server_default="men")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     conferences: Mapped[list["Conference"]] = relationship(

@@ -99,7 +99,8 @@ export const dashboard: Dashboard = {
   franchise: {
     id: 1,
     name: "Ironclads Dynasty",
-    league: { id: 1, name: "Dynasty Football League", abbreviation: "DFL", salary_cap: 255_000_000 },
+    league: { id: 1, name: "Dynasty Football League", abbreviation: "DFL", salary_cap: 255_000_000,
+      players: "men" },
     team,
     season: { id: 1, league_id: 1, year: 2026, phase: "preseason", current_week: 1, weeks: 17, regular_season_complete: false,
       next_round: null, champion: null },
@@ -169,7 +170,7 @@ function specTeam(abbreviation: string, overrides: Partial<TeamIdentity> = {}): 
 export function makeSpec(overrides: Partial<LeagueCreate> = {}): LeagueCreate {
   return {
     name: "Test League", abbreviation: "TST", salary_cap: 255_000_000, season_year: 2026,
-    weeks: 17, rosters: "generated", user_team: "AAA",
+    weeks: 17, rosters: "generated", players: "men", user_team: "AAA",
     conferences: [{
       name: "Alpha Conference", abbreviation: "ALP",
       divisions: [

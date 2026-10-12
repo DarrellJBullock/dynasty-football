@@ -131,11 +131,8 @@ Each milestone ends with working software, green tests, and updated docs.
 
 ## Later
 
-- [ ] Women's leagues: a "Players: men / women" choice in the league builder, stored on the
-      league. A women's league gets its own fictional first names and heights and weights
-      by position (the 3D figures follow them); ratings, the engine and everything else stay
-      as they are, since ratings are relative to the league. Player messages become
-      pronoun-neutral everywhere ("isn't in the final year of the contract", "make an
-      offer"). The default league stays byte-identical for its seed. Mixed leagues are out
-      of scope unless decided otherwise (they raise questions such as whether ratings
-      reflect size).
+- [x] Women's leagues (a men's / women's choice in the league builder; women's leagues get
+      fictional women's names and the builds of the women's game for every generated
+      player, with ratings and the engine unchanged; player messages are pronoun-neutral;
+      the default league stays byte-identical for its seed). Mixed leagues are out of scope
+      unless decided otherwise (they raise questions such as whether ratings reflect size).

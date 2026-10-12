@@ -22,11 +22,15 @@ def _validate_rating_keys(value: dict[str, int] | None) -> dict[str, int] | None
 
 # ---------- league structure ----------
 
+LeaguePlayers = Literal["men", "women"]
+
+
 class LeagueOut(BaseModel):
     id: int
     name: str
     abbreviation: str
     salary_cap: int
+    players: LeaguePlayers = "men"
 
 
 class TeamSummary(BaseModel):
@@ -444,6 +448,8 @@ class LeagueCreate(BaseModel):
     season_year: int = Field(default=2026, ge=1900, le=2200)
     weeks: int = Field(default=17, ge=1, le=20)
     rosters: Literal["generated", "empty"] = "generated"
+    # Who plays: generated players get names and builds to match.
+    players: LeaguePlayers = "men"
     conferences: list[ConferenceSpec] = Field(min_length=1, max_length=4)
     # Abbreviation of the team the user will control.
     user_team: str

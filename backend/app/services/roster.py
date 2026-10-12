@@ -149,7 +149,7 @@ def sign_player(db: Session, team: Team, request: SigningRequest) -> Player:
         raise RosterError(f"{player.full_name} is in the draft class.")
     season = current_season(db, team.league_id)
     if season is not None and season.phase == "free_agency":
-        raise RosterError("It's free agency: make him an offer on the Free Agency page.")
+        raise RosterError("It's free agency: make an offer on the Free Agency page.")
     roster = load_roster(db, team.id)
     _check_roster_space(roster)
     salary = request.salary if request.salary is not None else market_salary(

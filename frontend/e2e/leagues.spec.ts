@@ -1,6 +1,6 @@
 import { expect, navigate, test } from "./support/fixtures";
 
-test("creates a custom league, switches back, and deletes it", async ({ page }) => {
+test("creates a custom women's league, switches back, and deletes it", async ({ page }) => {
   await page.goto("/leagues");
   await page.getByRole("link", { name: "+ Create league" }).click();
   await expect(page.getByRole("heading", { name: "Create a league" })).toBeVisible();
@@ -19,6 +19,7 @@ test("creates a custom league, switches back, and deletes it", async ({ page }) 
   await page.getByRole("textbox", { name: "Abbreviation for Port Avalon Krakens" }).fill("PAV");
   await page.getByRole("radio", { name: "Play as Port Avalon Krakens" }).check();
   await expect(page.getByText("You: PAV")).toBeVisible();
+  await page.getByRole("radio", { name: /Women's league/ }).check();
 
   await page.getByRole("button", { name: "Create league" }).click();
   await expect(page).toHaveURL("/");
@@ -28,8 +29,15 @@ test("creates a custom league, switches back, and deletes it", async ({ page }) 
   await navigate(page, "League");
   await expect(page.getByRole("heading", { level: 1, name: "Harbor Coast League" })).toBeVisible();
 
+  // The roster: builds of the women's game (no one over 6'1").
+  await navigate(page, "Roster");
+  const roster = await (await page.request.get("/api/franchise")).json();
+  const players = await (await page.request.get(`/api/teams/${roster.team.id}/roster`)).json();
+  expect(players.every((p: { height_in: number }) => p.height_in <= 73)).toBe(true);
+
   await navigate(page, "My Leagues");
   await expect(page.getByRole("listitem", { name: "Krakens Dynasty" })).toContainText("Active");
+  await expect(page.getByRole("listitem", { name: "Krakens Dynasty" })).toContainText("Women's league");
   const original = page.getByRole("listitem", { name: "Ironclads Dynasty" });
   await original.getByRole("button", { name: "Switch to this franchise" }).click();
   await expect(page).toHaveURL("/");
