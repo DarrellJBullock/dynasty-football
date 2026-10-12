@@ -193,6 +193,8 @@ export interface Franchise {
   league: League;
   team: TeamSummary;
   season: Season;
+  /** The user's role in the league: commissioners run the season and its members. */
+  role: MemberRole;
 }
 
 export interface PositionGroupSummary {
@@ -941,6 +943,8 @@ export interface NextGame {
 export interface User {
   id: number;
   email: string;
+  /** What other members see (the email's first part until one's set). */
+  display_name: string;
   /** A new account goes to the league builder first. */
   has_league: boolean;
 }
@@ -999,4 +1003,50 @@ export interface GamePlanInput {
   tendencies: Record<string, number>;
   offense_audibles: string[];
   defense_audibles: string[];
+}
+
+/** A league member's role (`schemas.MemberRole`). */
+export type MemberRole = "commissioner" | "manager";
+
+/** Someone in a league (`schemas.MemberOut`). */
+export interface Member {
+  id: number;
+  display_name: string;
+  role: MemberRole;
+  /** null: a commissioner who doesn't run a team. */
+  team: TeamSummary | null;
+  is_you: boolean;
+  joined_at: string;
+}
+
+/** An open invite link (`schemas.InviteOut`); its token is only shown when it's made. */
+export interface Invite {
+  id: number;
+  created_at: string;
+  expires_at: string;
+  uses: number;
+}
+
+export interface InviteCreated extends Invite {
+  token: string;
+}
+
+/** A league's members page (`schemas.MembersOut`). */
+export interface Members {
+  league: League;
+  you: Member;
+  members: Member[];
+  /** Open links (commissioners only). */
+  invites: Invite[];
+  open_teams: TeamSummary[];
+}
+
+/** What an invite link leads to (`schemas.InvitePreview`). */
+export interface InvitePreview {
+  league: League;
+  commissioner: string;
+  member_count: number;
+  open_teams: TeamSummary[];
+  already_member: boolean;
+  your_team: TeamSummary | null;
 }

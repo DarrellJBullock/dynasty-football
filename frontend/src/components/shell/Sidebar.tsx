@@ -33,6 +33,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Playoffs", href: "/playoffs", icon: <IconBracket /> },
       { label: "Stats", href: "/stats", icon: <IconChart /> },
       { label: "League", href: "/league", icon: <IconTrophy /> },
+      { label: "Members", href: "/members", icon: <IconUsers /> },
       { label: "History", href: "/history", icon: <IconHistory /> },
       { label: "My Leagues", href: "/leagues", icon: <IconFolders /> },
     ],

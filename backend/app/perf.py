@@ -28,6 +28,7 @@ from app.schemas import SimulateRequest
 from app.seed.generator import clear_database, generate_league
 from app.services import accounts, draft, free_agency, offseason
 from app.services import season as season_service
+from app.services.members import give_league
 from app.services.teams import current_season
 
 EMAIL, PASSWORD = "perf@example.test", "perf-password"
@@ -38,7 +39,7 @@ def build(seasons: int) -> None:
     with SessionLocal() as db:
         clear_database(db)
         league = generate_league(db, seed=2026)
-        league.user_id = accounts.sign_up(db, EMAIL, PASSWORD).id
+        give_league(db, league, accounts.sign_up(db, EMAIL, PASSWORD))
         db.commit()
         franchise = db.scalar(select(Franchise).where(Franchise.league_id == league.id))
         for number in range(seasons + 1):

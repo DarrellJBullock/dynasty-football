@@ -3,13 +3,15 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.access import current_user
 from app.api.errors import roster_errors
 from app.api.leagues import get_league
 from app.config import get_settings
 from app.db import get_db
-from app.models import Job, League
+from app.models import Job, League, User
 from app.schemas import JobOut, JobRequest
 from app.services import jobs as job_service
+from app.services.members import user_team_id
 from app.services.serializers import job_out
 
 router = APIRouter(tags=["jobs"])
@@ -30,13 +32,15 @@ def get_job(job_id: int, db: Session = Depends(get_db)) -> Job:
 
 @router.post("/leagues/{league_id}/jobs", response_model=JobOut, status_code=202)
 def start_job(request: JobRequest, league: League = Depends(get_league),
-              db: Session = Depends(get_db), inline: bool = Depends(jobs_inline)):
+              user: User = Depends(current_user), db: Session = Depends(get_db),
+              inline: bool = Depends(jobs_inline)):
     """Start a long simulation in the background: the rest of the regular season, the
     playoffs, the offseason, or finishing free agency or the draft. Poll the job for its
     progress; its `result` is what the matching synchronous endpoint would have returned."""
     with roster_errors(db):
         job = job_service.enqueue(db, league, request.kind,
-                                  {"seasons": request.seasons} if request.seasons else None)
+                                  {"seasons": request.seasons} if request.seasons else None,
+                                  user_team_id(db, league.id, user))
     # (with the request id, this ties the job's worker log lines back to who started it)
     log.info("job %s (%s) queued for league %s", job.id, job.kind, league.id,
              extra={"job_id": job.id, "kind": job.kind, "league_id": league.id})

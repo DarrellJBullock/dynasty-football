@@ -21,6 +21,8 @@ from app.models import (
     Game,
     Job,
     League,
+    LeagueInvite,
+    LeagueMember,
     Player,
     PlayerGameStats,
     PlayerRatings,
@@ -36,6 +38,7 @@ from app.schemas import FranchiseListItem, LeagueCreate, TeamUpdate
 from app.seed.generator import build_league
 from app.services.dashboard import current_franchise, franchise_out
 from app.services.errors import RosterError
+from app.services.members import give_league
 
 
 def create_league(db: Session, spec: LeagueCreate, user: User) -> Franchise:
@@ -45,8 +48,7 @@ def create_league(db: Session, spec: LeagueCreate, user: User) -> Franchise:
         raise RosterError(f"You can keep up to {limit} leagues. Delete one to make another.")
     seed = spec.seed if spec.seed is not None else random.SystemRandom().randrange(2**31)
     franchise = build_league(db, spec, seed)
-    franchise.league.user_id = user.id
-    db.flush()
+    give_league(db, franchise.league, user)
     return franchise
 
 
@@ -54,8 +56,7 @@ def list_franchises(db: Session, user: User) -> list[FranchiseListItem]:
     active = current_franchise(db, user)
     team_counts = dict(db.execute(select(Team.league_id, func.count(Team.id))
                                   .group_by(Team.league_id)).all())
-    franchises = db.scalars(select(Franchise).join(Franchise.league)
-                            .where(League.user_id == user.id)
+    franchises = db.scalars(select(Franchise).where(Franchise.user_id == user.id)
                             .order_by(Franchise.activated_at.desc(), Franchise.id.desc()))
     return [
         FranchiseListItem(**franchise_out(db, f).model_dump(),
@@ -116,6 +117,8 @@ def delete_league(db: Session, league: League, user: User | None = None) -> None
             select(Game.id).where(Game.season_id.in_(season_ids)))),
         delete(Game).where(Game.season_id.in_(season_ids)),
         delete(Franchise).where(Franchise.league_id == league.id),
+        delete(LeagueMember).where(LeagueMember.league_id == league.id),
+        delete(LeagueInvite).where(LeagueInvite.league_id == league.id),
         delete(Player).where(Player.league_id == league.id),
         delete(Season).where(Season.league_id == league.id),
         delete(Team).where(Team.league_id == league.id),

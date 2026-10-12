@@ -10,7 +10,7 @@ from app.api import auth
 from app.api.access import SESSION_COOKIE
 from app.config import get_settings
 from app.models import Franchise, Game, League, Player, Season, User, UserSession
-from app.services import accounts, jobs
+from app.services import accounts, jobs, members
 from tests.conftest import OWNER_EMAIL, OWNER_PASSWORD, make_client, sign_in_as
 
 
@@ -181,7 +181,7 @@ class TestLeaguesBelongToTheirOwner:
 
     def test_every_route_into_someone_elses_league_is_not_found(
             self, client: TestClient, intruder: TestClient, db: Session, league: League,
-            franchise: Franchise):
+            franchise: Franchise, owner: User):
         season = db.scalar(select(Season).where(Season.league_id == league.id))
         ids = {
             "league_id": league.id, "season_id": season.id, "team_id": franchise.team_id,
@@ -189,6 +189,8 @@ class TestLeaguesBelongToTheirOwner:
             "game_id": db.scalar(select(Game.id).where(Game.season_id == season.id)),
             "franchise_id": franchise.id,
             "job_id": jobs.enqueue(db, league, "sim_regular_season").id,
+            "invite_id": members.create_invite(db, league, owner)[0].id,
+            "member_id": members.member(db, league.id, owner).id,
             "slot": "QB", "fmt": "csv",
         }
         unscoped = set()
@@ -209,6 +211,7 @@ class TestLeaguesBelongToTheirOwner:
             "GET /api/health", "GET /api/ready", "POST /api/auth/signup", "POST /api/auth/signin",
             "POST /api/auth/forgot", "POST /api/auth/reset",
             "POST /api/auth/signout", "GET /api/auth/me", "PUT /api/auth/password",
+            "PUT /api/auth/profile", "POST /api/invites/preview", "POST /api/invites/join",
             "DELETE /api/auth/account", "GET /api/franchise", "GET /api/franchise/dashboard",
             "GET /api/franchise/next-game", "GET /api/franchises", "GET /api/leagues",
             "POST /api/leagues", "GET /api/leagues/template", "GET /api/playbook",

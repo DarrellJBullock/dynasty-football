@@ -43,7 +43,7 @@ from app.seed.generator import SPECIALIST_OFFSET, _development_trait, make_playe
 from app.services import cap as cap_rules
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
-from app.services.free_agency import franchise_team_id
+from app.services.members import human_team_ids
 from app.services.serializers import player_summary, team_summary
 from app.services.standings import compute_records
 from app.services.teams import current_season
@@ -300,12 +300,13 @@ def _auto_pick(season: Season, pick: DraftPick, board: _Board, user: bool) -> Pl
     return max(candidates, key=lambda p: (value(p), -p.id))
 
 
-def user_pick(db: Session, league: League, player_id: int) -> DraftPick:
+def user_pick(db: Session, league: League, player_id: int, team_id: int | None) -> DraftPick:
+    """`team_id`'s manager makes the pick they're on the clock for."""
     season = current_season(db, league.id)
     pick = on_the_clock(db, season)
     if pick is None:
         raise RosterError("The draft isn't live.")
-    if pick.team_id != franchise_team_id(db, league.id):
+    if team_id is None or pick.team_id != team_id:
         raise RosterError("You're not on the clock.")
     player = db.get(Player, player_id)
     if (player is None or player.league_id != league.id or not player.is_prospect
@@ -317,16 +318,17 @@ def user_pick(db: Session, league: League, player_id: int) -> DraftPick:
 
 
 def play(db: Session, season: Season, until: str, autopilot: bool = False) -> list[DraftPick]:
-    """Make picks until the franchise is on the clock (`my_pick`) or to the end (`end`,
-    auto-picking for the franchise); after the last pick the draft wraps up."""
+    """Make picks until a member's team is on the clock (`my_pick`) or to the end (`end`,
+    auto-picking for members' teams by their needs); after the last pick the draft wraps
+    up."""
     if season.phase != "draft":
         raise RosterError("The draft isn't live.")
-    user_team = franchise_team_id(db, season.league_id)
+    humans = human_team_ids(db, season.league_id)
     board = _Board(db, season)
     remaining = [p for p in _picks(db, season) if p.player_id is None]
     made: list[DraftPick] = []
     for pick in remaining:
-        mine = pick.team_id == user_team
+        mine = pick.team_id in humans
         if mine and until == "my_pick":
             break
         _make_pick(db, season, pick, _auto_pick(season, pick, board, user=mine), board)
@@ -344,7 +346,7 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
     autopilot (sim ahead) the franchise is cut down and fit under the cap like the rest."""
     league_id = season.league_id
     log = season.offseason_log
-    user_team = None if autopilot else franchise_team_id(db, league_id)
+    humans = set() if autopilot else human_team_ids(db, league_id)
     undrafted = _prospects(db, league_id, season.year)
     veterans = list(db.scalars(
         select(Player).where(Player.league_id == league_id, Player.team_id.is_(None),
@@ -378,8 +380,8 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
     cuts = log.setdefault("cut", [])
     cap = season.league.salary_cap
     for team in teams:
-        if team.id == user_team:
-            continue
+        if team.id in humans:
+            continue  # (members cut their own rosters)
         roster = _roster(db, team.id)
         for player in sorted(roster, key=lambda p: (p.overall, -p.age, p.id))[
                 :max(0, len(roster) - ROSTER_MAX)]:
@@ -461,13 +463,13 @@ def team_count(db: Session, league_id: int) -> int:
     return db.scalar(select(func.count(Team.id)).where(Team.league_id == league_id)) or 0
 
 
-def draft_view(db: Session, league: League) -> DraftOut:
+def draft_view(db: Session, league: League, user_team: int | None = None) -> DraftOut:
+    """The draft as `user_team`'s manager sees it (their picks and roster)."""
     from app.services.season import season_view
 
     season = current_season(db, league.id)
     year = class_year(db, season)
     ensure_class(db, league, year)
-    user_team = franchise_team_id(db, league.id)
     picks = _picks(db, season) if year == season.year else []
     clock = on_the_clock(db, season)
     status = "live" if clock else "complete" if picks else "upcoming"

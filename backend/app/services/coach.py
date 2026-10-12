@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from app.models import CoachedGame, Game, Season
 from app.schemas import AudibleOption, CoachLook, CoachSituation, CoachStateOut, FatigueLine
 from app.services.errors import RosterError
-from app.services.free_agency import franchise_team_id
 from app.services.games import play_out
 from app.services.season import (
     _check_franchise_roster,
@@ -41,9 +40,8 @@ from app.sim.text import spot_label
 AutoScope = Literal["play", "drive", "game"]
 
 
-def next_game(db: Session, season: Season) -> Game | None:
-    """The franchise's game this week (or this playoff round), if it hasn't been played."""
-    team_id = franchise_team_id(db, season.league_id)
+def next_game(db: Session, season: Season, team_id: int | None) -> Game | None:
+    """`team_id`'s game this week (or this playoff round), if it hasn't been played."""
     if team_id is None or season.phase in ("offseason", "free_agency", "draft"):
         return None
     stmt = select(Game).where(Game.season_id == season.id, Game.status == "scheduled",
@@ -58,20 +56,19 @@ def coached_game(db: Session, game: Game) -> CoachedGame | None:
     return db.scalar(select(CoachedGame).where(CoachedGame.game_id == game.id))
 
 
-def start(db: Session, game: Game) -> CoachedGame:
-    """Take the headset for the franchise's next game (or pick up where you left off)."""
+def start(db: Session, game: Game, team_id: int | None) -> CoachedGame:
+    """Take the headset for `team_id`'s next game (or pick up where you left off)."""
     existing = coached_game(db, game)
     if existing:
         return existing
     season = game.season
     if game.status != "scheduled":
         raise RosterError("This game has already been played.")
-    upcoming = next_game(db, season)
+    upcoming = next_game(db, season, team_id)
     if upcoming is None or upcoming.id != game.id:
         raise RosterError("You can only coach your team's next game.")
     if season.phase == "preseason":
         _check_franchise_roster(db, season)
-    team_id = franchise_team_id(db, season.league_id)
     sim_teams = league_sim_teams(db, season.league_id)
     refresh_availability(db, season.league_id, sim_teams)
     coached = CoachedGame(

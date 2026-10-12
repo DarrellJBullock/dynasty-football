@@ -58,8 +58,9 @@ def plan_view(db: Session, team: Team) -> GamePlanOut:
                   for label, options in required.items()])
 
 
-def save(db: Session, team: Team, franchise_team_id: int | None, payload: GamePlanIn) -> None:
-    if team.id != franchise_team_id:
+def save(db: Session, team: Team, allowed: bool, payload: GamePlanIn) -> None:
+    """`allowed`: the user may run this team (their own, or a commissioner standing in)."""
+    if not allowed:
         raise RosterError("Only your own team's game plan can be changed.", 403)
     plan = GamePlan(offense=frozenset(payload.offense), defense=frozenset(payload.defense),
                     tendencies={k: v for k, v in payload.tendencies.items() if v},
@@ -75,9 +76,9 @@ def save(db: Session, team: Team, franchise_team_id: int | None, payload: GamePl
     db.flush()
 
 
-def reset(db: Session, team: Team, franchise_team_id: int | None) -> None:
+def reset(db: Session, team: Team, allowed: bool) -> None:
     """Back to the plan drawn from the roster."""
-    if team.id != franchise_team_id:
+    if not allowed:
         raise RosterError("Only your own team's game plan can be changed.", 403)
     row = db.get(TeamGamePlan, team.id)
     if row is not None:

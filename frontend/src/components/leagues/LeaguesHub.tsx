@@ -90,7 +90,7 @@ export function LeaguesHub({ initialFranchises }: { initialFranchises: Franchise
               </div>
             </div>
             <div className="relative mt-4 flex flex-wrap justify-end gap-2">
-              {!franchise.is_active &&
+              {!franchise.is_active && franchise.role === "commissioner" &&
                 (confirmingId === franchise.id ? (
                   <>
                     <span className="mr-auto self-center text-xs text-rose-200">

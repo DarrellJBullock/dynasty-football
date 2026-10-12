@@ -9,7 +9,8 @@ change. Design: docs/design/dynasty-mode.md §3."""
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, undefer
 
-from app.models import Franchise, Game, Season
+from app.models import Game, Season
+from app.services.members import human_team_ids
 
 
 def compact_log(log: list[dict]) -> list[dict]:
@@ -27,13 +28,13 @@ def compact_log(log: list[dict]) -> list[dict]:
 
 def compact_old_seasons(db: Session, league_id: int, current_year: int) -> int:
     """Compact the eligible games of seasons before last season. Returns how many."""
-    franchise_team = db.scalar(select(Franchise.team_id).where(Franchise.league_id == league_id))
+    humans = sorted(human_team_ids(db, league_id))  # (members' games keep their logs)
     games = db.scalars(
         select(Game).join(Season).options(undefer(Game.play_log))
         .where(Season.league_id == league_id, Season.year < current_year - 1,
                Game.status == "final", Game.stage == "regular",
                Game.log_compacted.is_(False), Game.play_log.is_not(None),
-               ~or_(Game.home_team_id == franchise_team, Game.away_team_id == franchise_team)))
+               ~or_(Game.home_team_id.in_(humans), Game.away_team_id.in_(humans))))
     count = 0
     for game in games:
         game.play_log = compact_log(game.play_log)

@@ -15,10 +15,10 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return { ...actual, api: { signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), me: vi.fn(),
     changePassword: vi.fn(), deleteAccount: vi.fn(), forgotPassword: vi.fn(),
-    resetPassword: vi.fn() } };
+    resetPassword: vi.fn(), updateProfile: vi.fn() } };
 });
 const mocked = vi.mocked(api);
-const user = { id: 1, email: "coach@example.test", has_league: true };
+const user = { id: 1, email: "coach@example.test", display_name: "coach", has_league: true };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -61,6 +61,17 @@ describe("AuthForm", () => {
     expect(hardNavigate).toHaveBeenCalledWith("/leagues/new");
   });
 
+  it("takes a new account from an invite link back to it", async () => {
+    search.value = "next=/join?token=abc";
+    mocked.signUp.mockResolvedValue({ ...user, has_league: false });
+    render(<AuthForm mode="signup" />);
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href", "/signin?next=%2Fjoin%3Ftoken%3Dabc");
+    await fillIn("new@example.test", "long enough");
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+    expect(hardNavigate).toHaveBeenCalledWith("/join?token=abc");
+  });
+
   it("only follows ?next= within the site", () => {
     expect(safeNext("/games/4/watch?play=2")).toBe("/games/4/watch?play=2");
     expect(safeNext("//evil.example")).toBe("/");
@@ -70,6 +81,20 @@ describe("AuthForm", () => {
 });
 
 describe("AccountView", () => {
+  it("sets the display name other members see", async () => {
+    mocked.updateProfile.mockResolvedValue({ ...user, display_name: "Coach Sam" });
+    render(<AccountView user={user} />);
+    const form = screen.getByRole("form", { name: "Display name" });
+    const field = within(form).getByLabelText("Name other members see");
+    expect(field).toHaveValue("coach");
+    await userEvent.clear(field);
+    await userEvent.type(field, "  Coach   Sam ");
+    await userEvent.click(within(form).getByRole("button", { name: "Save name" }));
+    expect(mocked.updateProfile).toHaveBeenCalledWith("  Coach   Sam ");
+    expect(await within(form).findByRole("status")).toHaveTextContent("Name saved.");
+    expect(field).toHaveValue("Coach Sam");
+  });
+
   it("changes the password", async () => {
     mocked.changePassword.mockResolvedValue(undefined);
     render(<AccountView user={user} />);

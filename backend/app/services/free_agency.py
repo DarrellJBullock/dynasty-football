@@ -26,7 +26,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.domain.contracts import MIN_SALARY, preferred_years, required_salary
 from app.domain.free_agency import MARKET_DAYS, Bid, acceptable, demand, ranked
 from app.domain.positions import ROSTER_MAX, Position, available_jersey
-from app.models import Franchise, FreeAgentOffer, League, Player, Season, Team
+from app.models import FreeAgentOffer, League, Player, Season, Team
 from app.schemas import (
     ContractTerms,
     FreeAgencyOut,
@@ -36,6 +36,7 @@ from app.schemas import (
 )
 from app.services import cap
 from app.services.errors import RosterError
+from app.services.members import human_team_ids
 from app.services.offseason import (
     FREE_AGENT_FLOOR,
     ROSTER_SPOT_RESERVE,
@@ -58,10 +59,6 @@ UPGRADE_MARGIN = 4  # an AI team also chases a free agent this much better than 
 def market_rng(league_id: int, year: int, day: int) -> random.Random:
     digest = hashlib.sha256(f"free-agency:{league_id}:{year}:{day}".encode()).digest()
     return random.Random(int.from_bytes(digest[:8], "big"))
-
-
-def franchise_team_id(db: Session, league_id: int) -> int | None:
-    return db.scalar(select(Franchise.team_id).where(Franchise.league_id == league_id))
 
 
 def price(player: Player, years: int) -> int:
@@ -96,8 +93,9 @@ class _Market:
         self.payrolls = {t.id: sum(c.salary for p in self.rosters[t.id]
                                    if (c := p.active_contract)) + dead[t.id]
                          for t in self.teams}
-        # On autopilot (sim ahead) the franchise bids like an AI team.
-        self.user_team = None if autopilot else franchise_team_id(db, self.league.id)
+        # The teams members run bid themselves; on autopilot (sim ahead) the franchise bids
+        # like an AI team.
+        self.humans: set[int] = set() if autopilot else human_team_ids(db, self.league.id)
         self.departed_from = {e["player"]: e["team"] for e in self.log.get("departed", [])}
 
     def lost(self, team_id: int) -> list[str]:
@@ -145,13 +143,13 @@ def _ai_offers(db: Session, market: _Market) -> None:
     season = market.season
     db.execute(delete(FreeAgentOffer).where(
         FreeAgentOffer.season_id == season.id, FreeAgentOffer.status == "pending",
-        FreeAgentOffer.team_id != (market.user_team or 0)))
+        FreeAgentOffer.team_id.notin_(market.humans)))
     rng = market_rng(market.league.id, season.year, season.free_agency_day)
     by_position: dict[str, list[Player]] = defaultdict(list)
     for player in market.pool:
         if player.overall >= FREE_AGENT_FLOOR:
             by_position[player.position].append(player)
-    teams = [t for t in market.teams if t.id != market.user_team]
+    teams = [t for t in market.teams if t.id not in market.humans]
     rng.shuffle(teams)
     for team in teams:
         open_spots = ROSTER_MAX - len(market.rosters[team.id])
@@ -284,23 +282,22 @@ def play_days(db: Session, season: Season, until: str,
     return signings
 
 
-def play_result(db: Session, season: Season, entries: list[dict]) -> FreeAgencyResult:
-    """What a run of market days did: every signing, and the franchise's."""
+def play_result(db: Session, season: Season, entries: list[dict],
+                team_id: int | None = None) -> FreeAgencyResult:
+    """What a run of market days did: every signing, and `team_id`'s (the viewer's)."""
     signings = signings_out(db, entries)
-    team_id = franchise_team_id(db, season.league_id)
     return FreeAgencyResult(season=season_view(db, season), signings=signings,
                             mine=[s for s in signings if s.team.id == team_id])
 
 
-def make_offer(db: Session, player: Player, terms: ContractTerms) -> None:
-    """The franchise offers a free agent a deal (replacing any earlier offer to him)."""
+def make_offer(db: Session, player: Player, terms: ContractTerms, team_id: int | None) -> None:
+    """A member's team offers a free agent a deal (replacing any earlier offer)."""
     season = current_season(db, player.league_id)
     _require_market(season)
     if player.team_id is not None or player.retired_year is not None:
         raise RosterError(f"{player.full_name} isn't a free agent.")
-    team_id = franchise_team_id(db, player.league_id)
     if team_id is None:
-        raise RosterError("This league has no franchise.", 400)
+        raise RosterError("You don't run a team in this league.", 400)
     market = _Market(db, season)
     if len(market.rosters[team_id]) >= ROSTER_MAX:
         raise RosterError(f"Your roster is full ({ROSTER_MAX}); release a player first.")
@@ -314,10 +311,10 @@ def make_offer(db: Session, player: Player, terms: ContractTerms) -> None:
     db.flush()
 
 
-def withdraw_offer(db: Session, player: Player) -> None:
+def withdraw_offer(db: Session, player: Player, team_id: int | None) -> None:
     season = current_season(db, player.league_id)
     _require_market(season)
-    offer = _user_offer(db, season, player.id, franchise_team_id(db, player.league_id))
+    offer = _user_offer(db, season, player.id, team_id)
     if offer is None:
         raise RosterError("You haven't made this player an offer.", 404)
     db.delete(offer)
@@ -331,7 +328,8 @@ def _user_offer(db: Session, season: Season, player_id: int,
         FreeAgentOffer.team_id == team_id, FreeAgentOffer.status == "pending"))
 
 
-def market_view(db: Session, league: League) -> FreeAgencyOut:
+def market_view(db: Session, league: League, team_id: int | None = None) -> FreeAgencyOut:
+    """The market as `team_id`'s manager sees it (their offers, open spots and cap)."""
     season = current_season(db, league.id)
     market = _Market(db, season)
     is_open = season.phase == "free_agency"
@@ -344,7 +342,7 @@ def market_view(db: Session, league: League) -> FreeAgencyOut:
 
     rows = []
     for player in market.pool:
-        mine = next((o for o in offers[player.id] if o.team_id == market.user_team), None)
+        mine = next((o for o in offers[player.id] if o.team_id == team_id), None)
         leading = None
         if mine is not None:
             bids = [Bid(o.id, o.salary, price(player, o.years), strength[o.team_id])
@@ -360,10 +358,8 @@ def market_view(db: Session, league: League) -> FreeAgencyOut:
         season=season_view(db, season), open=is_open,
         day=season.free_agency_day if is_open else None, days=MARKET_DAYS,
         demand=demand(season.free_agency_day) if is_open else None,
-        open_spots=ROSTER_MAX - len(market.rosters[market.user_team])
-        if market.user_team else 0,
-        cap_space=(league.salary_cap - market.payrolls[market.user_team])
-        if market.user_team else 0,
+        open_spots=ROSTER_MAX - len(market.rosters[team_id]) if team_id else 0,
+        cap_space=(league.salary_cap - market.payrolls[team_id]) if team_id else 0,
         players=rows, signings=signings)
 
 

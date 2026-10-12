@@ -31,9 +31,9 @@ frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 +
   src/app/(app)/  the game (with the sidebar): / (dashboard), /roster, /depth-chart,
                   /schedule, /games/[id], /games/[id]/watch (3D), /games/[id]/coach and
                   /coach (Coach Mode), /playoffs, /contracts, /free-agency, /draft,
-                  /trades, /history, /stats, /players/[id], /league, /leagues,
+                  /trades, /history, /stats, /players/[id], /league, /members, /leagues,
                   /leagues/new, /account
-  src/app/(auth)/ /signin, /signup (no sidebar; a second root layout)
+  src/app/(auth)/ /signin, /signup, /join (invite links) (no sidebar; a second root layout)
   src/proxy.ts    sends visitors without a session cookie to /signin
   src/components/ UI by feature (dashboard, roster, league, field, watch, coach, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers
@@ -130,12 +130,15 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   `team_lineup()` / `domain.depth_chart`.
 - **Next dev server** can serve a stale server render of a client component edited
   mid-session (shows as a hydration mismatch). Restart `make dev-frontend` to clear it.
-- **Accounts:** every API route but `/api/health` and `/api/auth/*` needs a session, and a
-  league belongs to one user (`leagues.user_id`). `api/access.py` finds the league from a
-  route's path ids (`league_of`: `league_id`, `season_id`, `team_id`, `player_id`,
-  `game_id`, `franchise_id`, `job_id`) and answers 404 for someone else's. A new route
-  keyed by another id needs a case there; `test_accounts.py` walks every route and fails
-  otherwise. Routes without ids must scope their queries to the user themselves.
+- **Accounts and members:** every API route but `/api/health`, `/api/ready` and
+  `/api/auth/*` needs a session. A league's members (`league_members`: commissioners and
+  managers) see it; `leagues.user_id` is only its creator. `api/access.py` finds the league
+  from a route's path ids (`league_of`: `league_id`, `season_id`, `team_id`, `player_id`,
+  `game_id`, `franchise_id`, `job_id`) and answers 404 to non-members. A new route keyed by
+  another id needs a case there; `test_accounts.py` walks every route and fails otherwise.
+  Routes without ids must scope their queries to the user themselves. **Every change route
+  needs a rule in `access.WRITES`** (commissioner, team, game, …); `test_members.py` fails
+  on one without. Give a league to a user with `members.give_league` (seed, tests, perf).
 - **The browser calls `/api` on the web app's own origin**, which `src/proxy.ts` passes on
   to the game server at request time (`lib/gameServer.ts`: `API_URL`, or `API_HOSTPORT`
   on Render), so the session cookie goes along and one build serves every environment;
@@ -154,7 +157,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`e2e/support/fixtures.ts`), which the reseed recreates.
 - **Active franchise** = the user's most recent `franchises.activated_at`
   (`current_franchise(db, user)`). Every page reads `/api/franchise`, so never hard-code a
-  league or team id. One franchise per league (unique constraint).
+  league or team id. A franchise is one member's team (`franchises.user_id`; one per
+  member and per team). **There's no "the franchise" of a league:** services take the
+  acting member's `team_id` (`members.user_team_id`), and AI decisions skip every team a
+  member runs (`members.human_team_ids`).
 - **League deletion** deletes child rows explicitly (`services/leagues.delete_league`)
   because SQLite tests don't enforce `ON DELETE CASCADE`. Add new league-owned tables there.
 - **Coached games replay from the user's calls** (`app/sim/coaching.py`): an engine change
@@ -197,7 +203,7 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   stored on that snap's recorded call (`CoachCall.audible`), not as a new call, and the look
   draws from its own `random.Random(f"look:{seed}:{n}:{role}")`, never the game's stream.
 - **The franchise on autopilot:** the offseason, free agency and the draft take
-  `autopilot=True` (sim ahead), which treats the franchise like an AI team. Anything new
+  `autopilot=True` (sim ahead), which treats members' teams like AI teams. Anything new
   that skips the franchise for the user to decide needs the same flag.
 - **Big JSON columns are deferred** (`Game.play_log`, `Season.offseason_log`): lists of
   games or seasons never load them. Reading one on many rows is a query each; add
