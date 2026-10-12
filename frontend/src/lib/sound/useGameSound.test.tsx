@@ -14,6 +14,8 @@ const fake = vi.hoisted(() => ({
   },
 }));
 vi.mock("./engine", () => ({ SoundEngine: { create: () => fake.engine } }));
+const voice = vi.hoisted(() => ({ say: vi.fn(), stop: vi.fn() }));
+vi.mock("./speaker", () => ({ Speaker: { create: () => voice } }));
 
 const timeline = {
   duration: 4, direction: 1, los: 40, firstDownLine: 50, players: [], ball: [], flag: null,
@@ -95,5 +97,43 @@ describe("SoundControls", () => {
     expect(screen.getByRole("slider", { name: "Volume" })).toHaveAttribute("aria-valuetext", "70%");
     await userEvent.click(screen.getByRole("checkbox", { name: "Crowd" }));
     expect(onChange).toHaveBeenLastCalledWith({ crowd: false });
+  });
+});
+
+describe("the booth's voices", () => {
+  const call = [{ t: 1.05, voice: "play" as const, text: "Handoff to Banks…" },
+                { t: 2.6, voice: "play" as const, text: "Gains 45." }];
+  function talk(replaying = false) {
+    return renderHook(({ r }) => useGameSound({ game, play: run, timeline, replaying: r, commentary: call }),
+                      { initialProps: { r: replaying } });
+  }
+  const spoken = () => voice.say.mock.calls.map(([line]) => line.text);
+
+  it("say each line as the playhead reaches it, at the sound's volume", () => {
+    localStorage.setItem(SOUND_KEY, JSON.stringify({ on: true, volume: 0.5 }));
+    const { result } = talk();
+    act(() => { for (let t = 0; t <= 3; t += 0.1) result.current.onTime(t); });
+    expect(spoken()).toEqual(["Handoff to Banks…", "Gains 45."]);
+    expect(voice.say.mock.calls[0][1]).toBe(0.5);
+  });
+
+  it("stop on a seek, and stay quiet in replays and with Commentary off", () => {
+    localStorage.setItem(SOUND_KEY, JSON.stringify({ on: true }));
+    const { result } = talk();
+    act(() => { for (let t = 0; t <= 1.2; t += 0.1) result.current.onTime(t); });
+    expect(spoken()).toEqual(["Handoff to Banks…"]);
+    act(() => result.current.onTime(2.9)); // (a jump past "Gains 45.")
+    expect(voice.stop).toHaveBeenCalled(); // the line being said stops
+    expect(spoken()).toEqual(["Handoff to Banks…"]); // and what was jumped over isn't said
+
+    vi.clearAllMocks();
+    const replay = talk(true);
+    act(() => { for (let t = 0; t <= 3; t += 0.1) replay.result.current.onTime(t); });
+    expect(spoken()).toEqual([]);
+
+    localStorage.setItem(SOUND_KEY, JSON.stringify({ on: true, voices: false }));
+    const quiet = talk();
+    act(() => { for (let t = 0; t <= 3; t += 0.1) quiet.result.current.onTime(t); });
+    expect(spoken()).toEqual([]);
   });
 });

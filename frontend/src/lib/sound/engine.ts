@@ -11,8 +11,9 @@ type Ctx = AudioContext;
 
 export interface SoundMix { volume: number; effects: boolean; crowd: boolean }
 
-/** What a test (Playwright) can see: the context's state and the last sounds played. */
-export interface SoundProbe { state: string; played: SoundName[] }
+/** What a test (Playwright) can see: the context's state, the last sounds played and the
+ * last lines spoken. */
+export interface SoundProbe { state: string; played: SoundName[]; spoken: string[] }
 
 declare global {
   interface Window { dynastySound?: SoundProbe }
@@ -22,6 +23,7 @@ export class SoundEngine {
   private readonly master: GainNode;
   private readonly effects: GainNode;
   private readonly crowd: GainNode; // the crowd's bed and reactions
+  private readonly duck: GainNode; // the crowd, lowered while the booth talks
   private readonly bed: GainNode; // the bed's level (the situation's)
   private readonly noise: AudioBuffer;
   private readonly probe: SoundProbe;
@@ -29,10 +31,11 @@ export class SoundEngine {
   constructor(private readonly ctx: Ctx) {
     this.master = this.gain(1, ctx.destination);
     this.effects = this.gain(1, this.master);
-    this.crowd = this.gain(1, this.master);
+    this.duck = this.gain(1, this.master);
+    this.crowd = this.gain(1, this.duck);
     this.bed = this.gain(0, this.crowd);
     this.noise = this.whiteNoise(2);
-    this.probe = { state: ctx.state, played: [] };
+    this.probe = { state: ctx.state, played: [], spoken: [] };
     window.dynastySound = this.probe;
     ctx.onstatechange = () => { this.probe.state = ctx.state; };
     this.startBed();
@@ -60,6 +63,11 @@ export class SoundEngine {
   /** The crowd's level for the situation (0–1), eased in over a second or two. */
   setCrowdLevel(level: number) {
     this.bed.gain.setTargetAtTime(level * 0.5, this.ctx.currentTime, 0.8);
+  }
+
+  /** Lowers the crowd while the commentators talk (and brings it back). */
+  setTalking(talking: boolean) {
+    this.duck.gain.setTargetAtTime(talking ? 0.4 : 1, this.ctx.currentTime, 0.15);
   }
 
   /** Plays a cue now (`scale` turns it down, e.g. during a replay). */

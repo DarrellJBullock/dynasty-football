@@ -57,11 +57,11 @@ export function PlayReel({ playback, reel }: { playback: GamePlayback; reel: Cho
   const instant = useInstantReplay({ clock, plan, enabled: reel.length > 1 && !reducedMotion, ended, playKey: index,
                                      duration: current?.timeline.duration ?? 0, onSeek });
   const { track, settled, cancel } = instant;
-  const sound = useGameSound({ game: playback.game, play: current?.play, timeline: current?.timeline,
-                               replaying: instant.replaying });
-  const { onTime: soundTime } = sound;
   const commentary = useMemo(() => (current && playIndex >= 0 ? commentaryFor(playback, playIndex, current.timeline) : []),
                              [current, playIndex, playback]);
+  const sound = useGameSound({ game: playback.game, play: current?.play, timeline: current?.timeline,
+                               replaying: instant.replaying, commentary });
+  const { onTime: soundTime } = sound;
 
   const onTick = useCallback((t: number, justEnded: boolean) => {
     soundTime(t);

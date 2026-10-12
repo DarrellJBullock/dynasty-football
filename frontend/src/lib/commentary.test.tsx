@@ -5,6 +5,7 @@ import { choreographGame } from "@/components/field/playback/choreograph";
 import type { PlaybackPlay, PlayEvent } from "@/lib/types";
 import { makePlay, makePlayback, opponent, pid, team } from "@/test/fixtures";
 import { captionAt, commentaryFor, type CommentaryLine } from "./commentary";
+import { speechPlan } from "./sound/voices";
 
 const H = team.id;
 const A = opponent.id;
@@ -111,6 +112,21 @@ describe("the analyst", () => {
   });
   it("signs off at the end of the game", () => {
     expect(color("fieldGoal")[0]).toMatch(/^And that's the ball game\./); // (the last play here)
+  });
+});
+
+describe("spoken", () => {
+  it("most of the call fits when it's said aloud, and every play gets some", () => {
+    let total = 0;
+    let said = 0;
+    for (const [i, name] of names.entries()) {
+      const call = commentaryFor(playback, i, timelines[i]);
+      const spoken = speechPlan(call, timelines[i].duration);
+      expect(spoken.length, name).toBeGreaterThan(0);
+      total += call.length;
+      said += spoken.length;
+    }
+    expect(said / total).toBeGreaterThan(0.6);
   });
 });
 

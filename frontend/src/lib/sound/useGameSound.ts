@@ -9,16 +9,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlayTimeline } from "@/components/field/playback/timeline";
 import type { Game, PlaybackPlay } from "@/lib/types";
+import type { CommentaryLine } from "@/lib/commentary";
 import { crowdLevel, dueCues, soundCues } from "./cues";
 import { SoundEngine, type SoundMix } from "./engine";
+import { Speaker } from "./speaker";
+import { speechPlan } from "./voices";
 
 export interface SoundSettings extends SoundMix {
   on: boolean;
   captions: boolean; // the commentary as captions (with or without sound)
+  voices: boolean; // the commentary spoken (with sound on)
 }
 
 export const SOUND_KEY = "dynasty.sound";
-export const DEFAULT_SOUND: SoundSettings = { on: false, volume: 0.7, effects: true, crowd: true, captions: false };
+export const DEFAULT_SOUND: SoundSettings = { on: false, volume: 0.7, effects: true, crowd: true, captions: false, voices: true };
 
 function loadSettings(): SoundSettings {
   try {
@@ -37,8 +41,19 @@ function theEngine(): SoundEngine | null {
   return engine;
 }
 
-/** (Tests: forget the engine.) */
-export function resetSoundEngine() { engine = null; }
+let speaker: Speaker | null = null;
+
+/** The page's voices, made on first use (null where the browser can't speak). */
+function theSpeaker(): Speaker | null {
+  speaker ??= Speaker.create((talking) => engine?.setTalking(talking));
+  return speaker;
+}
+
+/** (Tests: forget the engine and the voices.) */
+export function resetSoundEngine() {
+  engine = null;
+  speaker = null;
+}
 
 /** Browsers start audio only after an interaction: resume on the next one. */
 function resumeOnInteraction(e: SoundEngine) {
@@ -51,11 +66,13 @@ function resumeOnInteraction(e: SoundEngine) {
   window.addEventListener("keydown", resume);
 }
 
-export function useGameSound({ game, play, timeline, replaying }: {
+export function useGameSound({ game, play, timeline, replaying, commentary = [] }: {
   game: Pick<Game, "neutral_site" | "stage">;
   play: PlaybackPlay | undefined;
   timeline: PlayTimeline | undefined;
   replaying: boolean;
+  /** The play's commentary, spoken as the playhead reaches each line. */
+  commentary?: CommentaryLine[];
 }) {
   const [settings, setSettings] = useState<SoundSettings>(DEFAULT_SOUND);
   const [ready, setReady] = useState(false); // (settings read from the browser)
@@ -84,6 +101,7 @@ export function useGameSound({ game, play, timeline, replaying }: {
     void e.resume().catch(() => {});
     return () => {
       e.setCrowdLevel(0);
+      speaker?.stop();
       void e.suspend().catch(() => {});
     };
   }, [on]);
@@ -104,13 +122,19 @@ export function useGameSound({ game, play, timeline, replaying }: {
     theEngine()?.setCrowdLevel(crowdLevel(play, game));
   }, [on, play, game]);
 
-  const latest = useRef({ on, cues, replaying });
-  useEffect(() => { latest.current = { on, cues, replaying }; });
+  // What the booth says (lines that would run over the next one cut short or dropped).
+  const speech = useMemo(() => speechPlan(commentary, timeline?.duration ?? 0), [commentary, timeline]);
+  const talk = on && settings.voices;
+  useEffect(() => { if (!talk) speaker?.stop(); }, [talk]);
+  useEffect(() => { if (replaying) speaker?.stop(); }, [replaying]); // (replays have no call)
+
+  const latest = useRef({ on, cues, replaying, speech, talk, volume });
+  useEffect(() => { latest.current = { on, cues, replaying, speech, talk, volume }; });
 
   /** The playhead moved to `t`: play what it passed (a replay is quieter, without the
    * crowd's reaction). */
   const onTime = useCallback((t: number) => {
-    const { on, cues: current, replaying: replay } = latest.current;
+    const { on, cues: current, replaying: replay, speech: lines, talk: speak, volume: loud } = latest.current;
     const from = last.current;
     last.current = t;
     if (!on || !engine) return;
@@ -118,6 +142,9 @@ export function useGameSound({ game, play, timeline, replaying }: {
       if (replay && cue.reaction) continue;
       engine.play(cue, replay ? 0.5 : 1);
     }
+    if (Math.abs(t - from) > 0.3) speaker?.stop(); // a seek: the call starts over from here
+    if (!speak || replay) return;
+    for (const line of dueCues(lines, from, t)) theSpeaker()?.say(line, loud);
   }, []);
 
   return { settings, update, onTime };

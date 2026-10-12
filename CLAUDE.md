@@ -86,6 +86,9 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   `exact: true` when one name is a substring of another ("League" / "My Leagues").
   Next keeps up to 3 visited pages mounted but hidden (React `<Activity>`), so scope text
   locators to a visible region/role; page-wide `getByText` can match hidden pages.
+  Game seeds come from database ids, which differ between e2e runs, so never assume what a
+  given play is (play 2 can be a pre-snap foul, a starter can get hurt): find the play you
+  need from the API, or assert what holds for any play.
 - Python: ruff (line length 100). TS: eslint via `eslint-config-next`.
 - **CI** (`.github/workflows/ci.yml`) runs on every PR and push to `main`: backend lint,
   migrations on an empty Postgres + `alembic check`, seed, pytest on Postgres (and on

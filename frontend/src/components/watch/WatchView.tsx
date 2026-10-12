@@ -140,10 +140,10 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   };
 
   // Sound: the play's cues as the playhead passes them (docs/design/sound.md).
-  const sound = useGameSound({ game: playback.game, play, timeline, replaying: replay.replaying });
-  const { onTime: soundTime } = sound;
   const commentary = useMemo(() => (timeline ? commentaryFor(playback, index, timeline) : []),
                              [playback, index, timeline]);
+  const sound = useGameSound({ game: playback.game, play, timeline, replaying: replay.replaying, commentary });
+  const { onTime: soundTime } = sound;
 
   const { track: trackReplay } = replay;
   const onTick = useCallback((t: number, justEnded: boolean) => {

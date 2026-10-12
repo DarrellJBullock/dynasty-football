@@ -111,6 +111,21 @@ matches what's on screen, in the classic viewer and in Unity alike.
   gold. A Captions switch beside Sound, off by default and remembered; hidden during
   instant replays.
 
+### As built (part 3)
+
+- `lib/sound/voices.ts` (pure): two of the device's English voices (local ones first,
+  then by name, so the choice is stable; one voice for both if that's all there is), the
+  announcer quicker and higher than the analyst so even one voice reads as two people,
+  and the pacing: a line must finish before the next starts (the last, usually the
+  analyst's, has until the next play), else it's cut to its first clause, else left to the
+  captions. On the test plays, more than 60% of lines are spoken and every play gets some.
+- `lib/sound/speaker.ts`: the browser's speech synthesis, one line at a time (a new line
+  cuts off one still going, so the voices never fall behind); while someone's talking the
+  crowd drops to 40% (`SoundEngine.setTalking`).
+- The sound hook speaks each planned line as the playhead reaches it: not in instant
+  replays, stopped on a seek, quiet when sound or the Commentary switch (on by default
+  with sound) is off. The probe records spoken lines for tests (`window.dynastySound`).
+
 ## 6. Testing
 
 - **Pure, unit-tested:** the sound cues for a play (which sounds, when, how loud) from its

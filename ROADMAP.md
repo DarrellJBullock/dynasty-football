@@ -171,7 +171,7 @@ Design: `docs/design/sound.md`.
       controls on the Watch page and in Coach Mode)
 - [x] Commentary text and captions (a play-by-play announcer and an analyst, written from
       the events)
-- [ ] Spoken commentary (the voices, paced to the play, the crowd ducking under them)
+- [x] Spoken commentary (the voices, paced to the play, the crowd ducking under them)
 
 ## Later
 

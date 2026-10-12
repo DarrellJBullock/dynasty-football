@@ -26,9 +26,16 @@ test("watches a play in 3D from the play-by-play, then steps through the game", 
   const scrubber = viewer.getByRole("slider", { name: "Play timeline" });
   await expect.poll(async () => Number(await scrubber.inputValue()), { timeout: 15_000 }).toBeGreaterThan(0.3);
   await viewer.getByRole("button", { name: "Pause", exact: true }).click();
-  await scrubber.fill("1.2");
+  // Scrub just past the play's first moment (the snap; or, as game seeds vary between
+  // runs, the flag if play 2 drew a pre-snap foul): its label shows.
+  const first = viewer.getByRole("list", { name: "Moments" }).getByRole("listitem").first();
+  const label = (await first.textContent())!;
+  const share = await first.evaluate((li) => parseFloat((li as HTMLElement).style.left) / 100);
+  const duration = Number(await scrubber.getAttribute("max"));
+  await scrubber.fill(String(Number((share * duration + 0.05).toFixed(2))));
   await expect(viewer.getByRole("button", { name: "Play", exact: true })).toBeVisible();
-  await expect(viewer.getByRole("status")).toHaveText("Snap");
+  await expect(viewer.getByRole("status")).toHaveText(label);
+  expect(label).toMatch(/^(Snap|Flag: )/);
 
   // Step to the next play; the play list follows.
   await viewer.getByRole("button", { name: "Next play ›" }).click();

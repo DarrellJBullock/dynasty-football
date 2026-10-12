@@ -82,12 +82,32 @@ and container-image jobs (and the deploy workflow) put it in `frontend/public/un
 It needs a Unity license in the repository's secrets; without one the job skips with a
 notice and the site runs without the Unity renderer.
 
-To turn it on, follow GameCI's activation guide for a Personal license
-(<https://game.ci/docs/github/activation>) and add these repository secrets
-(Settings → Secrets and variables → Actions):
+To turn it on with a Unity Personal license (GameCI's activation guide:
+<https://game.ci/docs/github/activation>), add three repository secrets. From the repo,
+with the GitHub CLI (each prompts for its value, or reads the file, without printing it):
 
-- `UNITY_LICENSE`: the contents of the `.ulf` license file GameCI's guide produces
-- `UNITY_EMAIL` and `UNITY_PASSWORD`: the Unity ID that license belongs to
+1. In Unity Hub → Settings → Licenses → Add → "Get a free personal license", which writes
+   `/Library/Application Support/Unity/Unity_lic.ulf` on a Mac.
+2. `gh secret set UNITY_LICENSE -R DarrellJBullock/dynasty-football < "/Library/Application Support/Unity/Unity_lic.ulf"`
+3. `gh secret set UNITY_EMAIL -R DarrellJBullock/dynasty-football`: the Unity ID that
+   owns the license (id.unity.com).
+4. `gh secret set UNITY_PASSWORD -R DarrellJBullock/dynasty-football`: that Unity ID's
+   password (set one at id.unity.com if you sign in with Google or Apple).
 
-GameCI's Docker images are per editor version; when the project moves to a new Unity
+Or on GitHub: Settings → Secrets and variables → Actions → New repository secret, same
+names. A Pro license uses `UNITY_SERIAL` instead of `UNITY_LICENSE`. Never put these in a
+`.env` file or the repository.
+
+Then try it: Actions → CI → Run workflow (or any PR's CI). The Unity job takes several
+minutes when it runs; if it skips, its notice names the missing secrets; if activation
+fails, its log says why.
+
+**Caveat:** a Personal license file is bound to the machine that made it, and GameCI's
+guide doesn't cover Unity 6's newer licensing, so whether Unity accepts it in GameCI's
+container can only be known by running it. If it can't, the fallback is a self-hosted
+runner on the Mac that already has Unity signed in (no secrets needed; see the trade-offs
+for a public repository before setting one up).
+
+GameCI's Docker images are per editor version (6000.6.5f1 has
+`unityci/editor:ubuntu-6000.6.5f1-webgl-3`); when the project moves to a new Unity
 version, check that GameCI publishes an image for it.
