@@ -153,6 +153,28 @@ week an injured player is expected back.
   and `e2e/unity.spec.ts` (loads, plays, next play, remembered, back to Classic) in
   headless Chromium.
 
+### 4.3b As built (part 4, art and cameras)
+
+- **Athletes:** no downloaded models (free asset packs would need a license review and a
+  download you approve). Instead Unity builds the classic viewer's own jointed figure
+  (PlayerFigure.tsx) part for part: helmet and facemask, pads, jersey with numbers on the
+  chest and back (TextMesh), pants, socks, shoes and gloves, sized from height and weight,
+  with the classic skin tones. `Poses.cs` ports poses.ts, so stances, the run cycle by
+  distance, blocks, throws, catches, dives, tackles, kicks and celebrations match. The
+  shared fixtures now check all 13 joint angles and the hip height of every player at
+  every sample.
+- **Stadium:** the page paints the field exactly as the classic viewer does
+  (fieldTexture.ts: stripes, numbers, hashes, team end zones and the midfield logo) and
+  sends it as an image once per game; Unity builds the goalposts, four banks of stands
+  with ~4,900 fans (one vertex-colored mesh, about half in the home colors), light towers
+  with glowing lamps, and lighting matched to the browser's by eye.
+- **Coordinates:** everything but the camera hangs from one root mirrored in z, so it is
+  placed in the browser's scene coordinates number for number; where three.js combines
+  two rotation axes, Unity's are applied in its order (X then Y).
+- **Cameras and replays:** already the page's (part 3): the director, presets, follow-ball
+  and instant replays drive Unity's camera exactly as the classic one.
+- The build stays about 7 MB.
+
 ### 4.4 What you need to do
 
 I can't install Unity, create a Unity ID or accept its license for you. Before the Unity

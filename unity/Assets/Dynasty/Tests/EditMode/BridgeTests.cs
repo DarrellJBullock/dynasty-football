@@ -22,7 +22,10 @@ namespace Dynasty.Tests
         public void ParsesALoadPlayMessage()
         {
             var message = Bridge.Message.Parse(
-                $@"{{""timeline"": {Timeline}, ""teams"": {{""3"": ""#ff0000"", ""4"": ""nonsense""}}, ""endZone"": ""#0000ff""}}");
+                $@"{{""timeline"": {Timeline}, ""kits"": {{
+                    ""3"": {{""jersey"": ""#ff0000"", ""numbers"": ""#ffffff"", ""pants"": ""#0000ff"",
+                             ""helmet"": ""nonsense"", ""socks"": ""#ff0000""}},
+                    ""x"": {{""jersey"": ""#000000""}}}}}}");
             var timeline = message.Timeline;
             Assert.That((timeline.Duration, timeline.Direction, timeline.Los, timeline.FirstDownLine),
                         Is.EqualTo((4.0, -1, (double?)60, (double?)null)));
@@ -31,9 +34,11 @@ namespace Dynasty.Tests
                         Is.EqualTo(new[] { BallKind.Held, BallKind.Flight, BallKind.Rest }));
             Assert.That(timeline.Ball[1].Apex, Is.EqualTo(3));
             Assert.That(timeline.Flag, Is.Null);
-            Assert.That(message.TeamColors, Has.Count.EqualTo(1)); // the bad color is skipped
-            Assert.That(message.TeamColors[3], Is.EqualTo(Color.red));
-            Assert.That(message.EndZone, Is.EqualTo(Color.blue));
+            Assert.That(message.Kits, Has.Count.EqualTo(1)); // the bad team id is skipped
+            var kit = message.Kits[3];
+            Assert.That((kit.Jersey, kit.Numbers, kit.Pants, kit.Socks),
+                        Is.EqualTo((Color.red, Color.white, Color.blue, Color.red)));
+            Assert.That(kit.Helmet, Is.EqualTo(Color.gray)); // a bad color falls back
         }
 
         [Test]
@@ -45,6 +50,28 @@ namespace Dynasty.Tests
             Assert.That(frame.Target, Is.EqualTo(new Vector3(-4, 0, -2.5f)));
             Assert.That(frame.Fov, Is.EqualTo(26));
             Assert.Throws<FormatException>(() => Frame.Parse("1,2,3"));
+        }
+
+        [Test]
+        public void SkinTonesMatchTheBrowser()
+        {
+            // kit.ts skinTone: SKIN[|imul(id, 2654435761)| % 7] (values from the browser).
+            Assert.That(Kit.SkinTone(1), Is.EqualTo("#4a2a17"));
+            Assert.That(Kit.SkinTone(3), Is.EqualTo("#f1c9a5"));
+            Assert.That(Kit.SkinTone(7), Is.EqualTo("#6b3e1f"));
+            Assert.That(Kit.SkinTone(1234), Is.EqualTo("#8d5524"));
+            Assert.That(Kit.SkinTone(-1012), Is.EqualTo("#6b3e1f"));
+        }
+
+        [Test]
+        public void ProportionsComeFromHeightAndWeight()
+        {
+            var lineman = new Build(77, 320);
+            var receiver = new Build(72, 190);
+            Assert.That(lineman.Height, Is.EqualTo(77 / 36.0).Within(1e-9));
+            Assert.That(lineman.Bulk, Is.GreaterThan(receiver.Bulk));
+            Assert.That(new Build(70, 600).Bulk, Is.EqualTo(1.45)); // capped
+            Assert.That(lineman.HipHeight(JointAngles.Zero), Is.EqualTo(lineman.Thigh + lineman.Shin).Within(1e-9));
         }
 
         static void Near(Vector3 actual, Vector3 expected) =>
