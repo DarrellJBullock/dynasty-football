@@ -2,15 +2,17 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
-import type { TradeAssetOut, TradeCenter } from "@/lib/types";
+import type { TradeAssetOut, TradeCenter, TradeOffer } from "@/lib/types";
 import { makePlayer, opponent, team } from "@/test/fixtures";
 import { TradesView } from "./TradesView";
 
-const router = { refresh: vi.fn(), push: vi.fn() };
+const router = { refresh: vi.fn(), push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, api: { evaluateTrade: vi.fn(), proposeTrade: vi.fn() } };
+  return { ...actual, api: { evaluateTrade: vi.fn(), proposeTrade: vi.fn(), makeTradeOffer: vi.fn(),
+    counterOffer: vi.fn(), acceptOffer: vi.fn(), rejectOffer: vi.fn(), withdrawTradeOffer: vi.fn(),
+    vetoOffer: vi.fn(), approveOffer: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -32,7 +34,20 @@ const center: TradeCenter = {
   history: [{ id: 9, partner: opponent, season_phase: "preseason", week: 1,
     sent: [{ kind: "player", id: 7, label: "WR Old Friend (74)" }],
     received: [{ kind: "pick", id: 70, label: "2027 round 3" }] }],
+  partner_manager: null, managed: [], offers: [], review_hours: 0,
 };
+
+/** The same desk, with the partner run by another member, Robin. */
+const managedCenter: TradeCenter = { ...center, partner_manager: "Robin", managed: [opponent.id] };
+
+function offer(overrides: Partial<TradeOffer> = {}): TradeOffer {
+  return { id: 30, from_team: opponent, to_team: team, from_manager: "Robin", to_manager: "Sam",
+    gives: [{ kind: "player", id: 3, label: "QB Their Star (88)" }],
+    gets: [{ kind: "player", id: 2, label: "WR My Backup (61)" }],
+    note: "Interested?", status: "pending", reason: null, direction: "incoming", parent_id: null,
+    created_at: "2026-10-12T00:00:00Z", expires_at: "2026-10-15T00:00:00Z", review_ends_at: null,
+    ...overrides };
+}
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -82,5 +97,77 @@ describe("TradesView", () => {
     expect(screen.getByRole("button", { name: "Propose trade" })).toBeDisabled();
     await userEvent.selectOptions(screen.getByLabelText("Trade with"), "3");
     expect(router.push).toHaveBeenCalledWith("/trades?partner=3");
+  });
+
+  it("sends an offer, with a note, to a team another member runs", async () => {
+    mocked.evaluateTrade.mockResolvedValue({ acceptable: true, balance: 0.4,
+      message: "The Roadrunners' manager decides: send them an offer.", problems: [], value_in: 8,
+      value_needed: 20 });
+    mocked.makeTradeOffer.mockResolvedValue(offer({ direction: "outgoing" }));
+    render(<TradesView center={managedCenter} team={team} leagueId={4} />);
+    expect(screen.getByRole("option", { name: /Roadrunners \(a member's team\)/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText("Trade My Backup"));
+    await userEvent.click(screen.getByLabelText("Trade Their Backup"));
+    await screen.findByText(/manager decides/);
+    await userEvent.type(screen.getByLabelText("Note to Robin (optional)"), "Depth for depth?");
+    await userEvent.click(screen.getByRole("button", { name: "Send offer" }));
+    expect(mocked.makeTradeOffer).toHaveBeenCalledWith(4, { partner_id: opponent.id,
+      send_players: [2], send_picks: [], receive_players: [4], receive_picks: [] }, "Depth for depth?");
+    expect(await screen.findByRole("status", { name: "Trade result" })).toHaveTextContent("Offer sent to Robin.");
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("answers an offer: accept, or reject", async () => {
+    mocked.acceptOffer.mockResolvedValue(offer({ status: "accepted" }));
+    mocked.rejectOffer.mockResolvedValue(offer({ id: 31, status: "rejected" }));
+    render(<TradesView center={{ ...managedCenter, offers: [offer(), offer({ id: 31 })] }} team={team} leagueId={4} />);
+    const offers = screen.getByRole("region", { name: "Trade offers" });
+    const [first, second] = within(offers).getAllByRole("listitem");
+    expect(first).toHaveTextContent(/You get\s*QB Their Star \(88\)/);
+    expect(first).toHaveTextContent(/You give\s*WR My Backup \(61\)/);
+    expect(first).toHaveTextContent("“Interested?”");
+    await userEvent.click(within(first).getByRole("button", { name: "Accept" }));
+    expect(mocked.acceptOffer).toHaveBeenCalledWith(30);
+    expect(await within(offers).findByRole("status")).toHaveTextContent("done");
+    await userEvent.click(within(second).getByRole("button", { name: "Reject" }));
+    expect(mocked.rejectOffer).toHaveBeenCalledWith(31);
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("counters an offer: the deal starts from it, sides swapped", async () => {
+    mocked.evaluateTrade.mockResolvedValue({ acceptable: true, balance: 1, message: "decides",
+      problems: [], value_in: 1, value_needed: 1 });
+    mocked.counterOffer.mockResolvedValue(offer({ id: 32, direction: "outgoing", parent_id: 30 }));
+    render(<TradesView center={{ ...managedCenter, offers: [offer()] }} team={team} leagueId={4}
+      counterId={30} />);
+    const deal = screen.getByRole("region", { name: "Deal" });
+    expect(within(deal).getByRole("group", { name: "You give" })).toHaveTextContent("My Backup");
+    expect(within(deal).getByRole("group", { name: "You get" })).toHaveTextContent("Their Star");
+    await userEvent.click(screen.getByLabelText("Trade Their Star"));
+    await userEvent.click(screen.getByLabelText("Trade Their Backup"));
+    await userEvent.click(screen.getByRole("button", { name: "Send counter-offer" }));
+    expect(mocked.counterOffer).toHaveBeenCalledWith(30, { partner_id: opponent.id,
+      send_players: [2], send_picks: [], receive_players: [4], receive_picks: [] }, "");
+    expect(router.replace).toHaveBeenCalledWith(`/trades?partner=${opponent.id}`);
+  });
+
+  it("withdraws your own offer, and lets a commissioner veto one in the window", async () => {
+    mocked.withdrawTradeOffer.mockResolvedValue(offer({ direction: "outgoing", status: "withdrawn" }));
+    mocked.vetoOffer.mockResolvedValue(offer({ id: 33, direction: "other", status: "vetoed" }));
+    const mine = offer({ direction: "outgoing", from_team: team, to_team: opponent });
+    const review = offer({ id: 33, direction: "other", status: "review",
+      review_ends_at: "2026-10-13T12:00:00Z" });
+    const { rerender } = render(<TradesView center={{ ...managedCenter, offers: [mine, review] }}
+      team={team} leagueId={4} />);
+    const offers = screen.getByRole("region", { name: "Trade offers" });
+    const [own, waiting] = within(offers).getAllByRole("listitem");
+    expect(within(waiting).queryByRole("button", { name: "Veto" })).toBeNull(); // (not a commissioner)
+    await userEvent.click(within(own).getByRole("button", { name: "Withdraw" }));
+    expect(mocked.withdrawTradeOffer).toHaveBeenCalledWith(30);
+    rerender(<TradesView center={{ ...managedCenter, offers: [mine, review] }} team={team} leagueId={4}
+      commissioner />);
+    expect(waiting).toHaveTextContent("Accepted · in the veto window");
+    await userEvent.click(within(waiting).getByRole("button", { name: "Veto" }));
+    expect(mocked.vetoOffer).toHaveBeenCalledWith(33);
   });
 });

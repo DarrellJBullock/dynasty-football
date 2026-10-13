@@ -32,6 +32,7 @@ from app.models import (
     TeamGamePlan,
     TeamGameStats,
     Trade,
+    TradeOffer,
     User,
 )
 from app.schemas import FranchiseListItem, LeagueCreate, TeamUpdate
@@ -109,6 +110,7 @@ def delete_league(db: Session, league: League, user: User | None = None) -> None
         delete(Award).where(Award.season_id.in_(season_ids)),
         delete(FreeAgentOffer).where(FreeAgentOffer.season_id.in_(season_ids)),
         delete(DraftPick).where(DraftPick.league_id == league.id),
+        delete(TradeOffer).where(TradeOffer.league_id == league.id),
         delete(Trade).where(Trade.league_id == league.id),
         delete(Job).where(Job.league_id == league.id),
         delete(PlayerGameStats).where(PlayerGameStats.player_id.in_(player_ids)),

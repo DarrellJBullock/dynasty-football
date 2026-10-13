@@ -19,7 +19,7 @@ const me: TurnMember = { member_id: 1, display_name: "Sam", team, ready: false, 
 const robin: TurnMember = { member_id: 2, display_name: "Robin", team: opponent, ready: true, is_you: false };
 const turn: Turn = { step: "Week 3", step_key: "1:week:3", managers: [me, robin], all_ready: false,
   can_advance: true, draft_clock_minutes: 1440, advance_minute_utc: null, next_advance_at: null,
-  pick_clock_ends_at: null };
+  pick_clock_ends_at: null, trade_review_hours: 0 };
 
 beforeEach(() => vi.clearAllMocks());
 

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
+import { TradeOffers } from "./TradeOffers";
 import { formatMoney } from "@/lib/format";
 import type {
   TeamSummary,
@@ -13,6 +14,7 @@ import type {
   TradeAssets,
   TradeCenter,
   TradeEvaluation,
+  TradeOffer,
   TradeProposal,
 } from "@/lib/types";
 
@@ -21,16 +23,35 @@ type Selection = Record<Side, { players: number[]; picks: number[] }>;
 
 const EMPTY: Selection = { send: { players: [], picks: [] }, receive: { players: [], picks: [] } };
 
-export function TradesView({ center, team, leagueId }: {
+/** The selection a counter-offer starts from: the offer with the sides swapped. */
+export function counterSelection(offer: TradeOffer): Selection {
+  const ids = (items: TradeOffer["gives"], kind: "player" | "pick") =>
+    items.filter((i) => i.kind === kind).map((i) => i.id);
+  return {
+    send: { players: ids(offer.gets, "player"), picks: ids(offer.gets, "pick") },
+    receive: { players: ids(offer.gives, "player"), picks: ids(offer.gives, "pick") },
+  };
+}
+
+export function TradesView({ center, team, leagueId, commissioner = false, counterId }: {
   center: TradeCenter; team: TeamSummary; leagueId: number;
+  /** The viewer is a commissioner (vetoes trades in the veto window). */
+  commissioner?: boolean;
+  /** Counter this incoming offer: the deal starts from it, sides swapped. */
+  counterId?: number;
 }) {
   const router = useRouter();
-  const [selection, setSelection] = useState<Selection>(EMPTY);
+  const countering = center.offers.find((o) => o.id === counterId && o.direction === "incoming"
+    && o.status === "pending" && o.from_team.id === center.partner?.id);
+  const [selection, setSelection] = useState<Selection>(
+    countering ? counterSelection(countering) : EMPTY);
+  const [note, setNote] = useState("");
   const [evaluation, setEvaluation] = useState<TradeEvaluation | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const partner = center.partner;
+  const managed = !!partner && center.managed.includes(partner.id);
   const proposal: TradeProposal | null = partner && {
     partner_id: partner.id,
     send_players: selection.send.players, send_picks: selection.send.picks,
@@ -69,6 +90,18 @@ export function TradesView({ center, team, leagueId }: {
     setBusy(true);
     setError(null);
     try {
+      if (managed) {
+        await (countering ? api.counterOffer(countering.id, proposal, note)
+          : api.makeTradeOffer(leagueId, proposal, note));
+        setSelection(EMPTY);
+        setEvaluation(null);
+        setNote("");
+        setStatus(`${countering ? "Counter-offer" : "Offer"} sent to ${center.partner_manager}.`);
+        // The offers list changes; a counter also leaves the countered offer behind.
+        if (countering) router.replace(`/trades?partner=${partner?.id}`);
+        else router.refresh();
+        return;
+      }
       const result = await api.proposeTrade(leagueId, proposal);
       if (result.accepted) {
         setSelection(EMPTY);
@@ -108,10 +141,16 @@ export function TradesView({ center, team, leagueId }: {
           <span className="eyebrow">Trade with</span>
           <select className="field-input" value={partner?.id ?? ""}
             onChange={(e) => router.push(`/trades?partner=${e.target.value}`)}>
-            {center.partners.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+            {center.partners.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.full_name}{center.managed.includes(t.id) ? " (a member's team)" : ""}
+              </option>
+            ))}
           </select>
         </label>
       </div>
+
+      {center.offers.length > 0 && <TradeOffers offers={center.offers} commissioner={commissioner} />}
 
       <section className="panel space-y-3 p-5" aria-label="Deal">
         <div className="grid gap-4 md:grid-cols-2">
@@ -132,6 +171,15 @@ export function TradesView({ center, team, leagueId }: {
         )}
         {status && !shown && <p className="text-sm text-emerald-300" role="status" aria-label="Trade result">{status}</p>}
         {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
+        {managed && (
+          <label className="block space-y-1">
+            <span className="eyebrow">
+              {countering ? `Counter ${center.partner_manager}'s offer` : `Note to ${center.partner_manager}`} (optional)
+            </span>
+            <input className="field-input w-full" maxLength={200} value={note}
+              onChange={(e) => setNote(e.target.value)} />
+          </label>
+        )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn btn-ghost" disabled={empty}
             onClick={() => { setSelection(EMPTY); setEvaluation(null); }}>
@@ -139,7 +187,7 @@ export function TradesView({ center, team, leagueId }: {
           </button>
           <button type="button" className="btn btn-primary" disabled={empty || busy || !!center.closed_reason}
             onClick={propose}>
-            {busy ? "Proposing…" : "Propose trade"}
+            {busy ? "Sending…" : managed ? (countering ? "Send counter-offer" : "Send offer") : "Propose trade"}
           </button>
         </div>
       </section>

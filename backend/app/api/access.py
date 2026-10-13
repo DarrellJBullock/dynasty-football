@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import Franchise, Game, Job, League, Player, Season, Team, User
+from app.models import Franchise, Game, Job, League, Player, Season, Team, TradeOffer, User
 from app.services import accounts, members
 
 SESSION_COOKIE = "df_session"
@@ -37,7 +37,7 @@ def league_of(db: Session, params: dict[str, str]) -> int | None:
     if "league_id" in params:
         return int(params["league_id"])
     models = {"season_id": Season, "team_id": Team, "player_id": Player,
-              "franchise_id": Franchise, "job_id": Job}
+              "franchise_id": Franchise, "job_id": Job, "offer_id": TradeOffer}
     for key, model in models.items():
         if key in params:
             row = db.get(model, int(params[key]))
@@ -112,6 +112,13 @@ WRITES = {
     "POST /api/franchises/{franchise_id}/activate": "own_franchise",
     "POST /api/leagues/{league_id}/invites": "commissioner",
     "PUT /api/leagues/{league_id}/ready": "has_team",
+    "POST /api/leagues/{league_id}/trade-offers": "has_team",
+    "POST /api/trade-offers/{offer_id}/accept": "has_team",  # (the service checks which side)
+    "POST /api/trade-offers/{offer_id}/reject": "has_team",
+    "POST /api/trade-offers/{offer_id}/counter": "has_team",
+    "POST /api/trade-offers/{offer_id}/withdraw": "has_team",
+    "POST /api/trade-offers/{offer_id}/veto": "commissioner",
+    "POST /api/trade-offers/{offer_id}/approve": "commissioner",
     "POST /api/leagues/{league_id}/advance": "commissioner",
     "PATCH /api/leagues/{league_id}/settings": "commissioner",
     "DELETE /api/leagues/{league_id}/invites/{invite_id}": "commissioner",

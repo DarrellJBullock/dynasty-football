@@ -94,6 +94,8 @@ class League(Base):
     draft_clock_minutes: Mapped[int] = mapped_column(Integer, default=1440,
                                                      server_default="1440")
     advance_minute_utc: Mapped[int | None] = mapped_column(Integer)
+    # Trades between managers wait this long for the commissioner's veto (0: they don't).
+    trade_review_hours: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     auto_advanced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     conferences: Mapped[list["Conference"]] = relationship(
@@ -464,8 +466,9 @@ class DraftPick(Base):
 
 
 class Trade(Base):
-    """A completed trade between the franchise and another team. `sent` / `received` list
-    what moved, from the franchise's side: [{"kind": "player" | "pick", "id", "label"}]."""
+    """A completed trade. `team_id` proposed it (a member's team) to `partner_id` (the AI's,
+    or another member's). `sent` / `received` list what moved, from `team_id`'s side:
+    [{"kind": "player" | "pick", "id", "label"}]."""
 
     __tablename__ = "trades"
 
@@ -483,6 +486,38 @@ class Trade(Base):
 
     team: Mapped["Team"] = relationship(foreign_keys=[team_id])
     partner: Mapped["Team"] = relationship(foreign_keys=[partner_id])
+
+
+class TradeOffer(Base):
+    """A trade one member offers another (services/trade_offers.py): what `from_team_id`
+    sends and receives ([{"kind": "player" | "pick", "id"}]). status:
+    pending → accepted (done) | rejected | withdrawn | countered (a counter-offer answers it,
+    `parent_id`) | expired | invalid (something in it moved) | review (accepted, waiting out
+    the commissioner's veto window) → accepted | vetoed."""
+
+    __tablename__ = "trade_offers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"))
+    from_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    to_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("trade_offers.id", ondelete="SET NULL"))
+    send: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    receive: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    note: Mapped[str | None] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(12), default="pending", index=True)
+    reason: Mapped[str | None] = mapped_column(String(200))  # why it ended, for people
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trade_id: Mapped[int | None] = mapped_column(ForeignKey("trades.id", ondelete="SET NULL"))
+
+    from_team: Mapped["Team"] = relationship(foreign_keys=[from_team_id])
+    to_team: Mapped["Team"] = relationship(foreign_keys=[to_team_id])
 
 
 class FreeAgentOffer(Base):

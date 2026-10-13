@@ -661,9 +661,48 @@ export interface TradeCenter {
   draft_year: number;
   partners: TeamSummary[];
   partner: TeamSummary | null;
+  /** The partner's manager (trades by offer), or null (the AI, which answers at once). */
+  partner_manager: string | null;
+  /** Partners another member runs. */
+  managed: number[];
   mine: TradeAssets;
   theirs: TradeAssets;
   history: TradeOut[];
+  /** Your offers (open first), and, for a commissioner, trades in the veto window. */
+  offers: TradeOffer[];
+  /** The commissioner's veto window in hours (0: none). */
+  review_hours: number;
+}
+
+export interface TradeOfferItem {
+  kind: "player" | "pick";
+  id: number;
+  label: string;
+}
+
+export type TradeOfferStatus = "pending" | "accepted" | "rejected" | "withdrawn" | "countered"
+  | "expired" | "invalid" | "review" | "vetoed";
+
+/** A trade offer between managers (`schemas.TradeOfferOut`). */
+export interface TradeOffer {
+  id: number;
+  from_team: TeamSummary;
+  to_team: TeamSummary;
+  from_manager: string;
+  to_manager: string;
+  /** What `from_team` sends. */
+  gives: TradeOfferItem[];
+  /** What `from_team` receives. */
+  gets: TradeOfferItem[];
+  note: string | null;
+  status: TradeOfferStatus;
+  reason: string | null;
+  /** For the viewer's team. */
+  direction: "incoming" | "outgoing" | "other";
+  parent_id: number | null;
+  created_at: string;
+  expires_at: string;
+  review_ends_at: string | null;
 }
 
 export interface TradeProposal {
@@ -1076,9 +1115,12 @@ export interface Turn {
   advance_minute_utc: number | null;
   next_advance_at: string | null;
   pick_clock_ends_at: string | null;
+  /** Trades between managers wait this long for a veto (0: they don't). */
+  trade_review_hours: number;
 }
 
 export interface LeagueSettings {
   draft_clock_minutes?: number;
   advance_minute_utc?: number | null;
+  trade_review_hours?: number;
 }

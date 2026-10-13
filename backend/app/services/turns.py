@@ -12,12 +12,13 @@ from sqlalchemy.orm import Session
 
 from app.models import League, LeagueMember, Season, Team, User
 from app.schemas import LeagueSettingsIn, SimulateRequest, TurnMember, TurnOut
-from app.services import draft, free_agency, offseason, playoffs
+from app.services import draft, free_agency, offseason, playoffs, trade_offers
 from app.services import season as season_service
 from app.services.errors import RosterError
 from app.services.members import display_name, human_team_ids, member, user_team_id
 from app.services.serializers import team_summary
 from app.services.teams import current_season
+from app.services.trade_offers import REVIEW_HOURS
 
 log = logging.getLogger("app.turns")
 
@@ -102,6 +103,7 @@ def turn_view(db: Session, league: League, user: User) -> TurnOut:
                    advance_minute_utc=league.advance_minute_utc,
                    next_advance_at=next_advance_at(league),
                    pick_clock_ends_at=clock,
+                   trade_review_hours=league.trade_review_hours,
                    can_advance=you is not None and you.role == "commissioner")
 
 
@@ -120,6 +122,10 @@ def update_settings(db: Session, league: League, settings: LeagueSettingsIn) -> 
         if changes["draft_clock_minutes"] not in DRAFT_CLOCKS:
             raise RosterError("Pick one of the draft clocks offered.", 422)
         league.draft_clock_minutes = changes["draft_clock_minutes"]
+    if "trade_review_hours" in changes:
+        if changes["trade_review_hours"] not in REVIEW_HOURS:
+            raise RosterError("A veto window is none, 24 or 48 hours.", 422)
+        league.trade_review_hours = changes["trade_review_hours"]
     if "advance_minute_utc" in changes:
         minute = changes["advance_minute_utc"]
         if minute is not None and not 0 <= minute < 24 * 60:
@@ -167,6 +173,9 @@ def tick(db: Session, now: datetime | None = None) -> int:
         if draft.run_clock(db, season, now):
             db.commit()
             changed += 1
+    for league in trade_offers.leagues_to_settle(db):  # (expiries and veto windows)
+        trade_offers.settle(db, league, now)
+        db.commit()
     for league in db.scalars(select(League).where(League.advance_minute_utc.is_not(None))).all():
         due = _last_scheduled(league, now)
         if league.auto_advanced_at is not None and _as_utc(league.auto_advanced_at) >= due:

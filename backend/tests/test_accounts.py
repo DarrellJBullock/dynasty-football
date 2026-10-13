@@ -9,7 +9,17 @@ from sqlalchemy.orm import Session
 from app.api import auth
 from app.api.access import SESSION_COOKIE
 from app.config import get_settings
-from app.models import Franchise, Game, League, Player, Season, User, UserSession
+from app.models import (
+    Franchise,
+    Game,
+    League,
+    Player,
+    Season,
+    Team,
+    TradeOffer,
+    User,
+    UserSession,
+)
 from app.services import accounts, jobs, members
 from tests.conftest import OWNER_EMAIL, OWNER_PASSWORD, make_client, sign_in_as
 
@@ -164,6 +174,17 @@ class TestTheAccount:
         assert accounts.authenticate(db, "dev@example.test", "changed-password").id == user.id
 
 
+def _an_offer(db: Session, league: League, season: Season, franchise: Franchise) -> TradeOffer:
+    other = db.scalar(select(Team.id).where(Team.league_id == league.id,
+                                            Team.id != franchise.team_id))
+    offer = TradeOffer(league_id=league.id, season_id=season.id, from_team_id=franchise.team_id,
+                       to_team_id=other, send=[], receive=[],
+                       expires_at=datetime.now(UTC) + timedelta(days=1))
+    db.add(offer)
+    db.flush()
+    return offer
+
+
 class TestLeaguesBelongToTheirOwner:
     def test_each_account_has_its_own_leagues_and_active_franchise(
             self, client: TestClient, intruder: TestClient, franchise: Franchise):
@@ -191,6 +212,7 @@ class TestLeaguesBelongToTheirOwner:
             "job_id": jobs.enqueue(db, league, "sim_regular_season").id,
             "invite_id": members.create_invite(db, league, owner)[0].id,
             "member_id": members.member(db, league.id, owner).id,
+            "offer_id": _an_offer(db, league, season, franchise).id,
             "slot": "QB", "fmt": "csv",
         }
         unscoped = set()

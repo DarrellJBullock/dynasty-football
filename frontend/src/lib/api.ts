@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Credentials,
+  TradeOffer,
   LeagueSettings,
   Turn,
   InviteCreated,
@@ -237,6 +238,16 @@ export const api = {
     post<TradeEvaluation>(`/leagues/${leagueId}/trades/evaluate`, proposal),
   proposeTrade: (leagueId: number, proposal: TradeProposal) =>
     post<TradeResult>(`/leagues/${leagueId}/trades`, proposal),
+  makeTradeOffer: (leagueId: number, proposal: TradeProposal, note?: string) =>
+    post<TradeOffer>(`/leagues/${leagueId}/trade-offers`, { proposal, note: note || null }),
+  acceptOffer: (offerId: number) => post<TradeOffer>(`/trade-offers/${offerId}/accept`),
+  rejectOffer: (offerId: number) => post<TradeOffer>(`/trade-offers/${offerId}/reject`),
+  withdrawTradeOffer: (offerId: number) => post<TradeOffer>(`/trade-offers/${offerId}/withdraw`),
+  counterOffer: (offerId: number, proposal: TradeProposal, note?: string) =>
+    post<TradeOffer>(`/trade-offers/${offerId}/counter`, { proposal, note: note || null }),
+  vetoOffer: (offerId: number, reason?: string) =>
+    post<TradeOffer>(`/trade-offers/${offerId}/veto`, { reason: reason || null }),
+  approveOffer: (offerId: number) => post<TradeOffer>(`/trade-offers/${offerId}/approve`),
   history: (leagueId: number) => request<HistoryOut>(`/leagues/${leagueId}/history`),
   career: (playerId: number) => request<CareerOut>(`/players/${playerId}/career`),
   playback: (gameId: number) => request<GamePlayback>(`/games/${gameId}/playback`),

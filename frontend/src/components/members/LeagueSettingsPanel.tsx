@@ -75,6 +75,17 @@ export function LeagueSettingsPanel({ leagueId }: { leagueId: number }) {
           </span>
         </div>
         <div className="space-y-1">
+          <label htmlFor="trade-review" className="eyebrow block">Trade veto window</label>
+          <select id="trade-review" className="field-input w-full" value={turn.trade_review_hours}
+            disabled={busy} aria-describedby="trade-review-hint"
+            onChange={(e) => save({ trade_review_hours: Number(e.target.value) }, "Veto window saved.")}>
+            {[0, 24, 48].map((h) => <option key={h} value={h}>{h ? `${h} hours` : "None"}</option>)}
+          </select>
+          <span id="trade-review-hint" className="block text-xs text-mist">
+            Trades between managers wait this long for your veto before they go through.
+          </span>
+        </div>
+        <div className="space-y-1">
           <label className="block space-y-1">
             <span className="eyebrow">Advance every day at (your time)</span>
             <input className="field-input w-full" type="time" value={time} disabled={busy}

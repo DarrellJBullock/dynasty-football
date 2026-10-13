@@ -33,7 +33,7 @@ const members: Members = { league, you, members: [you, friend], invites: [], ope
 
 const turn: Turn = { step: "Week 3", step_key: "1:week:3", managers: [], all_ready: false,
   can_advance: true, draft_clock_minutes: 1440, advance_minute_utc: null, next_advance_at: null,
-  pick_clock_ends_at: null };
+  pick_clock_ends_at: null, trade_review_hours: 0 };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -163,6 +163,15 @@ describe("LeagueSettingsPanel (on the Members page, for a commissioner)", () => 
     expect(await within(settings).findByText(/On: the league plays the next step/)).toBeInTheDocument();
     await userEvent.click(within(settings).getByRole("button", { name: "Turn off" }));
     expect(mocked.updateLeagueSettings).toHaveBeenLastCalledWith(1, { advance_minute_utc: null });
+  });
+
+  it("sets the trade veto window", async () => {
+    mocked.updateLeagueSettings.mockResolvedValue({ ...turn, trade_review_hours: 24 });
+    render(<MembersView initial={members} />);
+    const settings = await screen.findByRole("region", { name: "League settings" });
+    await userEvent.selectOptions(within(settings).getByLabelText("Trade veto window"), "24 hours");
+    expect(mocked.updateLeagueSettings).toHaveBeenCalledWith(1, { trade_review_hours: 24 });
+    expect(await within(settings).findByRole("status")).toHaveTextContent("Veto window saved.");
   });
 
   it("isn't there for a manager", () => {
