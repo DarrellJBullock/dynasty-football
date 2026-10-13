@@ -201,6 +201,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   team's plan. A neutral plan (the whole book, every tendency 0) must stay draw-for-draw
   identical to the AI before plans (`test_game_plans.py` pins a game's log): apply a
   tendency only when its level isn't 0, and only fall back when a pick finds nothing.
+- **Head-to-head games** (`sim/coaching.replay_both`) script both sides: before each snap
+  both coaches are asked, and `NeedCalls` names every side still to call, so neither sees
+  the other's call first; kicking decisions and audibles stop for one side (`NeedCall.side`).
+  Both sides on autopilot is the AI's game, draw for draw.
 - **Audibles** are decided at the line inside a snap (`engine.at_the_line`): the answer is
   stored on that snap's recorded call (`CoachCall.audible`), not as a new call, and the look
   draws from its own `random.Random(f"look:{seed}:{n}:{role}")`, never the game's stream.

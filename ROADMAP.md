@@ -197,6 +197,19 @@ Design: `docs/design/staff-and-legacy.md`.
 - [x] The coaching carousel and the staff budget (contracts, hiring and firing, the AI)
 - [x] Facilities (training, medical, scouting; levels and upgrades)
 
+## M13 — Head-to-head and commissioner tools
+
+Design: `docs/design/head-to-head-and-commissioner.md`.
+
+- [x] Head-to-head in the engine (two scripted sides, blind calls each snap, audibles for
+      both)
+- [ ] Playing head-to-head (agreeing to play live, the shared game, "your call", the
+      per-call clock, the week's deadline)
+- [ ] Commissioner edits and the League log
+- [ ] Reversing trades and rolling back a week
+- [ ] League rules (roster size, the cap and its growth, the playoff format, season
+      length)
+
 ## Later
 
 - [x] Women's leagues (a men's / women's choice in the league builder; women's leagues get

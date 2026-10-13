@@ -80,16 +80,26 @@ class OutOfStep(Exception):  # noqa: N818
 
 
 class NeedCall(Exception):  # noqa: N818 (a signal, not an error)
-    def __init__(self, situation: Situation):
+    def __init__(self, situation: Situation, side: Side | None = None):
         super().__init__("the coach needs a call")
         self.situation = situation
+        self.side = side  # whose call (a head-to-head game has a coach on each side)
+
+
+class NeedCalls(Exception):  # noqa: N818 (a signal, not an error)
+    """A head-to-head snap waits on one coach or both: side -> the situation they call."""
+
+    def __init__(self, needs: dict[Side, Situation]):
+        super().__init__("the coaches need calls")
+        self.needs = needs
 
 
 class ScriptedCoach:
     """Calls one side's plays from the user's recorded calls."""
 
     def __init__(self, calls: list[CoachCall], autopilot: bool = False,
-                 plans: Mapping[str, GamePlan] | None = None):
+                 plans: Mapping[str, GamePlan] | None = None, side: Side | None = None):
+        self.side = side  # (said in NeedCall: whose call it is)
         self.calls = calls
         self.used = 0
         self.pending: CoachCall | None = None
@@ -127,7 +137,7 @@ class ScriptedCoach:
             possession=state.possession, down=state.down, distance=state.distance,
             ball_on=state.ball_on, score=dict(state.score), timeouts=dict(state.timeouts),
             suggestion=suggestion.play or "", suggested_package=package,
-            fatigue=(*fatigue.report(offense), *fatigue.report(defense))))
+            fatigue=(*fatigue.report(offense), *fatigue.report(defense))), self.side)
 
     def snap_done(self) -> None:
         self.pending = None
@@ -148,7 +158,7 @@ class ScriptedCoach:
             possession=state.possession, down=state.down, distance=state.distance,
             ball_on=state.ball_on, score=dict(state.score), timeouts=dict(state.timeouts),
             suggestion="keep", suggested_package=None, audible_for=role,  # type: ignore[arg-type]
-            called=self.pending.play, look=look, audibles=audibles))
+            called=self.pending.play, look=look, audibles=audibles), self.side)
 
     def _decide(self, role: Role, state: GameState, suggestion: str) -> str:
         """A kicking decision, made between snaps."""
@@ -165,7 +175,7 @@ class ScriptedCoach:
             role=role, quarter=state.quarter, clock=state.clock, clock_running=False,
             possession=state.possession, down=state.down, distance=state.distance,
             ball_on=state.ball_on, score=dict(state.score), timeouts=dict(state.timeouts),
-            suggestion=suggestion, suggested_package=None))
+            suggestion=suggestion, suggested_package=None), self.side)
 
     def kickoff_call(self, state: GameState, side: str) -> str:
         return self._decide("kickoff", state, self.ai.kickoff_call(state, side))
@@ -212,6 +222,55 @@ def replay(home: SimTeam, away: SimTeam, seed: int, side: Side, calls: list[Coac
     except NeedCall as need:
         return CoachedReplay(game.plays, need.situation, None)
     return CoachedReplay(result.plays, None, result)
+
+
+# ---------- head-to-head (docs/design/head-to-head-and-commissioner.md §3) ----------
+
+
+class _HeadToHead(_Game):
+    """The engine with a coach on each side: before a snap both are asked, and if either
+    (or both) needs a call the snap waits on them together, so each calls blind."""
+
+    def huddle(self) -> None:
+        s = self.s
+        needs: dict[Side, Situation] = {}
+        for side, role in ((s.offense, "offense"), (s.defense, "defense")):
+            try:
+                self.coaches[side].huddle(s, role, self.clock_running, self.teams[s.offense],
+                                          self.teams[s.defense], self.rng)
+            except NeedCall as need:
+                needs[side] = need.situation
+        if needs:
+            raise NeedCalls(needs)
+
+
+@dataclass
+class HeadToHeadReplay:
+    plays: list[PlayRecord]
+    needs: dict[Side, Situation]  # who must call next, and what ({}: the game is over)
+    result: GameResult | None  # the finished game
+
+
+def replay_both(home: SimTeam, away: SimTeam, seed: int,
+                calls: Mapping[Side, list[CoachCall]], *,
+                autopilot: Mapping[Side, bool] | None = None, playoff: bool = False,
+                neutral: bool = False) -> HeadToHeadReplay:
+    """Play a head-to-head game from the kickoff with each side's calls so far, up to the
+    next calls the coaches need to make (or to the final whistle). A side on `autopilot`
+    has the AI call from its game plan, as in Coach Mode."""
+    plans = {"home": home.plan, "away": away.plan}
+    auto = dict(autopilot or {})
+    coaches = {side: ScriptedCoach(list(calls.get(side, [])), auto.get(side, False), plans,
+                                   side)
+               for side in ("home", "away")}
+    game = _HeadToHead(home, away, seed, playoff, coaches, DEFAULT_TUNING, neutral)
+    try:
+        result = game.run()
+    except NeedCalls as need:
+        return HeadToHeadReplay(game.plays, need.needs, None)
+    except NeedCall as need:  # (a kicking decision, or an audible at the line: one side)
+        return HeadToHeadReplay(game.plays, {need.side: need.situation}, None)
+    return HeadToHeadReplay(result.plays, {}, result)
 
 
 def check_call(call: CoachCall, situation: Situation) -> str | None:
