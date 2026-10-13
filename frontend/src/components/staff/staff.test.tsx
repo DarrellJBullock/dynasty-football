@@ -1,12 +1,18 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { api, ApiError } from "@/lib/api";
 import type { Coaches, StaffMember, TeamStaff } from "@/lib/types";
 import { opponent, team } from "@/test/fixtures";
 import { careerLine, StaffView } from "./StaffView";
 
-const router = { push: vi.fn() };
+const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("@/lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api")>();
+  return { ...actual, api: { hireStaff: vi.fn(), fireStaff: vi.fn(), extendStaff: vi.fn(), staffMarket: vi.fn() } };
+});
+const mocked = vi.mocked(api);
 
 const none = { seasons: 0, wins: 0, losses: 0, ties: 0, playoff_wins: 0, titles: 0, coach_of_the_year: 0 };
 
@@ -57,5 +63,50 @@ describe("StaffView", () => {
     expect(careerLine({ ...none, seasons: 1, wins: 9, losses: 8, playoff_wins: 1 })).toBe("1 season · 9-8 · 1 playoff win");
     expect(careerLine({ ...none, seasons: 12, wins: 120, losses: 80, ties: 2, titles: 2, coach_of_the_year: 3 }))
       .toBe("12 seasons · 120-80-2 · 2 titles · 3× Coach of the Year");
+  });
+});
+
+describe("StaffView for the team you run", () => {
+  const budget = { year: 2026, budget: 20_000_000, payroll: 15_000_000, dead_money: 1_200_000, room: 5_000_000 };
+  const open: TeamStaff = { ...staff, members: staff.members.filter((m) => m.role !== "trainer"),
+    vacancies: ["trainer"], budget };
+  const candidate = member(7, { role: "trainer", role_label: "Head trainer", name: "Dana Pike", team: null,
+    rating: 74, salary: 880_000, specialty: null });
+  const market = { year: 2026, budget, candidates: [candidate,
+    member(8, { role: "scout", role_label: "Scout", name: "Ari Moss", team: null, salary: 700_000 })] };
+
+  it("shows the budget, an open job, and hires into it from the market", async () => {
+    mocked.hireStaff.mockResolvedValue({ ...staff, vacancies: [], budget: { ...budget, room: 4_120_000 } });
+    mocked.staffMarket.mockResolvedValue({ ...market, candidates: market.candidates.slice(1) });
+    render(<StaffView staff={open} coaches={coaches} teams={[team]} season={2026} market={market} leagueId={4} />);
+    expect(screen.getByText(/including \$1.2M owed to staff let go/)).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Head trainer (open)" })).toHaveTextContent("Hire from the market below.");
+    const table = screen.getByRole("table", { name: "Staff on the market" });
+    expect(within(table).getByRole("button", { name: "Hire Ari Moss" })).toBeDisabled(); // (no open scout job)
+    await userEvent.selectOptions(screen.getByLabelText("Contracts of"), "2");
+    await userEvent.click(within(table).getByRole("button", { name: "Hire Dana Pike" }));
+    expect(mocked.hireStaff).toHaveBeenCalledWith(team.id, 7, 2);
+    expect(await screen.findByRole("status")).toHaveTextContent("Dana Pike is your new head trainer.");
+    expect(mocked.staffMarket).toHaveBeenCalledWith(4);
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("extends a contract in its final season, lets someone go, and shows refusals", async () => {
+    mocked.extendStaff.mockResolvedValue(staff);
+    mocked.staffMarket.mockResolvedValue(market);
+    mocked.fireStaff.mockRejectedValueOnce(new ApiError(409, "They aren't on a team."));
+    render(<StaffView staff={staff} coaches={coaches} teams={[team]} season={2026} market={market} leagueId={4} />);
+    const oc = screen.getByRole("article", { name: "Offensive coordinator" });
+    expect(within(screen.getByRole("article", { name: "Head coach" })).queryByRole("button", { name: /Extend/ })).toBeNull();
+    await userEvent.click(within(oc).getByRole("button", { name: "Extend 3 seasons" }));
+    expect(mocked.extendStaff).toHaveBeenCalledWith(2, 3);
+    await userEvent.click(within(oc).getByRole("button", { name: "Let go" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("They aren't on a team.");
+  });
+
+  it("offers no moves on another team's page", () => {
+    render(<StaffView staff={staff} coaches={coaches} teams={[team]} season={2026} />);
+    expect(screen.queryByRole("button", { name: "Let go" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "The market" })).toBeNull();
   });
 });

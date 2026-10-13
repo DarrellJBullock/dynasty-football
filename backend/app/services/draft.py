@@ -474,6 +474,10 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
     season.phase = "preseason"
     flag_modified(season, "offseason_log")
     db.flush()
+    # Jobs still open (a member's team that didn't hire) get an interim hire.
+    from app.services import carousel  # (it builds on the season services)
+
+    carousel.fill_vacancies(db, season.league, season.year)
 
 
 def _fit_under_cap(db: Session, season: Season, team: Team, cap: int,

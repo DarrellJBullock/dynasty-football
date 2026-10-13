@@ -1056,10 +1056,35 @@ class PlayerCoachingOut(BaseModel):
     injuries: str | None = None  # "Injured players come back 15% sooner."
 
 
+class StaffBudget(BaseModel):
+    year: int
+    budget: int  # the league's staff budget a season
+    payroll: int  # salaries and dead money this season
+    dead_money: int  # owed to staff the team let go
+    room: int  # budget - payroll
+
+
 class TeamStaffOut(BaseModel):
     team: "TeamSummary"
     members: list[StaffOut]  # head coach first
     payroll: int  # the staff's salaries a season
+    budget: StaffBudget | None = None
+    vacancies: list[StaffRole] = []  # jobs open
+
+
+class StaffMarketOut(BaseModel):
+    year: int
+    candidates: list[StaffOut]  # out of work, by role then rating; salary: what they'd sign for
+    budget: StaffBudget | None  # the viewer's team's
+
+
+class HireIn(BaseModel):
+    staff_id: int
+    years: int = 3
+
+
+class ExtendIn(BaseModel):
+    years: int = 3
 
 
 class CoachOfTheYear(BaseModel):
@@ -1503,6 +1528,7 @@ class TurnOut(BaseModel):
     next_advance_at: datetime | None
     pick_clock_ends_at: datetime | None  # the draft: when the manager up runs out of time
     trade_review_hours: int = 0  # trades between managers wait for a veto (0: they don't)
+    staff_budget: int = 20_000_000  # each team's staff budget a season
 
 
 class NotificationOut(BaseModel):
@@ -1551,6 +1577,7 @@ class LeagueSettingsIn(BaseModel):
     draft_clock_minutes: int | None = None
     advance_minute_utc: int | None = None  # (send null to turn the daily advance off)
     trade_review_hours: int | None = None
+    staff_budget: int | None = None  # each team's staff budget a season (whole dollars)
 
 
 class PasswordChange(BaseModel):

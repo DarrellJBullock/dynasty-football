@@ -28,6 +28,7 @@ KINDS = {  # kind: what the settings call it
     "waiting": "Everyone's waiting on you (or ready to go)",
     "member_joined": "Someone joined your league",
     "legacy": "The Hall of Fame class, and numbers to retire",
+    "staff": "Your staff: retirements, contracts that end, interim hires",
 }
 KEEP = 100  # notifications listed at a time
 

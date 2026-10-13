@@ -75,6 +75,17 @@ export function LeagueSettingsPanel({ leagueId }: { leagueId: number }) {
           </span>
         </div>
         <div className="space-y-1">
+          <label htmlFor="staff-budget" className="eyebrow block">Staff budget</label>
+          <select id="staff-budget" className="field-input w-full" value={turn.staff_budget ?? 20_000_000}
+            disabled={busy} aria-describedby="staff-budget-hint"
+            onChange={(e) => save({ staff_budget: Number(e.target.value) }, "Staff budget saved.")}>
+            {[10, 15, 20, 25, 30, 40].map((m) => <option key={m} value={m * 1_000_000}>${m}M a season</option>)}
+          </select>
+          <span id="staff-budget-hint" className="block text-xs text-mist">
+            What each team may spend on coaches, a scout and a trainer (not the player salary cap).
+          </span>
+        </div>
+        <div className="space-y-1">
           <label htmlFor="trade-review" className="eyebrow block">Trade veto window</label>
           <select id="trade-review" className="field-input w-full" value={turn.trade_review_hours}
             disabled={busy} aria-describedby="trade-review-hint"
