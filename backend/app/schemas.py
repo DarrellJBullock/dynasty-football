@@ -1,5 +1,6 @@
 """Pydantic request/response models for the HTTP API."""
 
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -561,6 +562,7 @@ class FranchiseOut(BaseModel):
     league: LeagueOut
     team: TeamSummary
     season: SeasonOut
+    role: Literal["commissioner", "manager"] = "manager"  # the user's role in the league
 
 
 class FranchiseListItem(FranchiseOut):
@@ -1235,7 +1237,72 @@ class Credentials(BaseModel):
 class UserOut(BaseModel):
     id: int
     email: str
+    display_name: str  # what other members see (the email's first part until one's set)
     has_league: bool  # a new account goes to the league builder first
+
+
+class ProfileIn(BaseModel):
+    display_name: str = Field(min_length=1, max_length=40)
+
+    @field_validator("display_name")
+    @classmethod
+    def _trimmed(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if not value:
+            raise ValueError("Enter a display name.")
+        return value
+
+
+MemberRole = Literal["commissioner", "manager"]
+
+
+class MemberOut(BaseModel):
+    id: int
+    display_name: str
+    role: MemberRole
+    team: TeamSummary | None  # None: a commissioner who doesn't run a team
+    is_you: bool
+    joined_at: datetime
+
+
+class InviteOut(BaseModel):
+    id: int
+    created_at: datetime
+    expires_at: datetime
+    uses: int
+
+
+class InviteCreated(InviteOut):
+    token: str  # shown once: only its hash is kept
+
+
+class MembersOut(BaseModel):
+    league: LeagueOut
+    you: MemberOut
+    members: list[MemberOut]
+    invites: list[InviteOut]  # open links (commissioners only; empty for managers)
+    open_teams: list[TeamSummary]
+
+
+class RoleChange(BaseModel):
+    role: MemberRole
+
+
+class InviteToken(BaseModel):
+    token: str = Field(min_length=1, max_length=100)
+
+
+class InvitePreview(BaseModel):
+    league: LeagueOut
+    commissioner: str  # display name
+    member_count: int
+    open_teams: list[TeamSummary]
+    already_member: bool
+    your_team: TeamSummary | None  # if already a member running a team
+
+
+class JoinRequest(InviteToken):
+    team_id: int
 
 
 class PasswordChange(BaseModel):

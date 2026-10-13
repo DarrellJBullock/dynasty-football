@@ -104,6 +104,7 @@ export const dashboard: Dashboard = {
     team,
     season: { id: 1, league_id: 1, year: 2026, phase: "preseason", current_week: 1, weeks: 17, regular_season_complete: false,
       next_round: null, champion: null },
+    role: "commissioner",
   },
   team: teamDetail,
   record: { wins: 0, losses: 0, ties: 0 },

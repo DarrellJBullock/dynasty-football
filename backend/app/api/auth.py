@@ -6,16 +6,18 @@ from app.api.access import SESSION_COOKIE, current_user
 from app.api.errors import roster_errors
 from app.config import get_settings
 from app.db import get_db
-from app.models import League, User
+from app.models import LeagueMember, User
 from app.schemas import (
     AccountDeletion,
     Credentials,
     PasswordChange,
     PasswordResetIn,
+    ProfileIn,
     ResetRequest,
     UserOut,
 )
 from app.services import accounts, email
+from app.services.members import display_name
 
 router = APIRouter(prefix="/auth", tags=["accounts"])
 
@@ -27,8 +29,10 @@ resets = accounts.RateLimiter(limit=5, window=3600)
 
 
 def user_out(db: Session, user: User) -> UserOut:
-    has_league = db.scalar(select(League.id).where(League.user_id == user.id).limit(1))
-    return UserOut(id=user.id, email=user.email, has_league=has_league is not None)
+    has_league = db.scalar(select(LeagueMember.id).where(LeagueMember.user_id == user.id)
+                           .limit(1))
+    return UserOut(id=user.id, email=user.email, display_name=display_name(user),
+                   has_league=has_league is not None)
 
 
 def _address(request: Request) -> str:
@@ -88,6 +92,15 @@ def sign_out(request: Request, response: Response, db: Session = Depends(get_db)
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(current_user), db: Session = Depends(get_db)):
     """The signed-in account (401 if there's none)."""
+    return user_out(db, user)
+
+
+@router.put("/profile", response_model=UserOut)
+def update_profile(profile: ProfileIn, user: User = Depends(current_user),
+                   db: Session = Depends(get_db)):
+    """Set the display name other members see (the email stays private)."""
+    user.display_name = profile.display_name
+    db.commit()
     return user_out(db, user)
 
 

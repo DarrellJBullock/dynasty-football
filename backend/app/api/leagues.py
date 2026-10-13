@@ -19,6 +19,7 @@ from app.seed.generator import league_template
 from app.services import cap
 from app.services import leagues as league_service
 from app.services.dashboard import franchise_out
+from app.services.members import league_ids
 from app.services.serializers import league_out, player_summary
 from app.services.standings import league_standings
 from app.services.teams import current_season, load_overrides, team_detail
@@ -36,7 +37,7 @@ def get_league(league_id: int, db: Session = Depends(get_db)) -> League:
 @router.get("", response_model=list[LeagueOut])
 def list_leagues(user: User = Depends(current_user), db: Session = Depends(get_db)):
     return [league_out(league) for league in db.scalars(
-        select(League).where(League.user_id == user.id).order_by(League.id))]
+        select(League).where(League.id.in_(league_ids(db, user))).order_by(League.id))]
 
 
 @router.get("/template", response_model=LeagueCreate)

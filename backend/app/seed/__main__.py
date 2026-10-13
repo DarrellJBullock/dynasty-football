@@ -14,6 +14,7 @@ from app.db import SessionLocal
 from app.models import League, Player, Team
 from app.seed.generator import clear_database, generate_league
 from app.services.accounts import ensure_user
+from app.services.members import give_league
 
 
 def main() -> None:
@@ -32,7 +33,7 @@ def main() -> None:
         settings = get_settings()
         if settings.dev_user_email and settings.dev_user_password:
             owner = ensure_user(session, settings.dev_user_email, settings.dev_user_password)
-            league.user_id = owner.id
+            give_league(session, league, owner)
         session.commit()
         teams = session.scalar(select(func.count(Team.id)))
         players = session.scalar(select(func.count(Player.id)))

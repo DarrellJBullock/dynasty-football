@@ -173,6 +173,18 @@ Design: `docs/design/sound.md`.
       the events)
 - [x] Spoken commentary (the voices, paced to the play, the crowd ducking under them)
 
+## M11 — Leagues with friends
+
+Design: `docs/design/leagues-with-friends.md`.
+
+- [x] Members, roles and invites (commissioners and managers, display names, a franchise
+      per member, invite links, access checks)
+- [ ] The season together (ready check-ins, the commissioner advancing, the draft clock,
+      several managers in free agency, games between managers simulated)
+- [ ] Trades between managers (offers, counters, expiry, an optional veto)
+- [ ] Notifications (an in-app inbox, optional email)
+- [ ] Sharing and export (a read-only public link, the whole-league export)
+
 ## Later
 
 - [x] Women's leagues (a men's / women's choice in the league builder; women's leagues get

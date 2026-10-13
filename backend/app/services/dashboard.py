@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.domain.depth_chart import REPLACEMENT_LEVEL, unfilled_slots
 from app.domain.free_agency import MARKET_DAYS
 from app.domain.positions import ROSTER_MAX, STARTERS, Position, PositionGroup, group_of
-from app.models import Franchise, Game, League, Player, User
+from app.models import Franchise, Game, LeagueMember, Player, User
 from app.schemas import (
     Alert,
     Dashboard,
@@ -35,7 +35,7 @@ TOP_PLAYERS = 6
 def current_franchise(db: Session, user: User) -> Franchise | None:
     """The user's active franchise: their most recently activated one."""
     return db.scalars(
-        select(Franchise).join(Franchise.league).where(League.user_id == user.id)
+        select(Franchise).where(Franchise.user_id == user.id)
         .order_by(Franchise.activated_at.desc(), Franchise.id.desc())
     ).first()
 
@@ -45,7 +45,14 @@ def franchise_out(db: Session, franchise: Franchise) -> FranchiseOut:
     return FranchiseOut(id=franchise.id, name=franchise.name,
                         league=league_out(franchise.league),
                         team=team_summary(franchise.team),
-                        season=season_view(db, season))
+                        season=season_view(db, season),
+                        role=_role(db, franchise))
+
+
+def _role(db: Session, franchise: Franchise) -> str:
+    return db.scalar(select(LeagueMember.role).where(
+        LeagueMember.league_id == franchise.league_id,
+        LeagueMember.user_id == franchise.user_id)) or "manager"
 
 
 def _position_groups(roster: list[Player],

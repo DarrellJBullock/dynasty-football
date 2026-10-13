@@ -39,6 +39,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(254), unique=True)  # stored lower-case
     password_hash: Mapped[str] = mapped_column(String(200))  # Argon2
+    # What other members of a shared league see (never the email). None: not set yet.
+    display_name: Mapped[str | None] = mapped_column(String(40))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -75,8 +77,9 @@ class League(Base):
     __tablename__ = "leagues"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # Whose league it is. Leagues from before accounts have none until the first account
-    # created claims them.
+    # Who created the league (its first commissioner). Who may see and change it is its
+    # members (LeagueMember). Leagues from before accounts have none until the first
+    # account created claims them.
     user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(80))
@@ -571,18 +574,22 @@ class TeamGameStats(Base):
 
 
 class Franchise(Base):
-    """The user's career save: which league and which team they control.
+    """A member's team in a league: which league and which team they run.
 
-    One franchise per league, so two careers never share (and fight over) one league.
+    One per member of a league, and one manager per team (docs/design/leagues-with-friends.md).
     """
 
     __tablename__ = "franchises"
-    __table_args__ = (UniqueConstraint("league_id", name="uq_franchises_league"),)
+    __table_args__ = (UniqueConstraint("league_id", "user_id", name="uq_franchises_league_user"),
+                      UniqueConstraint("league_id", "team_id", name="uq_franchises_league_team"))
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80))
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"))
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    # Whose team it is. (Nullable only for the release before shared leagues.)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     # The most recently activated franchise is the one the app shows.
     activated_at: Mapped[datetime] = mapped_column(
@@ -590,6 +597,38 @@ class Franchise(Base):
 
     league: Mapped[League] = relationship()
     team: Mapped[Team] = relationship()
+
+
+class LeagueMember(Base):
+    """Someone who belongs to a league: a commissioner (runs the league) or a manager (runs
+    a team). Their team, if they run one, is their Franchise. Only members see a league."""
+
+    __tablename__ = "league_members"
+    __table_args__ = (UniqueConstraint("league_id", "user_id", name="uq_league_members"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(16))  # "commissioner" | "manager"
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    user: Mapped[User] = relationship()
+
+
+class LeagueInvite(Base):
+    """An invite link to a league: anyone with it can join while it's open (until it
+    expires or is revoked). Only the SHA-256 of its token is stored."""
+
+    __tablename__ = "league_invites"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    uses: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 ACTIVE_JOB_STATUSES = ("queued", "running")

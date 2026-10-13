@@ -28,8 +28,9 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     try {
       if (signingUp) {
         const user = await api.signUp({ email, password });
-        // A new account builds its first league (unless it took over existing ones).
-        hardNavigate(user.has_league ? "/" : "/leagues/new");
+        // A new account builds its first league (unless it took over existing ones, or
+        // came from an invite link, which it goes back to).
+        hardNavigate(next.startsWith("/join") || user.has_league ? next : "/leagues/new");
       } else {
         await api.signIn({ email, password });
         hardNavigate(next);
@@ -74,7 +75,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         )}
         <p className="text-center text-sm text-mist">
           {signingUp ? "Already have an account? " : "New here? "}
-          <Link className="text-gold hover:underline" href={signingUp ? "/signin" : "/signup"}>
+          <Link className="text-gold hover:underline"
+            href={`${signingUp ? "/signin" : "/signup"}${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}>
             {signingUp ? "Sign in" : "Create an account"}
           </Link>
         </p>

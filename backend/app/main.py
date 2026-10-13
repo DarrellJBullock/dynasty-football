@@ -13,6 +13,7 @@ from app.api import (
     history,
     jobs,
     leagues,
+    members,
     playbook,
     players,
     roster_import,
@@ -21,7 +22,7 @@ from app.api import (
     teams,
     trades,
 )
-from app.api.access import owned_league, same_site
+from app.api.access import allowed, owned_league, same_site
 from app.api.locks import league_unlocked
 from app.config import get_settings
 from app.db import get_db
@@ -66,12 +67,16 @@ def create_app() -> FastAPI:
     # (api/access.py), and changes to a league wait while a background job simulates it
     # (api/locks.py).
     api.include_router(auth.router, dependencies=[Depends(same_site)])
-    locked = [Depends(same_site), Depends(owned_league), Depends(league_unlocked)]
+    locked = [Depends(same_site), Depends(owned_league), Depends(allowed),
+              Depends(league_unlocked)]
     for module in (franchise, leagues, teams, depth_chart, gameplans, roster_import, players,
                    season, stats, trades, history, playbook, coach):
         api.include_router(module.router, dependencies=locked)
     api.include_router(franchise.franchises_router, dependencies=locked)
-    api.include_router(jobs.router, dependencies=[Depends(same_site), Depends(owned_league)])
+    api.include_router(members.router, dependencies=locked)
+    api.include_router(members.invites_router, dependencies=[Depends(same_site)])
+    api.include_router(jobs.router, dependencies=[Depends(same_site), Depends(owned_league),
+                                                  Depends(allowed)])
     app.include_router(api)
     return app
 

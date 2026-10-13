@@ -12,7 +12,6 @@ from app.domain.depth_chart import UNAVAILABLE
 from app.models import (
     ACTIVE_JOB_STATUSES,
     CoachedGame,
-    Franchise,
     Game,
     Job,
     Player,
@@ -151,15 +150,18 @@ def _play_week(db: Session, season: Season, games: list[Game], sim_teams: dict[i
 
 
 def _check_franchise_roster(db: Session, season: Season) -> None:
-    """The franchise must be down to 53 (the draft can take it over) before week 1."""
+    """Every team a member runs must be down to 53 (the draft can take it over) before
+    week 1."""
     from app.domain.positions import ROSTER_MAX
-    from app.services.free_agency import franchise_team_id
+    from app.models import Team
+    from app.services.members import human_team_ids
 
-    team_id = franchise_team_id(db, season.league_id)
-    count = db.scalar(select(func.count(Player.id)).where(Player.team_id == team_id)) or 0
-    if count > ROSTER_MAX:
-        raise RosterError(f"Cut your roster to {ROSTER_MAX} (it has {count}) before the "
-                          "season starts.")
+    for team_id in sorted(human_team_ids(db, season.league_id)):
+        count = db.scalar(select(func.count(Player.id)).where(Player.team_id == team_id)) or 0
+        if count > ROSTER_MAX:
+            team = db.get(Team, team_id)
+            raise RosterError(f"The {team.full_name} must cut to {ROSTER_MAX} (they have "
+                              f"{count}) before the season starts.")
 
 
 # Called after each week or round with its label and whether more are to come (a background
@@ -226,10 +228,9 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
     return steps, played
 
 
-def simulation_result(db: Session, season: Season, steps: int,
-                      played: list[Game]) -> SimulationResult:
-    """What a sim did, with the franchise's games among those played."""
-    team_id = db.scalar(select(Franchise.team_id).where(Franchise.league_id == season.league_id))
+def simulation_result(db: Session, season: Season, steps: int, played: list[Game],
+                      team_id: int | None = None) -> SimulationResult:
+    """What a sim did, with `team_id`'s games (the viewer's) among those played."""
     return SimulationResult(
         weeks_simulated=steps, games_simulated=len(played), season=season_view(db, season),
         franchise_games=[game_out(g) for g in played

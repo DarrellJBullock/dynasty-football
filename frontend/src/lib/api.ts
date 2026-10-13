@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Credentials,
+  InviteCreated,
+  InvitePreview,
+  MemberRole,
+  Members,
   Dashboard,
   PlayoffsOut,
   LeadersOut,
@@ -142,6 +146,22 @@ export const api = {
     }),
   deleteAccount: (password: string) =>
     request<void>("/auth/account", { method: "DELETE", body: JSON.stringify({ password }) }),
+  updateProfile: (displayName: string) =>
+    request<User>("/auth/profile", { method: "PUT", body: JSON.stringify({ display_name: displayName }) }),
+  members: (leagueId: number) => request<Members>(`/leagues/${leagueId}/members`),
+  createInvite: (leagueId: number) => post<InviteCreated>(`/leagues/${leagueId}/invites`),
+  revokeInvite: (leagueId: number, inviteId: number) =>
+    request<void>(`/leagues/${leagueId}/invites/${inviteId}`, { method: "DELETE" }),
+  setMemberRole: (leagueId: number, memberId: number, role: MemberRole) =>
+    request<Members>(`/leagues/${leagueId}/members/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  removeMember: (leagueId: number, memberId: number) =>
+    request<void>(`/leagues/${leagueId}/members/${memberId}`, { method: "DELETE" }),
+  previewInvite: (token: string) => post<InvitePreview>("/invites/preview", { token }),
+  joinLeague: (token: string, teamId: number) =>
+    post<Franchise>("/invites/join", { token, team_id: teamId }),
   franchise: () => request<Franchise>("/franchise"),
   dashboard: () => request<Dashboard>("/franchise/dashboard"),
   team: (teamId: number) => request<TeamDetail>(`/teams/${teamId}`),

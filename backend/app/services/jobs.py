@@ -16,11 +16,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domain.free_agency import MARKET_DAYS
-from app.models import Franchise, Job, League, Season
+from app.models import Job, League, Season, Team
 from app.schemas import SimulateRequest
 from app.services import draft, free_agency, offseason, playoffs
 from app.services import season as season_service
 from app.services.errors import RosterError
+from app.services.members import human_team_ids
 from app.services.teams import current_season
 
 STALE_AFTER = timedelta(minutes=1)  # a running job with no heartbeat this long has died
@@ -38,16 +39,18 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _sim_regular_season(db: Session, season: Season, step: Step, _params: dict) -> dict:
+def _sim_regular_season(db: Session, season: Season, step: Step, params: dict) -> dict:
     steps, played = season_service.simulate(
         db, season, SimulateRequest(until="end_of_regular_season"), on_step=step)
-    return season_service.simulation_result(db, season, steps, played).model_dump(mode="json")
+    return season_service.simulation_result(
+        db, season, steps, played, params.get("team_id")).model_dump(mode="json")
 
 
-def _sim_playoffs(db: Session, season: Season, step: Step, _params: dict) -> dict:
+def _sim_playoffs(db: Session, season: Season, step: Step, params: dict) -> dict:
     steps, played = season_service.simulate(
         db, season, SimulateRequest(until="end_of_playoffs"), on_step=step)
-    return season_service.simulation_result(db, season, steps, played).model_dump(mode="json")
+    return season_service.simulation_result(
+        db, season, steps, played, params.get("team_id")).model_dump(mode="json")
 
 
 def _advance_offseason(db: Session, season: Season, step: Step, _params: dict) -> dict:
@@ -55,9 +58,10 @@ def _advance_offseason(db: Session, season: Season, step: Step, _params: dict) -
     return season_service.season_view(db, new_season).model_dump(mode="json")
 
 
-def _finish_free_agency(db: Session, season: Season, step: Step, _params: dict) -> dict:
+def _finish_free_agency(db: Session, season: Season, step: Step, params: dict) -> dict:
     entries = free_agency.play_days(db, season, "end", on_step=step)
-    return free_agency.play_result(db, season, entries).model_dump(mode="json")
+    return free_agency.play_result(
+        db, season, entries, params.get("team_id")).model_dump(mode="json")
 
 
 def _finish_draft(db: Session, season: Season, step: Step, _params: dict) -> dict:
@@ -71,7 +75,7 @@ def _sim_seasons(db: Session, season: Season, step: Step, params: dict) -> dict:
     preseason `params["seasons"]` seasons on. Returns the seasons played, for the Dynasty
     report (services/dynasty.py)."""
     count, league_id, first_year = params["seasons"], season.league_id, season.year
-    franchise = db.scalar(select(Franchise).where(Franchise.league_id == league_id))
+    humans = [db.get(Team, team_id) for team_id in sorted(human_team_ids(db, league_id))]
     done = 0
     while done < count:
         season = current_season(db, league_id)
@@ -85,8 +89,8 @@ def _sim_seasons(db: Session, season: Season, step: Step, params: dict) -> dict:
             return lambda label, _more: step(f"{prefix} · {what}{label}", True)
 
         if season.phase in ("preseason", "regular_season"):
-            if franchise:
-                draft.cut_down(db, franchise.team)  # (to 53, if the roster is over)
+            for team in humans:
+                draft.cut_down(db, team)  # (to 53, if the roster is over)
             season_service.simulate(db, season, SimulateRequest(until="end_of_regular_season"),
                                     on_step=inner())
         elif season.phase == "playoffs":
@@ -162,8 +166,10 @@ def _total(db: Session, season: Season, kind: str, params: dict | None = None) -
 MAX_SEASONS_AHEAD = 10
 
 
-def enqueue(db: Session, league: League, kind: str, params: dict | None = None) -> Job:
-    """Queue a job for the league (committed). 409 if one is already queued or running."""
+def enqueue(db: Session, league: League, kind: str, params: dict | None = None,
+            team_id: int | None = None) -> Job:
+    """Queue a job for the league (committed). 409 if one is already queued or running.
+    `team_id`: the requester's team, whose games and signings the result singles out."""
     if kind not in KINDS:
         raise RosterError(f"Unknown job: {kind}", 422)
     if kind == "sim_seasons":
@@ -172,7 +178,7 @@ def enqueue(db: Session, league: League, kind: str, params: dict | None = None) 
             raise RosterError(f"Sim ahead 1 to {MAX_SEASONS_AHEAD} seasons.", 422)
         params = {"seasons": seasons}
     else:
-        params = None
+        params = {"team_id": team_id} if team_id is not None else None
     if season_service.active_job(db, league.id) is not None:
         raise RosterError("A simulation is already running in this league.")
     season = current_season(db, league.id)

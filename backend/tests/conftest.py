@@ -24,6 +24,7 @@ from app.main import create_app
 from app.models import Franchise, League, User
 from app.seed.generator import generate_league
 from app.services.accounts import sign_up, start_session
+from app.services.members import give_league
 
 TEST_SEED = 7
 OWNER_EMAIL, OWNER_PASSWORD = "owner@example.test", "test-owner-password"
@@ -52,7 +53,7 @@ def engine() -> Iterator[Engine]:
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         league = generate_league(session, seed=TEST_SEED)
-        league.user_id = sign_up(session, OWNER_EMAIL, OWNER_PASSWORD).id
+        give_league(session, league, sign_up(session, OWNER_EMAIL, OWNER_PASSWORD))
         session.commit()
     yield engine
     Base.metadata.drop_all(engine)

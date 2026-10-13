@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.domain.contracts import market_salary
 from app.domain.development import contract_years, develop, retirement_chance
 from app.domain.positions import ROSTER_MAX, ROSTER_TEMPLATE, Position
-from app.models import Contract, Franchise, Player, Season, Team
+from app.models import Contract, Player, Season, Team
 from app.seed.generator import (
     FREE_AGENT_COUNT,
     _schedule,
@@ -34,6 +34,7 @@ from app.services import cap, playoffs
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.injuries import heal
+from app.services.members import human_team_ids
 
 if TYPE_CHECKING:
     from app.schemas import OffseasonRecap
@@ -123,11 +124,9 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
     payrolls: dict[int, int] = {}
     departed_from: dict[int, int] = {}  # a team doesn't sign back who it just let go
     salary_cap = league.salary_cap
-    # The franchise decides its own re-signings (services/contracts.py); whoever it
-    # didn't re-sign leaves.
-    # On autopilot (sim ahead) the franchise re-signs like an AI team.
-    user_team = None if autopilot else db.scalar(
-        select(Franchise.team_id).where(Franchise.league_id == league.id))
+    # Each team a member runs decides its own re-signings (services/contracts.py); whoever
+    # it didn't re-sign leaves. On autopilot (sim ahead) the franchise re-signs like an AI.
+    humans = set() if autopilot else human_team_ids(db, league.id)
     db.flush()
     dead = cap.dead_money_totals(db, [t.id for t in teams], year)
     for team in teams:
@@ -140,7 +139,7 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
             salary = market_salary(Position(player.position), player.overall)
             # Keep enough room to fill the rest of the roster.
             reserve = max(0, ROSTER_MAX - committed - 1) * ROSTER_SPOT_RESERVE
-            worth_keeping = team.id != user_team and (
+            worth_keeping = team.id not in humans and (
                 player.age < VETERAN_KEEP[0] or player.overall >= VETERAN_KEEP[1])
             if worth_keeping and payroll + salary + reserve <= salary_cap:
                 years = contract_years(rng, player.age)

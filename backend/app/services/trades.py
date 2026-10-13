@@ -36,7 +36,7 @@ from app.schemas import (
 from app.services import cap, draft
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
-from app.services.free_agency import franchise_team_id
+from app.services.members import human_team_ids
 from app.services.season import season_view
 from app.services.serializers import player_summary, team_summary
 from app.services.teams import current_season, load_roster, payroll
@@ -88,14 +88,17 @@ def _slots(db: Session, league: League, season: Season, year: int) -> dict[int, 
 class _Desk:
     """Everything a trade needs, loaded once."""
 
-    def __init__(self, db: Session, league: League):
+    def __init__(self, db: Session, league: League, team_id: int | None):
         self.db = db
         self.league = league
         self.season = current_season(db, league.id)
         # The next draft not yet held: this year's during free agency, next year's after.
         self.year = self.season.year + (0 if self.season.phase == "free_agency" else 1)
         self.team_count = len(league.teams)
-        self.user_team = franchise_team_id(db, league.id)
+        self.user_team = team_id  # the trading member's team
+        # (Teams other members run trade with them, not with the AI: part 3 of
+        # docs/design/leagues-with-friends.md. Until then they aren't trade partners.)
+        self.humans = human_team_ids(db, league.id)
         self.slots = _slots(db, league, self.season, self.year)
 
     def picks(self, team_id: int) -> list[DraftPick]:
@@ -130,11 +133,15 @@ def _assets(desk: _Desk, team_id: int) -> TradeAssets:
                        picks=[_asset_out(desk, p) for p in desk.picks(team_id)])
 
 
-def trade_center(db: Session, league: League, partner_id: int | None) -> TradeCenter:
-    desk = _Desk(db, league)
-    teams = [t for t in league.teams if t.id != desk.user_team]
+def trade_center(db: Session, league: League, partner_id: int | None,
+                 team_id: int | None = None) -> TradeCenter:
+    """The trade desk for `team_id`'s manager: the AI teams to deal with, and their own
+    trades."""
+    desk = _Desk(db, league, team_id)
+    teams = [t for t in league.teams if t.id not in desk.humans]
     partner = next((t for t in teams if t.id == partner_id), teams[0] if teams else None)
-    history = db.scalars(select(Trade).where(Trade.league_id == league.id)
+    history = db.scalars(select(Trade).where(Trade.league_id == league.id,
+                                             Trade.team_id == (team_id or 0))
                          .order_by(Trade.id.desc()).limit(20)).all()
     return TradeCenter(
         season=season_view(db, desk.season), closed_reason=window(desk.season),
@@ -160,10 +167,12 @@ class _Deal:
         self.desk = desk
         db = desk.db
         if desk.user_team is None:
-            raise RosterError("This league has no franchise.", 400)
+            raise RosterError("You don't run a team in this league.", 400)
         partner = db.get(Team, proposal.partner_id)
         if partner is None or partner.league_id != desk.league.id or partner.id == desk.user_team:
             raise RosterError("Choose another team in this league.", 404)
+        if partner.id in desk.humans:
+            raise RosterError("Another member runs that team: trades between members are coming.")
         self.partner = partner
         self.send = self._players(proposal.send_players, desk.user_team) + \
             self._picks(proposal.send_picks, desk.user_team)
@@ -243,12 +252,14 @@ def _needs(roster: list[Player]) -> set[str]:
     return {p.value for p, n in ROSTER_TEMPLATE.items() if counts[p.value] < n}
 
 
-def evaluate(db: Session, league: League, proposal: TradeProposal) -> TradeEvaluation:
-    return _Deal(_Desk(db, league), proposal).evaluate()
+def evaluate(db: Session, league: League, proposal: TradeProposal,
+             team_id: int | None) -> TradeEvaluation:
+    return _Deal(_Desk(db, league, team_id), proposal).evaluate()
 
 
-def propose(db: Session, league: League, proposal: TradeProposal) -> TradeResult:
-    deal = _Deal(_Desk(db, league), proposal)
+def propose(db: Session, league: League, proposal: TradeProposal,
+            team_id: int | None) -> TradeResult:
+    deal = _Deal(_Desk(db, league, team_id), proposal)
     evaluation = deal.evaluate()
     if not evaluation.acceptable:
         return TradeResult(accepted=False, evaluation=evaluation, trade=None)

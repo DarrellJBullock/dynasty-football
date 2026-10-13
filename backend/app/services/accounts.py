@@ -73,7 +73,10 @@ def sign_up(db: Session, email: str, password: str) -> User:
     db.add(user)
     db.flush()
     if first:
-        db.execute(update(League).where(League.user_id.is_(None)).values(user_id=user.id))
+        from app.services.members import give_league  # (it builds on this module's users)
+
+        for league in db.scalars(select(League).where(League.user_id.is_(None))).all():
+            give_league(db, league, user)
     return user
 
 
@@ -175,11 +178,12 @@ def set_password(db: Session, email: str, password: str) -> User:
 
 def delete_account(db: Session, user: User, password: str) -> None:
     """Delete the account and every league in it."""
-    from app.services.leagues import delete_league  # (it builds on this module's users)
+    from app.services.leagues import delete_league  # (they build on this module's users)
+    from app.services.members import leave_all
 
     if not _verify(user, password):
         raise AuthError("Your password is wrong.", 403)
-    for league in db.scalars(select(League).where(League.user_id == user.id)).all():
+    for league in leave_all(db, user):  # (leagues shared with others carry on without them)
         delete_league(db, league)
     db.execute(delete(UserSession).where(UserSession.user_id == user.id))
     db.execute(delete(PasswordReset).where(PasswordReset.user_id == user.id))

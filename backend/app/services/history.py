@@ -24,7 +24,6 @@ from app.schemas import (
     SeasonHistory,
 )
 from app.services import playoffs
-from app.services.free_agency import franchise_team_id
 from app.services.serializers import team_summary
 from app.services.standings import compute_records
 from app.sim.stats import PlayerLine
@@ -148,16 +147,17 @@ def _franchise_result(db: Session, season: Season, team_id: int) -> str:
     return "Season in progress" if season.phase == "regular_season" else "Not started"
 
 
-def history_view(db: Session, league: League) -> HistoryOut:
-    return HistoryOut(seasons=season_histories(db, league), records=records(db, league))
+def history_view(db: Session, league: League, team_id: int | None = None) -> HistoryOut:
+    """The league's history, with `team_id`'s (the viewer's) seasons marked."""
+    return HistoryOut(seasons=season_histories(db, league, team_id=team_id),
+                      records=records(db, league))
 
 
-def season_histories(db: Session, league: League,
-                     years: range | None = None) -> list[SeasonHistory]:
+def season_histories(db: Session, league: League, years: range | None = None,
+                     team_id: int | None = None) -> list[SeasonHistory]:
     """Each season (or those in `years`), latest first: champion, runner-up, awards, and
-    the franchise's record and result."""
+    `team_id`'s record and result (the viewer's team)."""
     ensure_awards(db, league)
-    team_id = franchise_team_id(db, league.id)
     seasons = sorted((s for s in league.seasons if years is None or s.year in years),
                      key=lambda s: -s.year)
     awards: dict[int, list[Award]] = defaultdict(list)

@@ -15,10 +15,51 @@ export function AccountView({ user }: { user: User }) {
         <p className="text-sm text-mist">Signed in as <span className="text-chalk">{user.email}</span></p>
       </PageHeader>
       <div className="space-y-6">
+        <DisplayName initial={user.display_name} />
         <ChangePassword />
         <DeleteAccount />
       </div>
     </div>
+  );
+}
+
+function DisplayName({ initial }: { initial: string }) {
+  const [name, setName] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      setName((await api.updateProfile(name)).display_name);
+      setDone(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel title="Display name">
+      <form onSubmit={submit} className="flex flex-wrap items-end gap-3" aria-label="Display name">
+        <label className="block min-w-0 flex-1 space-y-1">
+          <span className="eyebrow">Name other members see</span>
+          <input className="field-input w-full" required maxLength={40} autoComplete="nickname"
+            value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {busy ? "Saving…" : "Save name"}
+        </button>
+        <p className="w-full text-xs text-mist">Your email stays private: league members see this name instead.</p>
+        {done && <span role="status" className="text-sm text-emerald-300">Name saved.</span>}
+        {error && <span role="alert" className="text-sm text-rose-300">{error}</span>}
+      </form>
+    </Panel>
   );
 }
 
