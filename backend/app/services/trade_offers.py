@@ -17,6 +17,7 @@ from app.schemas import TradeOfferItem, TradeOfferOut, TradeProposal
 from app.services import trades
 from app.services.errors import RosterError
 from app.services.members import display_name, human_team_ids, manager_of
+from app.services.notifications import notify_team
 from app.services.serializers import team_summary
 from app.services.teams import current_season
 
@@ -82,7 +83,28 @@ def make(db: Session, league: League, team_id: int | None, proposal: TradePropos
         expires_at=_now() + timedelta(days=OFFER_DAYS))
     db.add(offer)
     db.flush()
+    sender = manager_name(db, team_id)
+    notify_team(db, offer.to_team_id, "trade_offer",
+                f"{sender} ({offer.from_team.abbreviation}) "
+                f"{'counters your offer' if parent else 'offers a trade'}",
+                _summary(db, offer, offer.to_team_id) + (f" “{offer.note}”" if offer.note else ""),
+                f"/trades?partner={team_id}")
     return offer
+
+
+def _summary(db: Session, offer: TradeOffer, viewer: int) -> str:
+    """What the viewer's team gives and gets."""
+    sent = [_label(db, i) for i in offer.send]  # (what the offering team sends)
+    asked = [_label(db, i) for i in offer.receive]
+    get, give = (sent, asked) if viewer == offer.to_team_id else (asked, sent)
+    return f"You get {', '.join(get) or 'nothing'} for {', '.join(give) or 'nothing'}."
+
+
+def _tell(db: Session, offer: TradeOffer, team_id: int, title: str, kind: str = "trade_answer"
+          ) -> None:
+    other = offer.to_team_id if team_id == offer.from_team_id else offer.from_team_id
+    notify_team(db, team_id, kind, title, _summary(db, offer, team_id),
+                f"/trades?partner={other}")
 
 
 def _get(db: Session, league: League, offer_id: int) -> TradeOffer:
@@ -108,12 +130,23 @@ def accept(db: Session, offer: TradeOffer, team_id: int | None) -> TradeOffer:
     deal = _deal(db, league, offer.from_team_id, _proposal(offer))
     _check(deal)
     offer.decided_at = _now()
+    taker = manager_name(db, offer.to_team_id)
     if league.trade_review_hours:
         offer.status = "review"
         offer.review_ends_at = offer.decided_at + timedelta(hours=league.trade_review_hours)
         db.flush()
+        _tell(db, offer, offer.from_team_id,
+              f"{taker} accepted your offer: it goes through after the veto window")
+        from app.services.notifications import notify_members
+
+        notify_members(db, league.id, "trade_review",
+                       f"A trade to review: {offer.from_team.nickname} ↔ "
+                       f"{offer.to_team.nickname}",
+                       f"It goes through in {league.trade_review_hours} hours unless you veto it.",
+                       "/trades", role="commissioner")
         return offer
     _complete(db, offer, deal)
+    _tell(db, offer, offer.from_team_id, f"{taker} accepted your offer: the trade is done")
     return offer
 
 
@@ -131,6 +164,8 @@ def reject(db: Session, offer: TradeOffer, team_id: int | None) -> TradeOffer:
     _open(db, offer, "pending")
     offer.status, offer.decided_at = "rejected", _now()
     db.flush()
+    _tell(db, offer, offer.from_team_id,
+          f"{manager_name(db, offer.to_team_id)} rejected your offer")
     return offer
 
 
@@ -140,6 +175,8 @@ def withdraw(db: Session, offer: TradeOffer, team_id: int | None) -> TradeOffer:
     _open(db, offer, "pending")
     offer.status, offer.decided_at = "withdrawn", _now()
     db.flush()
+    _tell(db, offer, offer.to_team_id,
+          f"{manager_name(db, offer.from_team_id)} withdrew their offer", "trade_offer")
     return offer
 
 
@@ -163,6 +200,8 @@ def veto(db: Session, offer: TradeOffer, reason: str | None = None) -> TradeOffe
     offer.status = "vetoed"
     offer.reason = (reason or "").strip() or "Vetoed by the commissioner."
     db.flush()
+    for team_id in (offer.from_team_id, offer.to_team_id):
+        _tell(db, offer, team_id, f"The commissioner vetoed your trade: {offer.reason}")
     return offer
 
 
@@ -173,6 +212,8 @@ def approve(db: Session, offer: TradeOffer) -> TradeOffer:
     deal = _deal(db, league, offer.from_team_id, _proposal(offer))
     _check(deal)
     _complete(db, offer, deal)
+    for team_id in (offer.from_team_id, offer.to_team_id):
+        _tell(db, offer, team_id, "Your trade went through")
     return offer
 
 
@@ -212,6 +253,8 @@ def settle(db: Session, league: League, now: datetime | None = None) -> None:
                                                      TradeOffer.status.in_(OPEN))).all():
         if offer.status == "pending" and _as_utc(offer.expires_at) <= now:
             offer.status, offer.reason = "expired", "Nobody answered in time."
+            _tell(db, offer, offer.from_team_id,
+                  f"Your offer to the {offer.to_team.nickname} expired")
         elif offer.status == "review" and _as_utc(offer.review_ends_at) <= now:
             try:
                 deal = _deal(db, league, offer.from_team_id, _proposal(offer))
@@ -220,6 +263,8 @@ def settle(db: Session, league: League, now: datetime | None = None) -> None:
                 offer.status, offer.reason = "invalid", exc.message
             else:
                 _complete(db, offer, deal)
+                for team_id in (offer.from_team_id, offer.to_team_id):
+                    _tell(db, offer, team_id, "Your trade went through")
     db.flush()
 
 

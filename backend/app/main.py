@@ -14,6 +14,7 @@ from app.api import (
     jobs,
     leagues,
     members,
+    notifications,
     playbook,
     players,
     roster_import,
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     api.include_router(franchise.franchises_router, dependencies=locked)
     api.include_router(members.router, dependencies=locked)
     api.include_router(trades.offers_router, dependencies=locked)
+    api.include_router(notifications.router, dependencies=locked)
     api.include_router(members.invites_router, dependencies=[Depends(same_site)])
     api.include_router(jobs.router, dependencies=[Depends(same_site), Depends(owned_league),
                                                   Depends(allowed)])

@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenu } from "./AccountMenu";
+import { RefreshOnReturn, UnreadBadge } from "./UnreadBadge";
 
 interface NavItem {
   label: string;
   href?: string; // no href = planned feature
   icon: React.ReactNode;
+  badge?: boolean; // the inbox's unread count
 }
 
 const NAV: { heading: string; items: NavItem[] }[] = [
@@ -16,6 +18,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
     heading: "Game day",
     items: [
       { label: "Play Game", href: "/coach", icon: <IconPlay /> },
+      { label: "Inbox", href: "/inbox", icon: <IconInbox />, badge: true },
     ],
   },
   {
@@ -56,6 +59,7 @@ export function Sidebar() {
         <ActiveNavLinks />
       </Suspense>
       <AccountMenu />
+      <RefreshOnReturn />
     </aside>
   );
 }
@@ -107,6 +111,7 @@ function NavLinks({ pathname }: { pathname: string | null }) {
                   >
                     {item.icon}
                     {item.label}
+                    {item.badge && <UnreadBadge pathname={pathname} />}
                   </Link>
                 </li>
               );
@@ -155,6 +160,15 @@ function IconGrid() {
     </svg>
   );
 }
+function IconInbox() {
+  return (
+    <svg {...iconProps}>
+      <path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5Z" />
+      <path d="M4 13h4.5l1 2h5l1-2H20" />
+    </svg>
+  );
+}
+
 function IconUsers() {
   return (
     <svg {...iconProps}>

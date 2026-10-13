@@ -188,6 +188,11 @@ def join(db: Session, token: str, user: User, team_id: int) -> Franchise:
                           team_id=team.id, user_id=user.id, activated_at=_now())
     db.add(franchise)
     db.flush()
+    from app.services.notifications import notify_members  # (it builds on this module)
+
+    notify_members(db, league.id, "member_joined", f"{display_name(user)} joined {league.name}",
+                   f"They run the {team.full_name}.", "/members", skip={user.id},
+                   role="commissioner")
     return franchise
 
 

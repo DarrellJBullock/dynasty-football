@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Credentials,
+  Notifications,
+  NotificationSettings,
   TradeOffer,
   LeagueSettings,
   Turn,
@@ -162,6 +164,16 @@ export const api = {
     }),
   removeMember: (leagueId: number, memberId: number) =>
     request<void>(`/leagues/${leagueId}/members/${memberId}`, { method: "DELETE" }),
+  notifications: () => request<Notifications>("/notifications"),
+  unreadCount: () => request<{ unread: number }>("/notifications/unread"),
+  markRead: (ids?: number[]) => post<{ unread: number }>("/notifications/read", ids ? { ids } : {}),
+  notificationSettings: (leagueId: number) =>
+    request<NotificationSettings>(`/leagues/${leagueId}/notification-settings`),
+  setNotificationEmail: (leagueId: number, kinds: string[]) =>
+    request<NotificationSettings>(`/leagues/${leagueId}/notification-settings`, {
+      method: "PUT",
+      body: JSON.stringify({ email: kinds }),
+    }),
   turn: (leagueId: number) => request<Turn>(`/leagues/${leagueId}/turn`),
   setReady: (leagueId: number, ready: boolean) =>
     request<Turn>(`/leagues/${leagueId}/ready`, { method: "PUT", body: JSON.stringify({ ready }) }),

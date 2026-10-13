@@ -37,7 +37,7 @@ def advance(league: League = Depends(get_league), user: User = Depends(current_u
     """Advance one step: a week, a playoff round, the offseason, a market day, or the draft
     up to the next manager on the clock. Ready or not."""
     with roster_errors(db):
-        turns.advance(db, league)
+        turns.advance(db, league, user)
     return turns.turn_view(db, league, user)
 
 

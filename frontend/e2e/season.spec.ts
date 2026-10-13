@@ -149,8 +149,11 @@ test("sims a season and playoffs to a champion, then starts the next season", as
   const status = page.getByRole("status", { name: "Draft status" });
   await expect(status).toContainText(/On the clock|You're on the clock/);
   const board = page.getByRole("region", { name: "Prospects" });
-  const scoutedName = (await board.getByRole("button", { name: /^Scout / }).first()
-    .getAttribute("aria-label"))!.replace(/^Scout /, "");
+  // The best prospect whose name is his alone: generated names can repeat in a class.
+  const labels = await board.getByRole("button", { name: /^Scout / }).evaluateAll(
+    (buttons) => buttons.map((b) => b.getAttribute("aria-label")!));
+  const scoutedName = labels.find((l) => labels.indexOf(l) === labels.lastIndexOf(l))!
+    .replace(/^Scout /, "");
   // Click him by name: `.first()` re-resolves at click time and could land on someone else.
   const scout = board.getByRole("button", { name: `Scout ${scoutedName}`, exact: true });
   await scout.click();

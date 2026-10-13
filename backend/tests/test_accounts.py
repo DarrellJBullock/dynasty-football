@@ -234,6 +234,8 @@ class TestLeaguesBelongToTheirOwner:
             "POST /api/auth/forgot", "POST /api/auth/reset",
             "POST /api/auth/signout", "GET /api/auth/me", "PUT /api/auth/password",
             "PUT /api/auth/profile", "POST /api/invites/preview", "POST /api/invites/join",
+            "GET /api/notifications", "GET /api/notifications/unread",
+            "POST /api/notifications/read",
             "DELETE /api/auth/account", "GET /api/franchise", "GET /api/franchise/dashboard",
             "GET /api/franchise/next-game", "GET /api/franchises", "GET /api/leagues",
             "POST /api/leagues", "GET /api/leagues/template", "GET /api/playbook",
