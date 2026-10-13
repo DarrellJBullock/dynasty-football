@@ -10,6 +10,7 @@ import type {
   LeagueRulesIn,
   LeagueLogAction,
   Finances,
+  GmCareer,
   LiveState,
   Owner,
   Rollback,
@@ -330,6 +331,8 @@ export const api = {
     const qs = query.toString();
     return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
   },
+  gmCareer: () => request<GmCareer>("/franchise/career"),
+  takeJob: (teamId: number) => post<GmCareer>("/franchise/take-job", { team_id: teamId }),
   finances: (teamId: number) => request<Finances>(`/teams/${teamId}/finances`),
   setTicketPrice: (teamId: number, price: TicketPrice) =>
     request<Finances>(`/teams/${teamId}/ticket-price`, { method: "PUT", body: JSON.stringify({ price }) }),

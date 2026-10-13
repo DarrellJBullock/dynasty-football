@@ -22,6 +22,7 @@ MARKET_SHARES = (0.25, 0.5, 0.25)  # a league's teams, by market (in order)
 START_CONFIDENCE = 60  # a general manager's standing with a new owner
 START_FAN_MOOD = {"small": 55, "medium": 50, "large": 45}  # big markets are harder to please
 HOT_SEAT = 30  # below this, the owner is losing patience
+FIRE_LINE = 20  # below this after a review, the owner fires the general manager
 
 # Fan mood: drifts a quarter of the way back to 50 each season, and moves with the season.
 FAN_DRIFT = 0.25
@@ -233,6 +234,8 @@ def confidence_change(goals_met: Sequence[tuple[Goal, bool]], patience: int,
 
 def verdict(change: int, confidence: int) -> str:
     """The owner's word on the season."""
+    if confidence < FIRE_LINE:
+        return "has had enough"
     if confidence < HOT_SEAT:
         return "is losing patience"
     if change >= 15:

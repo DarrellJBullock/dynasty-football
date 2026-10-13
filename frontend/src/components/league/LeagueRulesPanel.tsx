@@ -34,7 +34,7 @@ export function LeagueRulesPanel({ leagueId, initial, commissioner }: {
       roster_max: String(r.roster_max), salary_cap: (r.salary_cap / 1_000_000).toFixed(1),
       cap_growth_pct: String(r.cap_growth_pct),
       playoff_seeds: r.playoff_seeds === null ? AUTOMATIC : String(r.playoff_seeds),
-      season_weeks: String(r.season_weeks),
+      season_weeks: String(r.season_weeks), firing: r.firing,
     };
   }
 
@@ -51,6 +51,7 @@ export function LeagueRulesPanel({ leagueId, initial, commissioner }: {
     if (seeds !== rules.playoff_seeds) change.playoff_seeds = seeds;
     const weeks = Number(form.season_weeks);
     if (weeks !== rules.season_weeks) change.season_weeks = weeks;
+    if (form.firing !== rules.firing) change.firing = form.firing as LeagueRules["firing"];
     if (Object.keys(change).length === 0) {
       setEditing(false);
       return;
@@ -105,6 +106,14 @@ export function LeagueRulesPanel({ leagueId, initial, commissioner }: {
             <input className="input mt-1 w-full" type="number" min={1} max={rules.max_weeks} required
               value={form.season_weeks} onChange={set("season_weeks")} />
           </label>
+          <label className="block text-xs text-mist">
+            Owners fire general managers
+            <select className="input mt-1 w-full" value={form.firing} onChange={set("firing")}>
+              <option value="auto">Automatic (members only in a league played alone)</option>
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
           <p className="text-xs text-mist">
             A new length draws this season&apos;s schedule again if no game has been played;
             in the offseason it&apos;s next season&apos;s.
@@ -128,6 +137,8 @@ export function LeagueRulesPanel({ leagueId, initial, commissioner }: {
             <dd>{rules.cap_growth_pct === 0 ? "None" : `${rules.cap_growth_pct}% a season`}</dd>
             <dt className="text-mist">Playoffs</dt><dd>{seedsText(rules)}</dd>
             <dt className="text-mist">Season</dt><dd>{rules.season_weeks} weeks</dd>
+            <dt className="text-mist">Firing</dt>
+            <dd>{rules.firing === "auto" ? "Automatic" : rules.firing === "on" ? "On" : "Off"}</dd>
           </dl>
           {commissioner && (rules.locked_reason ? (
             <p className="text-xs text-mist">{rules.locked_reason}</p>

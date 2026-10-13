@@ -13,7 +13,7 @@ const mocked = vi.mocked(api);
 
 const rules: LeagueRules = {
   roster_max: 53, salary_cap: 255_000_000, cap_growth_pct: 0, playoff_seeds: null, seeds: 7, byes: 1,
-  seed_choices: [2, 3, 4, 5, 6, 7, 8], season_weeks: 17, max_weeks: 20, locked_reason: null,
+  seed_choices: [2, 3, 4, 5, 6, 7, 8], season_weeks: 17, max_weeks: 20, locked_reason: null, firing: "auto",
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -75,5 +75,15 @@ describe("LeagueRulesPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save rules" }));
     expect(mocked.updateRules).toHaveBeenCalledWith(1, { season_weeks: 12 });
     expect(await screen.findByRole("alert")).toHaveTextContent("45 to 60");
+  });
+
+  it("turns firing off", async () => {
+    mocked.updateRules.mockResolvedValue({ ...rules, firing: "off" });
+    render(<LeagueRulesPanel leagueId={1} initial={rules} commissioner />);
+    expect(screen.getByRole("region", { name: "League rules" })).toHaveTextContent("FiringAutomatic");
+    await userEvent.click(screen.getByRole("button", { name: "Change the rules" }));
+    await userEvent.selectOptions(screen.getByLabelText("Owners fire general managers"), "Off");
+    await userEvent.click(screen.getByRole("button", { name: "Save rules" }));
+    expect(mocked.updateRules).toHaveBeenCalledWith(1, { firing: "off" });
   });
 });

@@ -31,6 +31,7 @@ KINDS = {  # kind: what the settings call it
     "staff": "Your staff: retirements, contracts that end, interim hires",
     "live": "Live games: offers, and when it's your call",
     "rules": "The league's rules changed",
+    "job": "Your job: firings, and general managers on the move",
 }
 KEEP = 100  # notifications listed at a time
 

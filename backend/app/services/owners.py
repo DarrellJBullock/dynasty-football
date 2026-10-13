@@ -29,6 +29,7 @@ from app.models import (
 from app.schemas import OwnerGoalOut, OwnerOut, OwnerReviewOut
 from app.seed import data
 from app.services import money
+from app.services.members import human_team_ids
 from app.services.serializers import team_summary
 from app.services.standings import compute_records
 from app.services.teams import (
@@ -150,6 +151,10 @@ def review(db: Session, season: Season) -> None:
     owners = {o.team_id: o for o in db.scalars(
         select(Owner).where(Owner.league_id == season.league_id))}
     facts = _facts(db, season, [r.team_id for r in rows])
+    league = db.get(League, season.league_id)
+    humans = human_team_ids(db, league.id)
+    from app.services import careers  # (careers build on owners)
+
     for row in rows:
         owner, team = owners[row.team_id], db.get(Team, row.team_id)
         fact, finances = facts[row.team_id]
@@ -166,6 +171,7 @@ def review(db: Session, season: Season) -> None:
         row.verdict = rules.verdict(after - owner.confidence, after)
         row.finances = finances.summary(team.ticket_price)
         owner.confidence, team.fan_mood = after, mood
+        careers.after_review(db, league, row, owner, humans)  # (fired, or not)
     db.flush()
 
 
@@ -182,6 +188,10 @@ def unreview(db: Session, season: Season) -> None:
         row.confidence_before = row.confidence_after = None
         row.fan_mood_before = row.fan_mood_after = None
         row.finances = None
+        row.fired = False
+    from app.services.careers import undo_firings  # (careers build on owners)
+
+    undo_firings(db, season.league_id)
     db.flush()
 
 

@@ -40,6 +40,7 @@ def build(seasons: int) -> None:
         clear_database(db)
         league = generate_league(db, seed=2026)
         give_league(db, league, accounts.sign_up(db, EMAIL, PASSWORD))
+        league.firing = "off"  # (a fired general manager would stop the seasons here)
         db.commit()
         franchise = db.scalar(select(Franchise).where(Franchise.league_id == league.id))
         for number in range(seasons + 1):

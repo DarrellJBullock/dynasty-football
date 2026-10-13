@@ -69,6 +69,11 @@ def roll_back(db: Session, league_id: int) -> str:
     if shot is None:
         raise RosterError("There's no week to roll back: only the last week (or playoff "
                           "round) of the current season, once.")
+    from app.services.careers import moved_since  # (careers build on the season)
+
+    if season.champion_team_id and moved_since(db, season):
+        raise RosterError("A fired general manager has taken another job since the final, "
+                          "so it can't be rolled back.")
     game_ids = list(shot.game_ids)
     if db.scalar(select(CoachedGame.id).join(Game).where(
             Game.season_id == season.id, CoachedGame.status == "in_progress").limit(1)) or \

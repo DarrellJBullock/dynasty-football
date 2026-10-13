@@ -91,4 +91,11 @@ describe("DashboardView", () => {
     expect(development).toHaveTextContent("-4");
     expect(within(recap).getByRole("link", { name: "Legend Smith" })).toHaveAttribute("href", "/players/8");
   });
+
+  it("tells a fired general manager to find a new job", () => {
+    render(<DashboardView data={{ ...dashboard, franchise: { ...dashboard.franchise, fired: true } }} />);
+    const fired = screen.getByRole("region", { name: "Fired" });
+    expect(fired).toHaveTextContent("The owner fired you.");
+    expect(within(fired).getByRole("link", { name: "See the open jobs" })).toHaveAttribute("href", "/career");
+  });
 });

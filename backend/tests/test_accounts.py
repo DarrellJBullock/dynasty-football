@@ -264,7 +264,8 @@ class TestLeaguesBelongToTheirOwner:
             "GET /api/public/{token}/leaders", "GET /api/public/{token}/team-stats",
             "GET /api/public/{token}/history",
             "DELETE /api/auth/account", "GET /api/franchise", "GET /api/franchise/dashboard",
-            "GET /api/franchise/next-game", "GET /api/franchises", "GET /api/leagues",
+            "GET /api/franchise/next-game", "GET /api/franchise/career",
+            "POST /api/franchise/take-job", "GET /api/franchises", "GET /api/leagues",
             "POST /api/leagues", "GET /api/leagues/template", "GET /api/playbook",
             "GET /api/roster-import/template.{fmt}",
         }

@@ -93,6 +93,9 @@ class League(Base):
     cap_growth_bp: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     playoff_seeds: Mapped[int | None] = mapped_column(Integer)
     season_weeks: Mapped[int | None] = mapped_column(Integer)
+    # Whether owners fire general managers who let them down (services/careers.py):
+    # "auto" (members' only when one member runs a team), "on", or "off".
+    firing: Mapped[str] = mapped_column(String(8), default="auto", server_default="auto")
     # Who plays: "men" or "women" (names and builds of generated players).
     players: Mapped[str] = mapped_column(String(8), default="men", server_default="men")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -611,6 +614,26 @@ class OwnerSeason(Base):
     verdict: Mapped[str | None] = mapped_column(String(40))
     # The season's money, as it ended (services/money.py): revenue, expenses, profit.
     finances: Mapped[dict | None] = mapped_column(_NULLABLE_JSON)
+    # The owner fired the general manager at the review.
+    fired: Mapped[bool] = mapped_column(default=False, server_default="false")
+
+
+class GmStint(Base):
+    """A member's time as one team's general manager (their career record across teams).
+    A member with none has been with their franchise's team from the league's first
+    season."""
+
+    __tablename__ = "gm_stints"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    from_year: Mapped[int] = mapped_column(Integer)
+    to_year: Mapped[int | None] = mapped_column(Integer)  # None: still there
+    ended: Mapped[str | None] = mapped_column(String(8))  # fired | None
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class WeekSnapshot(Base):
@@ -906,6 +929,8 @@ class Franchise(Base):
     # The most recently activated franchise is the one the app shows.
     activated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, server_default=func.now())
+    # Fired by the team's owner (services/careers.py): until they take another job.
+    fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     league: Mapped[League] = relationship()
     team: Mapped[Team] = relationship()

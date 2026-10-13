@@ -46,7 +46,7 @@ def franchise_out(db: Session, franchise: Franchise) -> FranchiseOut:
                         league=league_out(franchise.league),
                         team=team_summary(franchise.team),
                         season=season_view(db, season),
-                        role=_role(db, franchise))
+                        role=_role(db, franchise), fired=franchise.fired_at is not None)
 
 
 def _role(db: Session, franchise: Franchise) -> str:

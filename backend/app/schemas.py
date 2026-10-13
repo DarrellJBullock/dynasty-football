@@ -38,6 +38,8 @@ class RulesOut(BaseModel):
     season_weeks: int  # the regular season's length (this season's, or the one chosen)
     max_weeks: int
     locked_reason: str | None  # why they can't change now (None: they can)
+    # Owners fire general managers: auto (members only when one runs a team), on, or off.
+    firing: str = "auto"
 
 
 class RulesIn(BaseModel):
@@ -48,6 +50,7 @@ class RulesIn(BaseModel):
     cap_growth_pct: float | None = Field(default=None, ge=0, le=10)
     playoff_seeds: int | None = None
     season_weeks: int | None = None
+    firing: Literal["auto", "on", "off"] | None = None
 
 
 class RollbackOut(BaseModel):
@@ -625,6 +628,7 @@ class FranchiseOut(BaseModel):
     team: TeamSummary
     season: SeasonOut
     role: Literal["commissioner", "manager"] = "manager"  # the user's role in the league
+    fired: bool = False  # the owner fired you: choose your next job (services/careers.py)
 
 
 class FranchiseListItem(FranchiseOut):
@@ -1843,3 +1847,51 @@ class FinancesOut(BaseModel):
 
 class TicketPriceIn(BaseModel):
     price: Literal["low", "normal", "high"]
+
+
+class GmJobOut(BaseModel):
+    """A team looking for a general manager (services/careers.py)."""
+    team: TeamSummary
+    why: str
+    owner: str
+    wants: str
+    patience: int
+    market: str
+    fan_mood: int
+    rating: int  # the team's rating now
+    situation: str  # where the roster stands: contender | middle | rebuilding
+    last_season: str | None  # its record ("6-11")
+
+
+class GmStintOut(BaseModel):
+    team: TeamSummary
+    from_year: int
+    to_year: int | None  # None: still there
+    seasons: int
+    wins: int
+    losses: int
+    ties: int
+    playoffs: int  # seasons in the playoffs
+    titles: int
+    ended: str | None  # fired | None
+
+
+class GmCareerOut(BaseModel):
+    """A member's career as a general manager in this league, and, if they've been fired,
+    the jobs open to them."""
+    name: str
+    team: TeamSummary
+    fired: bool
+    stints: list[GmStintOut]
+    wins: int
+    losses: int
+    ties: int
+    playoffs: int
+    titles: int
+    firings: int
+    open_jobs: list[GmJobOut]
+    firing: str  # the league's rule: auto | on | off
+
+
+class TakeJobIn(BaseModel):
+    team_id: int

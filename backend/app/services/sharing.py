@@ -80,7 +80,7 @@ def league_for(db: Session, token: str) -> League:
 
 # What a league is made of, and what's left out: accounts, members, invites, notifications,
 # offers' notes, game plans (private to their managers), background jobs, the League log
-# (members' names), and the big logs
+# and general managers' careers (members' names and accounts), and the big logs
 # (play-by-play, offseason logs), which can be replayed or rebuilt.
 _SKIP = {
     League: {"user_id", "share_token_hash", "shared_at", "auto_advanced_at"},

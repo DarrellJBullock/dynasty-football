@@ -29,6 +29,17 @@ export function DashboardView({ data, owner }: { data: Dashboard; owner?: Owner 
       <Hero data={data} awayColor={opponent?.primary_color ?? "#3a4a5e"}
         awayAccent={opponent?.secondary_color ?? "#e5e7eb"} />
 
+      {franchise.fired && (
+        <section className="panel flex flex-wrap items-center justify-between gap-3 border-rose-400/30 p-5"
+          aria-label="Fired">
+          <p className="text-sm">
+            <span className="font-semibold">The owner fired you.</span>{" "}
+            Choose your next job before the offseason begins.
+          </p>
+          <Link href="/career" className="btn btn-primary">See the open jobs</Link>
+        </section>
+      )}
+
       {data.offseason && <OffseasonRecap recap={data.offseason} />}
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
