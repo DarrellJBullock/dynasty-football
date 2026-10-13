@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.contracts import MIN_SALARY
-from app.domain.positions import ROSTER_MAX, available_jersey
+from app.domain.positions import available_jersey
 from app.models import Contract, LeagueLogEntry, Player, Team, User
 from app.schemas import LeagueLogEntryOut, LeagueLogOut
 from app.services import cap
@@ -20,7 +20,8 @@ from app.services.retired import retired_numbers
 from app.services.teams import current_season, load_roster
 
 ACTIONS = ("player", "new_player", "move", "contract", "team", "import", "veto", "approve",
-           "settings", "member", "reverse", "rollback")
+           "settings", "member", "reverse", "rollback",
+           "rules")
 PAGE = 50
 
 # What an edit can change about a player, as the log shows it.
@@ -79,8 +80,9 @@ def move_player(db: Session, player: Player, team_id: int | None) -> tuple[str, 
         if team is None or team.league_id != player.league_id:
             raise RosterError("Team not found.", 404)
         roster = load_roster(db, team_id)
-        if len(roster) >= ROSTER_MAX:
-            raise RosterError(f"{team.full_name}'s roster is full ({ROSTER_MAX} players).")
+        if len(roster) >= team.league.roster_max:
+            raise RosterError(f"{team.full_name}'s roster is full ({team.league.roster_max} "
+                              "players).")
     old = _team_name(db, player.team_id)
     season = current_season(db, player.league_id)
     year = cap.cap_year(season) if season else 0

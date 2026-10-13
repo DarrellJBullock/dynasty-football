@@ -670,6 +670,27 @@ export interface SeasonTrade {
   problem: string | null;
 }
 
+/** The league's rules (`schemas.RulesOut`): changed between seasons by the commissioner. */
+export interface LeagueRules {
+  roster_max: number;
+  salary_cap: number;
+  /** How much the cap grows each offseason. */
+  cap_growth_pct: number;
+  /** Chosen playoff seeds per conference (null: by conference size). */
+  playoff_seeds: number | null;
+  /** The seeds per conference (and first-round byes) they come to. */
+  seeds: number;
+  byes: number;
+  seed_choices: number[];
+  season_weeks: number;
+  max_weeks: number;
+  /** Why they can't change now (null: they can). */
+  locked_reason: string | null;
+}
+
+export type LeagueRulesIn = Partial<Pick<LeagueRules,
+  "roster_max" | "salary_cap" | "cap_growth_pct" | "playoff_seeds" | "season_weeks">>;
+
 /** The week (or playoff round) a commissioner can roll back, if any. */
 export interface Rollback {
   label: string | null;
@@ -1060,7 +1081,7 @@ export interface CoachCallIn {
 
 /** The League log (`schemas.LeagueLogEntryOut`): an edit or a commissioner's action. */
 export type LeagueLogAction = "player" | "new_player" | "move" | "contract" | "team" | "import"
-  | "veto" | "approve" | "settings" | "member" | "reverse" | "rollback";
+  | "veto" | "approve" | "settings" | "member" | "reverse" | "rollback" | "rules";
 
 export interface LeagueLogEntry {
   id: number;

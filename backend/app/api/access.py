@@ -109,6 +109,7 @@ WRITES = {
     "PUT /api/players/{player_id}/contract": "commissioner",
     "POST /api/trades/{trade_id}/reverse": "commissioner",
     "POST /api/leagues/{league_id}/rollback": "commissioner",
+    "PATCH /api/leagues/{league_id}/rules": "commissioner",
     "POST /api/players/{player_id}/release": "team",
     "POST /api/players/{player_id}/re-sign": "team",
     "POST /api/players/{player_id}/offer": "free_agent",

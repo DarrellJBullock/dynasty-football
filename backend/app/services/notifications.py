@@ -30,6 +30,7 @@ KINDS = {  # kind: what the settings call it
     "legacy": "The Hall of Fame class, and numbers to retire",
     "staff": "Your staff: retirements, contracts that end, interim hires",
     "live": "Live games: offers, and when it's your call",
+    "rules": "The league's rules changed",
 }
 KEEP = 100  # notifications listed at a time
 

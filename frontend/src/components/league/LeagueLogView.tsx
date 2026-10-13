@@ -15,6 +15,7 @@ export const ACTION_LABELS: Record<LeagueLogAction, string> = {
   player: "Player edit", new_player: "New player", move: "Player moved", contract: "Contract",
   team: "Team edit", import: "Roster import", veto: "Trade vetoed", approve: "Trade approved",
   settings: "Settings", member: "Members", reverse: "Trade reversed", rollback: "Week rolled back",
+  rules: "League rules",
 };
 
 function value(field: string, v: LeagueLogEntry["changes"][number]["before"]): string {

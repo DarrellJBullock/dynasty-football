@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.draft import draft_order
-from app.domain.positions import ROSTER_MAX, ROSTER_TEMPLATE, available_jersey
+from app.domain.positions import ROSTER_TEMPLATE, available_jersey
 from app.domain.trades import (
     TRADE_DEADLINE_WEEK,
     Asset,
@@ -244,8 +244,9 @@ class _Deal:
             out_players = [a for a in out if isinstance(a, Player)]
             in_players = [a for a in into if isinstance(a, Player)]
             size = len(roster) - len(out_players) + len(in_players)
-            if size > max(ROSTER_MAX, len(roster)):
-                problems.append(f"{whose} roster would have {size} players (max {ROSTER_MAX}).")
+            limit = desk.league.roster_max
+            if size > max(limit, len(roster)):
+                problems.append(f"{whose} roster would have {size} players (max {limit}).")
             # Trading a player away leaves the rest of his bonus behind as dead money.
             current = payroll(roster) + cap.dead_money_for(desk.db, team_id, year)
             new_payroll = (current - payroll(out_players) + payroll(in_players)
@@ -403,9 +404,9 @@ def reverse_problem(db: Session, trade: Trade,
         going = sum(1 for item, _left, went in _sides(trade)
                     if item["kind"] == "player" and went == team_id)
         size = counts[team_id] if counts is not None else len(load_roster(db, team_id))
-        if size - going + coming > ROSTER_MAX:
-            team = db.get(Team, team_id)
-            return f"The {team.full_name} would be over {ROSTER_MAX} players."
+        team = db.get(Team, team_id)
+        if size - going + coming > team.league.roster_max:
+            return f"The {team.full_name} would be over {team.league.roster_max} players."
     return None
 
 

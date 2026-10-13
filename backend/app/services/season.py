@@ -165,16 +165,15 @@ def _play_week(db: Session, season: Season, games: list[Game], sim_teams: dict[i
 def _check_franchise_roster(db: Session, season: Season) -> None:
     """Every team a member runs must be down to 53 (the draft can take it over) before
     week 1."""
-    from app.domain.positions import ROSTER_MAX
     from app.models import Team
     from app.services.members import human_team_ids
 
     for team_id in sorted(human_team_ids(db, season.league_id)):
         count = db.scalar(select(func.count(Player.id)).where(Player.team_id == team_id)) or 0
-        if count > ROSTER_MAX:
-            team = db.get(Team, team_id)
-            raise RosterError(f"The {team.full_name} must cut to {ROSTER_MAX} (they have "
-                              f"{count}) before the season starts.")
+        team = db.get(Team, team_id)
+        if count > team.league.roster_max:
+            raise RosterError(f"The {team.full_name} must cut to {team.league.roster_max} "
+                              f"(they have {count}) before the season starts.")
 
 
 # Called after each week or round with its label and whether more are to come (a background

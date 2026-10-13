@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.domain.contracts import market_salary
 from app.domain.development import contract_years, develop, retirement_chance
-from app.domain.positions import ROSTER_MAX, ROSTER_TEMPLATE, Position
+from app.domain.positions import ROSTER_TEMPLATE, Position
 from app.models import Contract, Player, Season, Team
 from app.seed.generator import (
     FREE_AGENT_COUNT,
@@ -130,6 +130,10 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
             rosters[player.team_id].append(player)
     payrolls: dict[int, int] = {}
     departed_from: dict[int, int] = {}  # a team doesn't sign back who it just let go
+    # The cap grows for the new season, by the league's rule (none unless it says so).
+    if league.cap_growth_bp:
+        league.salary_cap = int(round(league.salary_cap * (10_000 + league.cap_growth_bp)
+                                      / 10_000, -5))
     salary_cap = league.salary_cap
     # Each team a member runs decides its own re-signings (services/contracts.py); whoever
     # it didn't re-sign leaves. On autopilot (sim ahead) the franchise re-signs like an AI.
@@ -145,7 +149,7 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
         for player in sorted(expiring, key=lambda p: (-p.overall, p.id)):
             salary = market_salary(Position(player.position), player.overall)
             # Keep enough room to fill the rest of the roster.
-            reserve = max(0, ROSTER_MAX - committed - 1) * ROSTER_SPOT_RESERVE
+            reserve = max(0, league.roster_max - committed - 1) * ROSTER_SPOT_RESERVE
             worth_keeping = team.id not in humans and (
                 player.age < VETERAN_KEEP[0] or player.overall >= VETERAN_KEEP[1])
             if worth_keeping and payroll + salary + reserve <= salary_cap:
@@ -175,7 +179,7 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
                            age=rng.randint(22, 25)))
 
     # 5. The new season, opening with free agency.
-    weeks = playoffs.regular_week_count(db, season.id)
+    weeks = league.season_weeks or playoffs.regular_week_count(db, season.id)
     new_season = Season(league=league, year=year, phase="free_agency", current_week=1,
                         free_agency_day=1, offseason_log=log)
     db.add(new_season)

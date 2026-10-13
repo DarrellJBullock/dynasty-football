@@ -3,7 +3,7 @@
 from sqlalchemy.orm import Session
 
 from app.domain.contracts import market_salary
-from app.domain.positions import ROSTER_MAX, Position, available_jersey
+from app.domain.positions import Position, available_jersey
 from app.domain.ratings import ATTRIBUTES, calculate_overall
 from app.models import Contract, Player, PlayerRatings, Team
 from app.schemas import PlayerCreate, PlayerUpdate, SigningRequest
@@ -26,9 +26,9 @@ def contract_start_year(db: Session, team: Team) -> int:
     return season.year + 1 if season.phase == "offseason" else season.year
 
 
-def _check_roster_space(roster: list[Player]) -> None:
-    if len(roster) >= ROSTER_MAX:
-        raise RosterError(f"roster is full ({ROSTER_MAX} players); release a player first")
+def _check_roster_space(roster: list[Player], limit: int) -> None:
+    if len(roster) >= limit:
+        raise RosterError(f"roster is full ({limit} players); release a player first")
 
 
 def _check_jersey(roster: list[Player], number: int, exclude_id: int | None = None) -> None:
@@ -50,7 +50,7 @@ def _recalculate_overall(player: Player) -> None:
 
 def create_player(db: Session, team: Team, payload: PlayerCreate) -> Player:
     roster = load_roster(db, team.id)
-    _check_roster_space(roster)
+    _check_roster_space(roster, team.league.roster_max)
     _check_jersey(roster, payload.jersey_number)
 
     ratings = {name: DEFAULT_RATING for name in ATTRIBUTES} | (payload.ratings or {})
@@ -152,7 +152,7 @@ def sign_player(db: Session, team: Team, request: SigningRequest) -> Player:
     if season is not None and season.phase == "free_agency":
         raise RosterError("It's free agency: make an offer on the Free Agency page.")
     roster = load_roster(db, team.id)
-    _check_roster_space(roster)
+    _check_roster_space(roster, team.league.roster_max)
     salary = request.salary if request.salary is not None else market_salary(
         Position(player.position), player.overall)
     _check_cap(db, team, roster, salary)

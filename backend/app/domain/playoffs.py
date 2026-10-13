@@ -42,6 +42,14 @@ def seeds_per_conference(conference_teams: int) -> int:
     return min(2, conference_teams)
 
 
+def seed_count(conference_teams: int, chosen: int | None = None) -> int:
+    """The league's choice of seeds per conference (a league rule), if it fits the
+    conference; otherwise by conference size."""
+    if chosen is not None and 2 <= chosen <= conference_teams:
+        return chosen
+    return seeds_per_conference(conference_teams)
+
+
 def _pct(wins: float, games: int) -> float:
     return wins / games if games else 0.0
 
@@ -117,11 +125,13 @@ class Ranker:
         return sorted(group, key=key)
 
 
-def seed_conference(ranker: Ranker, conference_id: int) -> list[Seed]:
+def seed_conference(ranker: Ranker, conference_id: int,
+                    chosen: int | None = None) -> list[Seed]:
     """Division winners take the top seeds (by record), then the best remaining teams. If a
-    conference has more divisions than seeds, only the best division winners qualify."""
+    conference has more divisions than seeds, only the best division winners qualify.
+    `chosen`: the league's seeds per conference (None: by conference size)."""
     teams = [t for t in ranker.teams.values() if t.conference == conference_id]
-    count = seeds_per_conference(len(teams))
+    count = seed_count(len(teams), chosen)
     divisions = sorted({t.division for t in teams})
     winners = [ranker.rank([t.id for t in teams if t.division == d])[0] for d in divisions]
     winners = ranker.rank(winners)[:count]

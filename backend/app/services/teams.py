@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.depth_chart import build_chart, starting_lineup, unit_rating
-from app.domain.positions import DEFENSE, OFFENSE, ROSTER_MAX, SPECIAL_TEAMS, Position
+from app.domain.positions import DEFENSE, OFFENSE, SPECIAL_TEAMS, Position
 from app.models import DepthChartEntry, Player, Season, Team
 from app.schemas import TeamDetail, TeamRatings
 from app.services.serializers import team_summary
@@ -74,7 +74,7 @@ def team_detail(team: Team, players: list[Player], overrides: Overrides,
         stadium=team.stadium,
         ratings=team_ratings(team_lineup(players, overrides)),
         roster_count=len(players),
-        roster_max=ROSTER_MAX,
+        roster_max=team.league.roster_max,
         payroll=total,
         dead_money=dead,
         cap_space=team.league.salary_cap - total,

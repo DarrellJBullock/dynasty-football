@@ -207,7 +207,7 @@ Design: `docs/design/head-to-head-and-commissioner.md`.
       per-call clock, the week's deadline)
 - [x] Commissioner edits and the League log
 - [x] Reversing trades and rolling back a week
-- [ ] League rules (roster size, the cap and its growth, the playoff format, season
+- [x] League rules (roster size, the cap and its growth, the playoff format, season
       length)
 
 ## Later
