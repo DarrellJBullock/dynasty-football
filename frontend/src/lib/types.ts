@@ -1035,6 +1035,28 @@ export interface CoachCallIn {
   timeout?: boolean;
 }
 
+/** The League log (`schemas.LeagueLogEntryOut`): an edit or a commissioner's action. */
+export type LeagueLogAction = "player" | "new_player" | "move" | "contract" | "team" | "import"
+  | "veto" | "approve" | "settings" | "member";
+
+export interface LeagueLogEntry {
+  id: number;
+  created_at: string;
+  /** Who did it (their name at the time). */
+  actor: string;
+  action: LeagueLogAction;
+  summary: string;
+  team_id: number | null;
+  player_id: number | null;
+  changes: { field: string; before: string | number | boolean | null; after: string | number | boolean | null }[];
+}
+
+export interface LeagueLog {
+  entries: LeagueLogEntry[];
+  /** Older entries to load (`before` the last one's id). */
+  more: boolean;
+}
+
 export interface NextGame {
   game: Game | null;
   coaching: boolean;

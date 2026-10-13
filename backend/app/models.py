@@ -544,6 +544,27 @@ class CoachedGame(Base):
     game: Mapped[Game] = relationship()
 
 
+class LeagueLogEntry(Base):
+    """One entry in the League log (services/league_log.py): an edit or a commissioner's
+    action, who did it, and what changed (`changes`: [{field, before, after}])."""
+
+    __tablename__ = "league_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    actor: Mapped[str] = mapped_column(String(80))  # (their name then: accounts can go)
+    action: Mapped[str] = mapped_column(String(24))  # see league_log.ACTIONS
+    summary: Mapped[str] = mapped_column(String(300))
+    team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"))
+    player_id: Mapped[int | None] = mapped_column(
+        ForeignKey("players.id", ondelete="SET NULL"))
+    changes: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"),
+                                          default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class LiveGame(Base):
     """A game between two members' teams played head-to-head (services/live.py): both
     coach, each side's calls replayed from the kickoff (sim/coaching.replay_both).

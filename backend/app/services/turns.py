@@ -138,6 +138,14 @@ def _nudge(db: Session, league: League, season: Season, key: str) -> None:
                        key=f"ready:{key}", role="commissioner")
 
 
+SETTINGS = ("draft_clock_minutes", "staff_budget", "trade_review_hours", "advance_minute_utc")
+
+
+def settings_fields(league: League) -> dict:
+    """The league's settings as the League log shows a change to them."""
+    return {name: getattr(league, name) for name in SETTINGS}
+
+
 def update_settings(db: Session, league: League, settings: LeagueSettingsIn) -> None:
     changes = settings.model_dump(exclude_unset=True)
     if "draft_clock_minutes" in changes:

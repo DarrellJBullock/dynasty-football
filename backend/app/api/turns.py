@@ -9,7 +9,7 @@ from app.api.leagues import get_league
 from app.db import get_db
 from app.models import League, User
 from app.schemas import LeagueSettingsIn, ReadyIn, TurnOut
-from app.services import turns
+from app.services import league_log, turns
 
 router = APIRouter(prefix="/leagues/{league_id}", tags=["season together"])
 
@@ -45,6 +45,11 @@ def advance(league: League = Depends(get_league), user: User = Depends(current_u
 def settings(body: LeagueSettingsIn, league: League = Depends(get_league),
              user: User = Depends(current_user), db: Session = Depends(get_db)):
     """The draft clock and the daily advance."""
+    before = turns.settings_fields(league)
     with roster_errors(db):
         turns.update_settings(db, league, body)
+        changes = league_log.diff(before, turns.settings_fields(league))
+        if changes:
+            league_log.record(db, league.id, user, "settings", "Changed the league settings",
+                              changes)
     return turns.turn_view(db, league, user)

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.access import current_user
 from app.api.errors import roster_errors
 from app.db import get_db
-from app.models import Team
+from app.models import Team, User
 from app.schemas import (
     PlayerCreate,
     PlayerDetail,
@@ -15,6 +16,7 @@ from app.schemas import (
 )
 from app.services import contracts as contract_service
 from app.services import draft as draft_service
+from app.services import league_log
 from app.services import leagues as league_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
@@ -37,10 +39,16 @@ def read_team(team: Team = Depends(get_team), db: Session = Depends(get_db)):
 
 @router.patch("/{team_id}", response_model=TeamDetail)
 def update_team(payload: TeamUpdate, team: Team = Depends(get_team),
-                db: Session = Depends(get_db)):
-    """Edit a team's identity: city, nickname, abbreviation, colors, stadium."""
+                user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Edit a team's identity: city, nickname, abbreviation, colors, stadium (in the League
+    log)."""
+    before = league_log.team_fields(team)
     with roster_errors(db):
         league_service.update_team(db, team, payload)
+        changes = league_log.diff(before, league_log.team_fields(team))
+        if changes:
+            league_log.record(db, team.league_id, user, "team", f"Edited the {team.full_name}",
+                              changes, team_id=team.id)
     return team_detail(team, load_roster(db, team.id), load_overrides(db, [team.id])[team.id])
 
 
@@ -51,9 +59,12 @@ def read_roster(team: Team = Depends(get_team), db: Session = Depends(get_db)):
 
 @router.post("/{team_id}/players", response_model=PlayerDetail, status_code=201)
 def create_player(payload: PlayerCreate, team: Team = Depends(get_team),
-                  db: Session = Depends(get_db)):
+                  user: User = Depends(current_user), db: Session = Depends(get_db)):
     with roster_errors(db):
         player = roster_service.create_player(db, team, payload)
+        league_log.record(db, team.league_id, user, "new_player",
+                          f"Added {player.position} {player.full_name} ({player.overall}) "
+                          f"to the {team.full_name}", team_id=team.id, player_id=player.id)
     return player_detail(player)
 
 

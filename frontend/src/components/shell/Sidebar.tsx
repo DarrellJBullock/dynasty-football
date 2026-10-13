@@ -38,6 +38,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Stats", href: "/stats", icon: <IconChart /> },
       { label: "League", href: "/league", icon: <IconTrophy /> },
       { label: "Members", href: "/members", icon: <IconUsers /> },
+      { label: "League Log", href: "/league-log", icon: <IconList /> },
       { label: "History", href: "/history", icon: <IconHistory /> },
       { label: "Records", href: "/records", icon: <IconHistory /> },
       { label: "Hall of Fame", href: "/hall-of-fame", icon: <IconTrophy /> },
@@ -76,8 +77,8 @@ function isActive(href: string, pathname: string | null): boolean {
   return (
     href === pathname ||
     (href === "/leagues" && pathname.startsWith("/leagues/")) ||
-    (href === "/coach" && /^\/games\/\d+\/coach$/.test(pathname)) ||
-    (href === "/schedule" && pathname.startsWith("/games/") && !pathname.endsWith("/coach")) ||
+    (href === "/coach" && /^\/games\/\d+\/(coach|live)$/.test(pathname)) ||
+    (href === "/schedule" && pathname.startsWith("/games/") && !/\/(coach|live)$/.test(pathname)) ||
     (href === "/stats" && pathname.startsWith("/players/"))
   );
 }

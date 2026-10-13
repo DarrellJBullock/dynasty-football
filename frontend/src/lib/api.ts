@@ -5,6 +5,8 @@ import type {
   StaffMarket,
   PlayerCoaching,
   Credentials,
+  LeagueLog,
+  LeagueLogAction,
   LiveState,
   TeamStaff,
   HallOfFame,
@@ -314,6 +316,18 @@ export const api = {
   resetGamePlan: (teamId: number) =>
     request<GamePlan>(`/teams/${teamId}/game-plan`, { method: "DELETE" }),
   nextGame: () => request<NextGame>("/franchise/next-game"),
+  leagueLog: (leagueId: number, options: { before?: number; action?: LeagueLogAction } = {}) => {
+    const query = new URLSearchParams();
+    if (options.before) query.set("before", String(options.before));
+    if (options.action) query.set("action", options.action);
+    const qs = query.toString();
+    return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
+  },
+  movePlayer: (playerId: number, teamId: number | null) =>
+    post<PlayerDetail>(`/players/${playerId}/move`, { team_id: teamId }),
+  setContract: (playerId: number, salary: number, years: number) =>
+    request<PlayerDetail>(`/players/${playerId}/contract`,
+      { method: "PUT", body: JSON.stringify({ salary, years }) }),
   liveGame: (gameId: number) => request<LiveState>(`/games/${gameId}/live`),
   offerLive: (gameId: number, clockSeconds: number | null) =>
     post<LiveState>(`/games/${gameId}/live`, { clock_seconds: clockSeconds }),

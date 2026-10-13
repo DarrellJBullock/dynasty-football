@@ -42,6 +42,7 @@ async function RosterContent() {
       seasonYear={franchise.season.year}
       season={franchise.season}
       capYear={franchise.season.year + (franchise.season.phase === "offseason" ? 1 : 0)}
+      commissioner={franchise.role === "commissioner"}
     />
   );
 }

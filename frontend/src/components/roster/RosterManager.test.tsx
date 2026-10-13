@@ -221,4 +221,16 @@ describe("RosterManager", () => {
     await waitFor(() => expect(rowNames()).toContain("Jamal Nash"));
     expect(screen.getByTestId("roster-count")).toHaveTextContent("4");
   });
+
+  it("leaves creating, importing and editing players to the commissioner", async () => {
+    mocked.player.mockResolvedValue(makePlayerDetail({ ...qb }));
+    render(<RosterManager initialTeam={{ ...teamDetail, roster_count: 3 }} initialRoster={[qb, wr, cb]}
+      leagueId={1} seasonYear={2026} commissioner={false} />);
+    expect(screen.queryByRole("button", { name: "Import" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Create player" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Keegan Quarles" }));
+    const panel = await screen.findByRole("dialog", { name: "Player details" });
+    expect(await within(panel).findByRole("button", { name: "Release" })).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: "Edit player" })).not.toBeInTheDocument();
+  });
 });

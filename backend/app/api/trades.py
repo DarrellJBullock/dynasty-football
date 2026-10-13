@@ -5,7 +5,7 @@ from app.api.access import current_user
 from app.api.errors import roster_errors
 from app.api.leagues import get_league
 from app.db import get_db
-from app.models import League, TradeOffer, User
+from app.models import League, Team, TradeOffer, User
 from app.schemas import (
     TradeCenter,
     TradeEvaluation,
@@ -15,7 +15,7 @@ from app.schemas import (
     TradeResult,
     VetoIn,
 )
-from app.services import trade_offers
+from app.services import league_log, trade_offers
 from app.services import trades as trade_service
 from app.services.members import is_commissioner, user_team_id
 
@@ -115,11 +115,26 @@ def counter(body: TradeOfferIn, offer: TradeOffer = Depends(get_offer),
 def veto(body: VetoIn, offer: TradeOffer = Depends(get_offer),
          user: User = Depends(current_user), db: Session = Depends(get_db)):
     """The commissioner stops an accepted trade during the veto window."""
-    return _answer(lambda d, o, _t: trade_offers.veto(d, o, body.reason), offer, user, db)
+    out = _answer(lambda d, o, _t: trade_offers.veto(d, o, body.reason), offer, user, db)
+    _log(db, offer, user, "veto", f"Vetoed the trade between {_teams(db, offer)}: {offer.reason}")
+    return out
 
 
 @offers_router.post("/trade-offers/{offer_id}/approve", response_model=TradeOfferOut)
 def approve(offer: TradeOffer = Depends(get_offer), user: User = Depends(current_user),
             db: Session = Depends(get_db)):
     """The commissioner lets an accepted trade through now."""
-    return _answer(lambda d, o, _t: trade_offers.approve(d, o), offer, user, db)
+    out = _answer(lambda d, o, _t: trade_offers.approve(d, o), offer, user, db)
+    _log(db, offer, user, "approve", f"Let the trade between {_teams(db, offer)} through")
+    return out
+
+
+def _teams(db: Session, offer: TradeOffer) -> str:
+    return " and the ".join(
+        "the " * (i == 0) + db.get(Team, t).full_name
+        for i, t in enumerate((offer.from_team_id, offer.to_team_id)))
+
+
+def _log(db: Session, offer: TradeOffer, user: User, action: str, summary: str) -> None:
+    league_log.record(db, offer.league_id, user, action, summary, team_id=offer.from_team_id)
+    db.commit()

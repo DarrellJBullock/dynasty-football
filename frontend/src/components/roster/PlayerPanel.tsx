@@ -39,6 +39,7 @@ export function PlayerPanel({
   onClose,
   onUpdated,
   onReleased,
+  canEdit = true,
 }: {
   playerId: number;
   seasonYear: number;
@@ -47,6 +48,8 @@ export function PlayerPanel({
   onClose: () => void;
   onUpdated: (player: PlayerDetail) => void;
   onReleased: (player: PlayerDetail) => void;
+  /** Editing a player is the commissioner's (a manager can still release). */
+  canEdit?: boolean;
 }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [editing, setEditing] = useState(false);
@@ -109,7 +112,7 @@ export function PlayerPanel({
                 seasonYear={seasonYear}
                 season={season}
                 capYear={capYear}
-                onEdit={() => setEditing(true)}
+                onEdit={canEdit ? () => setEditing(true) : undefined}
                 onReleased={onReleased}
               />
             ))}
@@ -132,7 +135,7 @@ function PlayerCard({
   seasonYear: number;
   season?: InjurySeason;
   capYear: number;
-  onEdit: () => void;
+  onEdit?: () => void;
   onReleased: (player: PlayerDetail) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -231,9 +234,11 @@ function PlayerCard({
       )}
       {player.team_id !== null && (
         <div className="sticky bottom-0 -mx-5 flex gap-2 border-t border-white/5 bg-ink-900 px-5 py-4">
-          <button type="button" className="btn btn-primary flex-1" onClick={onEdit}>
-            Edit player
-          </button>
+          {onEdit && (
+            <button type="button" className="btn btn-primary flex-1" onClick={onEdit}>
+              Edit player
+            </button>
+          )}
           {confirming ? (
             <button type="button" className="btn btn-danger" disabled={busy} onClick={release}>
               {busy ? "Releasing…" : "Confirm release"}
@@ -249,7 +254,7 @@ function PlayerCard({
   );
 }
 
-function PlayerEditForm({
+export function PlayerEditForm({
   player,
   onCancel,
   onSaved,

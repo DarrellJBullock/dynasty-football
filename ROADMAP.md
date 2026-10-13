@@ -205,7 +205,7 @@ Design: `docs/design/head-to-head-and-commissioner.md`.
       both)
 - [x] Playing head-to-head (agreeing to play live, the shared game, "your call", the
       per-call clock, the week's deadline)
-- [ ] Commissioner edits and the League log
+- [x] Commissioner edits and the League log
 - [ ] Reversing trades and rolling back a week
 - [ ] League rules (roster size, the cap and its growth, the playoff format, season
       length)
