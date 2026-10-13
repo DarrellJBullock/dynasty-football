@@ -50,8 +50,8 @@ Two things a decades-long dynasty is missing:
     a 50-rated one is neutral.
   - **Scouting:** the scout shrinks the projection error (`scout_noise`'s SD) and adds
     scouting reports per class.
-  - **Injuries:** the trainer shortens injury layoffs (rounded weeks) and, a little, the
-    chance of re-injury; facilities add to it.
+  - **Injuries:** the trainer shortens injury layoffs (rounded weeks, applied after the
+    game, so the engine's injury draws are unchanged); facilities add to it.
   - The player page explains each effect ("+12% growth from OC M. Okafor (88)").
 - **The staff budget** (decision 3): each team has a staff budget (the commissioner's
   setting, the same for every team) for salaries and facilities. It's separate from the

@@ -40,24 +40,28 @@ def effective_age(position: str, age: int) -> int:
 
 
 def overall_change(rng: random.Random, position: str, age: int, overall: int, potential: int,
-                   trait: str) -> float:
-    """Expected OVR change for a player entering the season at `age`."""
+                   trait: str, growth: float = 1.0, decline: float = 1.0) -> float:
+    """Expected OVR change for a player entering the season at `age`. `growth` and
+    `decline` scale the young player's growth and the veteran's decline (his coaches:
+    domain/staff.py); they change no draws."""
     age = effective_age(position, age)
     if age < PEAK_START:
         gap = max(0, potential - overall)
-        return gap * GROWTH_RATE.get(trait, GROWTH_RATE["normal"]) * rng.uniform(0.5, 1.4)
+        return (gap * GROWTH_RATE.get(trait, GROWTH_RATE["normal"]) * rng.uniform(0.5, 1.4)
+                * growth)
     if age < DECLINE_START:
         return rng.gauss(0.3, 1.2)
     years_past = age - DECLINE_START + 1
-    return -DECLINE_PER_YEAR * years_past * rng.uniform(0.6, 1.4)
+    return -DECLINE_PER_YEAR * years_past * rng.uniform(0.6, 1.4) * decline
 
 
 def develop(rng: random.Random, position: str, age: int, ratings: Mapping[str, int],
-            potential: int, trait: str) -> Development:
+            potential: int, trait: str, growth: float = 1.0,
+            decline: float = 1.0) -> Development:
     """A year of development. Growth lifts the attributes the position values; decline
     hits physical attributes hardest while mental ones hold up."""
     overall = calculate_overall(position, ratings)
-    delta = overall_change(rng, position, age, overall, potential, trait)
+    delta = overall_change(rng, position, age, overall, potential, trait, growth, decline)
     weights = POSITION_WEIGHTS[Position(position)]
     new: dict[str, int] = {}
     for name, value in ratings.items():

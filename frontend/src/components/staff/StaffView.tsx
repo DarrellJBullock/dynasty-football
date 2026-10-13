@@ -116,6 +116,7 @@ function Card({ member, season }: { member: StaffMember; season: number }) {
         </div>
       </div>
       <p className="mt-3 text-sm">{member.duty}</p>
+      <p className="mt-1 text-sm text-gold">{member.effect}</p>
       <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-mist">
         <div><dt className="inline">Salary </dt><dd className="inline text-chalk">{formatMoney(member.salary)}</dd></div>
         <div>

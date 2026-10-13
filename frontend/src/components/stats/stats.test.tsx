@@ -132,6 +132,24 @@ describe("PlayerView", () => {
   });
 
 
+  it("says what his coaches and trainer do for him", () => {
+    render(<PlayerView player={makePlayerDetail({ position: "QB" })} stats={stats} coaching={{
+      phase: "growing", development: "With these coaches he grows 35% faster this offseason than he would on his own.",
+      injuries: "Injured players come back 15% sooner.",
+      items: [{ role: "offensive_coordinator", role_label: "Offensive coordinator", name: "Jared Vasquez", rating: 90, specialty: "QB" },
+        { role: "trainer", role_label: "Head trainer", name: "Dana Pike", rating: 70, specialty: null }] }} />);
+    const panel = screen.getByRole("region", { name: "Coaching" });
+    expect(panel).toHaveTextContent("grows 35% faster");
+    expect(panel).toHaveTextContent("come back 15% sooner");
+    expect(panel).toHaveTextContent("Offensive coordinator: Jared Vasquez · 90 · QB");
+    expect(within(panel).getByRole("link", { name: "Staff →" })).toHaveAttribute("href", "/staff");
+  });
+
+  it("shows no coaching for a free agent", () => {
+    render(<PlayerView player={makePlayerDetail({})} stats={stats} coaching={{ items: [], phase: null }} />);
+    expect(screen.queryByRole("region", { name: "Coaching" })).toBeNull();
+  });
+
   it("marks a Hall of Famer and the teams that retired his number", () => {
     render(<PlayerView player={makePlayerDetail({ position: "QB" })} stats={stats}
       career={{ player_id: 1, games: 34, totals: { pass_yds: 8000 }, seasons: [],

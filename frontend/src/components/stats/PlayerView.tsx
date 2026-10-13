@@ -4,10 +4,10 @@ import { RatingBar } from "@/components/ui/RatingBar";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatAttribute, formatHeight, formatMoney, injuryDetail, injuryHistory } from "@/lib/format";
 import { groupsFor } from "@/lib/stats";
-import type { CareerOut, PlayerDetail, PlayerSeasonStats } from "@/lib/types";
+import type { CareerOut, PlayerCoaching, PlayerDetail, PlayerSeasonStats } from "@/lib/types";
 
-export function PlayerView({ player, stats, career }: {
-  player: PlayerDetail; stats: PlayerSeasonStats; career?: CareerOut;
+export function PlayerView({ player, stats, career, coaching }: {
+  player: PlayerDetail; stats: PlayerSeasonStats; career?: CareerOut; coaching?: PlayerCoaching;
 }) {
   const groups = groupsFor(stats.totals);
   const team = stats.team;
@@ -73,6 +73,8 @@ export function PlayerView({ player, stats, career }: {
         </section>
       </div>
 
+      {coaching && coaching.items.length > 0 && <Coaching coaching={coaching} />}
+
       {career && (career.seasons.length > 0 || career.awards.length > 0) && <Career career={career} />}
 
       <section className="panel overflow-x-auto" aria-label="Game log">
@@ -113,6 +115,27 @@ export function PlayerView({ player, stats, career }: {
         </table>
       </section>
     </div>
+  );
+}
+
+/** What his team's coaches and trainer do for him (services/staff.py). */
+function Coaching({ coaching }: { coaching: PlayerCoaching }) {
+  return (
+    <section className="panel p-5" aria-label="Coaching">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="eyebrow">Coaching</h2>
+        <Link href="/staff" className="text-xs text-gold hover:underline">Staff →</Link>
+      </div>
+      {coaching.development && <p className="mt-2 text-sm">{coaching.development}</p>}
+      {coaching.injuries && <p className="mt-1 text-sm text-mist">{coaching.injuries}</p>}
+      <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+        {coaching.items.map((i) => (
+          <li key={i.role} className="rounded-full border border-white/10 px-2.5 py-1">
+            {i.role_label}: {i.name} · {i.rating}{i.specialty ? ` · ${i.specialty}` : ""}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

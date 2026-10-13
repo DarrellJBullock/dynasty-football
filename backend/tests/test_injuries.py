@@ -6,12 +6,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain.staff import layoff
 from app.models import Franchise, Game, League, Player, PlayerGameStats, Season
+from app.services import staff
 from app.services.injuries import after_week, status_for
 from app.sim.calibration import default_league_teams
 from app.sim.engine import simulate_game
 from app.sim.injuries import (
     INJURY_TABLE,
+    SEASON_ENDING,
     contact_ids,
     injury_chance,
     injury_details,
@@ -167,11 +170,15 @@ def test_simulated_injuries_update_players_and_lineups(client: TestClient, db: S
     _sim(client, season)
     events = _week_injuries(db, season, 1)
     assert events
+    crew = staff.by_team(db, season.league)
     for event in events:
         player = db.get(Player, event["player"])
         assert player.injury == event["injury"]
-        assert player.injury_weeks == event["weeks"]
-        assert player.injury_status == status_for(event["weeks"])
+        # (his team's trainer gets him back sooner than the injury as it happened)
+        trainer = staff.coach(crew.get(player.team_id, {}).get("trainer"))
+        weeks = layoff(event["weeks"], trainer, SEASON_ENDING)
+        assert player.injury_weeks == weeks <= event["weeks"]
+        assert player.injury_status == status_for(weeks)
 
     _sim(client, season)
     out = [e["player"] for e in events if e["weeks"] >= 1]

@@ -1033,10 +1033,27 @@ class StaffOut(BaseModel):
     age: int
     rating: int  # 40-99
     specialty: str | None  # e.g. "QB" for an OC
+    effect: str = ""  # what they do at this rating, in a line
     salary: int
     contract_end: int  # the last season of the contract
     team: "TeamSummary | None"
     career: StaffCareer  # seasons with any team, in this league
+
+
+class CoachingItem(BaseModel):
+    role: StaffRole
+    role_label: str
+    name: str
+    rating: int
+    specialty: str | None
+
+
+class PlayerCoachingOut(BaseModel):
+    """What his team's staff do for a player (none: a free agent, or retired)."""
+    items: list[CoachingItem]  # his coordinator, head coach and trainer
+    phase: Literal["growing", "peak", "declining"] | None  # where he is in his career
+    development: str | None = None  # "With these coaches he grows 18% faster this offseason…"
+    injuries: str | None = None  # "Injured players come back 15% sooner."
 
 
 class TeamStaffOut(BaseModel):

@@ -1257,6 +1257,8 @@ export interface StaffMember {
   rating: number;
   /** e.g. "QB" for an OC. */
   specialty: string | null;
+  /** What they do at this rating, in a line. */
+  effect: string;
   salary: number;
   /** The last season of the contract. */
   contract_end: number;
@@ -1287,4 +1289,13 @@ export interface Coaches {
   head_coaches: StaffMember[];
   /** Latest first. */
   coach_of_the_year: CoachOfTheYear[];
+}
+
+/** What his team's staff do for a player (`schemas.PlayerCoachingOut`). */
+export interface PlayerCoaching {
+  /** His coordinator, head coach and trainer (none: a free agent, or retired). */
+  items: { role: StaffRole; role_label: string; name: string; rating: number; specialty: string | null }[];
+  phase: "growing" | "peak" | "declining" | null;
+  development?: string | null;
+  injuries?: string | null;
 }
