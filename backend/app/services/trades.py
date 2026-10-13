@@ -1,4 +1,5 @@
-"""Trades between the franchise and AI teams: players and picks in the next draft.
+"""Trades: players and picks in the next draft. With an AI team, at once; with another
+member's team, as an offer they answer (services/trade_offers.py).
 
 The AI values each side with domain/trades.py and accepts when it comes out ahead by a
 small margin (more for positions it needs). Both rosters must stay within 53 (or not
@@ -96,9 +97,7 @@ class _Desk:
         self.year = self.season.year + (0 if self.season.phase == "free_agency" else 1)
         self.team_count = len(league.teams)
         self.user_team = team_id  # the trading member's team
-        # (Teams other members run trade with them, not with the AI: part 3 of
-        # docs/design/leagues-with-friends.md. Until then they aren't trade partners.)
-        self.humans = human_team_ids(db, league.id)
+        self.humans = human_team_ids(db, league.id)  # (their managers answer offers)
         self.slots = _slots(db, league, self.season, self.year)
 
     def picks(self, team_id: int) -> list[DraftPick]:
@@ -134,27 +133,41 @@ def _assets(desk: _Desk, team_id: int) -> TradeAssets:
 
 
 def trade_center(db: Session, league: League, partner_id: int | None,
-                 team_id: int | None = None) -> TradeCenter:
-    """The trade desk for `team_id`'s manager: the AI teams to deal with, and their own
-    trades."""
+                 team_id: int | None = None, commissioner: bool = False) -> TradeCenter:
+    """The trade desk for `team_id`'s manager: every other team to deal with (the AI's at
+    once, members' by offer), their offers, and their trades."""
+    from app.services import trade_offers
+
+    trade_offers.settle(db, league)
     desk = _Desk(db, league, team_id)
-    teams = [t for t in league.teams if t.id not in desk.humans]
-    partner = next((t for t in teams if t.id == partner_id), teams[0] if teams else None)
+    teams = [t for t in league.teams if t.id != team_id]
+    partner = next((t for t in teams if t.id == partner_id), None) or next(
+        (t for t in teams if t.id not in desk.humans), teams[0] if teams else None)
+    mine = Trade.team_id == (team_id or 0)
     history = db.scalars(select(Trade).where(Trade.league_id == league.id,
-                                             Trade.team_id == (team_id or 0))
+                                             mine | (Trade.partner_id == (team_id or 0)))
                          .order_by(Trade.id.desc()).limit(20)).all()
     return TradeCenter(
         season=season_view(db, desk.season), closed_reason=window(desk.season),
         deadline_week=TRADE_DEADLINE_WEEK, draft_year=desk.year,
         partners=[team_summary(t) for t in teams],
         partner=team_summary(partner) if partner else None,
+        partner_manager=trade_offers.manager_name(db, partner.id) if partner else None,
+        managed=sorted(desk.humans - {team_id}),
         mine=_assets(desk, desk.user_team) if desk.user_team else TradeAssets(players=[],
                                                                                  picks=[]),
         theirs=_assets(desk, partner.id) if partner else TradeAssets(players=[], picks=[]),
-        history=[_trade_out(t) for t in history])
+        history=[_trade_out(t, team_id) for t in history],
+        offers=trade_offers.offers_for(db, league, team_id, commissioner),
+        review_hours=league.trade_review_hours)
 
 
-def _trade_out(trade: Trade) -> TradeOut:
+def _trade_out(trade: Trade, viewer: int | None = None) -> TradeOut:
+    """The trade from `viewer`'s side (the proposer's, unless the viewer took the other)."""
+    if viewer is not None and viewer == trade.partner_id:
+        return TradeOut(id=trade.id, partner=team_summary(trade.team),
+                        season_phase=trade.phase, week=trade.week, sent=trade.received,
+                        received=trade.sent)
     return TradeOut(id=trade.id, partner=team_summary(trade.partner),
                     season_phase=trade.phase, week=trade.week, sent=trade.sent,
                     received=trade.received)
@@ -171,9 +184,8 @@ class _Deal:
         partner = db.get(Team, proposal.partner_id)
         if partner is None or partner.league_id != desk.league.id or partner.id == desk.user_team:
             raise RosterError("Choose another team in this league.", 404)
-        if partner.id in desk.humans:
-            raise RosterError("Another member runs that team: trades between members are coming.")
         self.partner = partner
+        self.managed = partner.id in desk.humans  # (its manager answers: an offer)
         self.send = self._players(proposal.send_players, desk.user_team) + \
             self._picks(proposal.send_picks, desk.user_team)
         self.receive = self._players(proposal.receive_players, partner.id) + \
@@ -233,8 +245,12 @@ class _Deal:
         gets, wants = ai_side(received, given)
         balance = round(gets / wants, 2) if wants else (2.0 if gets else 0.0)
         ok = acceptable(gets, wants)
+        if self.managed:  # (the meter still shows how the AI would see it, as a guide)
+            ok = True
         if problems:
             message = problems[0]
+        elif self.managed:
+            message = f"The {self.partner.nickname}' manager decides: send them an offer."
         elif ok:
             message = f"The {self.partner.nickname} would accept this trade."
         else:
@@ -260,6 +276,8 @@ def evaluate(db: Session, league: League, proposal: TradeProposal,
 def propose(db: Session, league: League, proposal: TradeProposal,
             team_id: int | None) -> TradeResult:
     deal = _Deal(_Desk(db, league, team_id), proposal)
+    if deal.managed:
+        raise RosterError("Another member runs that team: send them an offer.")
     evaluation = deal.evaluate()
     if not evaluation.acceptable:
         return TradeResult(accepted=False, evaluation=evaluation, trade=None)

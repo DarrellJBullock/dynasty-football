@@ -23,8 +23,9 @@ export default function TradesPage({ searchParams }: PageProps<"/trades">) {
 }
 
 async function TradesContent({ searchParams }: Pick<PageProps<"/trades">, "searchParams">) {
-  const { partner } = await searchParams;
+  const { partner, counter } = await searchParams;
   const partnerId = typeof partner === "string" ? Number(partner) || undefined : undefined;
+  const counterId = typeof counter === "string" ? Number(counter) || undefined : undefined;
   const result = await attempt(async () => {
     const franchise = await api.franchise();
     return { franchise, center: await api.tradeCenter(franchise.league.id, partnerId) };
@@ -32,7 +33,8 @@ async function TradesContent({ searchParams }: Pick<PageProps<"/trades">, "searc
   if (!result.ok) return <ServerError error={result.error} />;
   const { franchise, center } = result.data;
   return (
-    <TradesView key={center.partner?.id} center={center} team={franchise.team}
-      leagueId={franchise.league.id} />
+    <TradesView key={`${center.partner?.id}:${counterId ?? ""}`} center={center} team={franchise.team}
+      leagueId={franchise.league.id} commissioner={franchise.role === "commissioner"}
+      counterId={counterId} />
   );
 }

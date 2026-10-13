@@ -208,6 +208,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`turns.advance`), and the worker's minute (`turns.tick`) runs out draft clocks and the
   daily advance. The draft clock only runs with several managers (`draft._clocked`); a
   single-player league behaves as before. Sim ahead is refused with several managers.
+- **Trades between managers** (`services/trade_offers.py`): a trade with another
+  member's team is a `TradeOffer` they answer (accept, reject, counter); AI teams still
+  answer at once (`trades.propose` refuses a member's team). Offers settle lazily
+  (`settle`: expiry, offers whose players or picks moved, the end of the veto window) on
+  every read and answer, and on the worker's tick. A trade's `team_id` is the proposer:
+  show it from the viewer's side (`trades._trade_out(trade, viewer)`).
 - **The franchise on autopilot:** the offseason, free agency and the draft take
   `autopilot=True` (sim ahead), which treats members' teams like AI teams. Anything new
   that skips the franchise for the user to decide needs the same flag.

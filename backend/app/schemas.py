@@ -821,9 +821,48 @@ class TradeCenter(BaseModel):
     draft_year: int  # picks in this draft can be traded
     partners: list[TeamSummary]
     partner: TeamSummary | None
+    partner_manager: str | None = None  # the partner's manager (an offer), or None (the AI)
+    managed: list[int] = []  # partners another member runs
     mine: TradeAssets
     theirs: TradeAssets
     history: list[TradeOut]  # latest first
+    offers: list["TradeOfferOut"] = []  # yours, open first; and, for a commissioner, reviews
+    review_hours: int = 0  # the commissioner's veto window (0: none)
+
+
+class TradeOfferItem(BaseModel):
+    kind: Literal["player", "pick"]
+    id: int
+    label: str
+
+
+class TradeOfferOut(BaseModel):
+    """An offer between managers, with what each side gives."""
+    id: int
+    from_team: TeamSummary
+    to_team: TeamSummary
+    from_manager: str
+    to_manager: str
+    gives: list[TradeOfferItem]  # from_team sends
+    gets: list[TradeOfferItem]  # from_team receives
+    note: str | None
+    status: Literal["pending", "accepted", "rejected", "withdrawn", "countered", "expired",
+                    "invalid", "review", "vetoed"]
+    reason: str | None
+    direction: Literal["incoming", "outgoing", "other"]  # for the viewer's team
+    parent_id: int | None
+    created_at: datetime
+    expires_at: datetime
+    review_ends_at: datetime | None
+
+
+class TradeOfferIn(BaseModel):
+    proposal: "TradeProposal"
+    note: str | None = Field(default=None, max_length=200)
+
+
+class VetoIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=200)
 
 
 class TradeProposal(BaseModel):
@@ -1326,6 +1365,7 @@ class TurnOut(BaseModel):
     advance_minute_utc: int | None  # the daily advance (minutes after midnight UTC)
     next_advance_at: datetime | None
     pick_clock_ends_at: datetime | None  # the draft: when the manager up runs out of time
+    trade_review_hours: int = 0  # trades between managers wait for a veto (0: they don't)
 
 
 class ReadyIn(BaseModel):
@@ -1335,6 +1375,7 @@ class ReadyIn(BaseModel):
 class LeagueSettingsIn(BaseModel):
     draft_clock_minutes: int | None = None
     advance_minute_utc: int | None = None  # (send null to turn the daily advance off)
+    trade_review_hours: int | None = None
 
 
 class PasswordChange(BaseModel):
