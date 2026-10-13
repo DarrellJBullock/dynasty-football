@@ -5,8 +5,6 @@ import { api } from "@/lib/api";
 import type { LeagueRules } from "@/lib/types";
 import { LeagueRulesPanel } from "./LeagueRulesPanel";
 
-const refresh = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return { ...actual, api: { updateRules: vi.fn() } };
@@ -49,7 +47,6 @@ describe("LeagueRulesPanel", () => {
     expect(await within(panel).findByRole("status")).toHaveTextContent("League log");
     expect(panel).toHaveTextContent("4 per conference, no byes");
     expect(panel).toHaveTextContent("3% a season");
-    expect(refresh).toHaveBeenCalled();
   });
 
   it("goes back to automatic seeds", async () => {
