@@ -96,6 +96,9 @@ class League(Base):
     advance_minute_utc: Mapped[int | None] = mapped_column(Integer)
     # Trades between managers wait this long for the commissioner's veto (0: they don't).
     trade_review_hours: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # The read-only public link (services/sharing.py): only its token's SHA-256 is kept.
+    share_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    shared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     auto_advanced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     conferences: Mapped[list["Conference"]] = relationship(

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { GAME, type Site } from "@/lib/site";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { choreographGame } from "@/components/field/playback/choreograph";
 import { BroadcastOverlay, ReplayBadge } from "@/components/broadcast/BroadcastOverlay";
@@ -53,7 +54,9 @@ function situation(play: PlaybackPlay, playback: GamePlayback): string {
  * The 3D viewer for one game: a play at a time, with play/pause, a scrubber marked with
  * the play's moments, speed, previous/next, auto-advance through the game, and cameras.
  */
-export function WatchView({ playback, initialPlay, initialAuto = false, initialHighlights = false }: {
+export function WatchView({ playback, initialPlay, initialAuto = false, initialHighlights = false, site = GAME }: {
+  /** Where its links go (the game, or a public link). */
+  site?: Site;
   playback: GamePlayback;
   initialPlay?: number;
   initialAuto?: boolean; // play straight through
@@ -216,7 +219,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   if (!play || !timeline) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
-        <Link href={`/games/${game.id}`} className="text-sm text-gold hover:underline">← Box score</Link>
+        <Link href={`${site.base}/games/${game.id}`} className="text-sm text-gold hover:underline">← Box score</Link>
         <p className="panel p-6 text-center text-sm text-mist">
           {playback.log_compacted
             ? "Play-by-play isn't kept for this older game: only its scoring plays and injuries, on the box score."
@@ -231,7 +234,7 @@ export function WatchView({ playback, initialPlay, initialAuto = false, initialH
   return (
     <div className="mx-auto max-w-7xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link href={`/games/${game.id}`} className="text-sm text-gold hover:underline">← Box score</Link>
+        <Link href={`${site.base}/games/${game.id}`} className="text-sm text-gold hover:underline">← Box score</Link>
         <h1 className="eyebrow">
           {game.away.full_name} at {game.home.full_name} · {game.round_name ?? `Week ${game.week}`}
         </h1>

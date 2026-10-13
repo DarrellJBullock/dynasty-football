@@ -213,7 +213,7 @@ class TestLeaguesBelongToTheirOwner:
             "invite_id": members.create_invite(db, league, owner)[0].id,
             "member_id": members.member(db, league.id, owner).id,
             "offer_id": _an_offer(db, league, season, franchise).id,
-            "slot": "QB", "fmt": "csv",
+            "slot": "QB", "fmt": "csv", "token": "not-a-shared-link",
         }
         unscoped = set()
         checked = 0
@@ -236,6 +236,11 @@ class TestLeaguesBelongToTheirOwner:
             "PUT /api/auth/profile", "POST /api/invites/preview", "POST /api/invites/join",
             "GET /api/notifications", "GET /api/notifications/unread",
             "POST /api/notifications/read",
+            # The read-only public link: anyone with its token (tests/test_sharing.py).
+            "GET /api/public/{token}", "GET /api/public/{token}/standings",
+            "GET /api/public/{token}/schedule", "GET /api/public/{token}/playoffs",
+            "GET /api/public/{token}/leaders", "GET /api/public/{token}/team-stats",
+            "GET /api/public/{token}/history",
             "DELETE /api/auth/account", "GET /api/franchise", "GET /api/franchise/dashboard",
             "GET /api/franchise/next-game", "GET /api/franchises", "GET /api/leagues",
             "POST /api/leagues", "GET /api/leagues/template", "GET /api/playbook",

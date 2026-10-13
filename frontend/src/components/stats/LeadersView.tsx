@@ -1,25 +1,29 @@
 import Link from "next/link";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { STAT_LABELS } from "@/lib/stats";
+import { PlayerName } from "@/components/ui/PlayerName";
+import { GAME, type Site } from "@/lib/site";
 import type { LeaderCategory, LeaderRow } from "@/lib/types";
 
-function PlayerLink({ row }: { row: LeaderRow }) {
+function PlayerLink({ row, site }: { row: LeaderRow; site?: Site }) {
   return (
-    <Link href={`/players/${row.player_id}`} className="font-medium hover:text-gold">
+    <PlayerName id={row.player_id} site={site} className="font-medium hover:text-gold">
       {row.name}
-    </Link>
+    </PlayerName>
   );
 }
 
 /** Grid of categories, top few in each. */
-export function LeaderCards({ categories, teamId }: { categories: LeaderCategory[]; teamId: number }) {
+export function LeaderCards({ categories, teamId, site = GAME }: {
+  categories: LeaderCategory[]; teamId: number; site?: Site;
+}) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {categories.map((category) => (
         <section key={category.key} className="panel p-4" aria-label={category.label}>
           <header className="mb-3 flex items-center justify-between">
             <h2 className="eyebrow">{category.label}</h2>
-            <Link href={`/stats?category=${category.key}`} className="text-xs text-gold hover:underline">
+            <Link href={`${site.base}/stats?category=${category.key}`} className="text-xs text-gold hover:underline">
               Top 25 →
             </Link>
           </header>
@@ -34,7 +38,7 @@ export function LeaderCards({ categories, teamId }: { categories: LeaderCategory
                   <span className="stat-number text-mist">{i + 1}</span>
                   {row.team ? <TeamCrest team={row.team} size={18} /> : <span />}
                   <span className="min-w-0 truncate">
-                    <PlayerLink row={row} /> <span className="text-xs text-mist">{row.position}</span>
+                    <PlayerLink row={row} site={site} /> <span className="text-xs text-mist">{row.position}</span>
                   </span>
                   <span className="stat-number text-base">{row.value}</span>
                 </li>
@@ -48,7 +52,9 @@ export function LeaderCards({ categories, teamId }: { categories: LeaderCategory
 }
 
 /** One category in full. */
-export function LeaderTable({ category, teamId }: { category: LeaderCategory; teamId: number }) {
+export function LeaderTable({ category, teamId, site = GAME }: {
+  category: LeaderCategory; teamId: number; site?: Site;
+}) {
   const columns = category.leaders[0] ? Object.keys(category.leaders[0].stats) : [];
   return (
     <section className="panel overflow-x-auto" aria-label={`${category.label} leaders`}>
@@ -67,7 +73,7 @@ export function LeaderTable({ category, teamId }: { category: LeaderCategory; te
           {category.leaders.map((row, i) => (
             <tr key={row.player_id} className={`border-b border-white/[0.03] ${row.team?.id === teamId ? "bg-gold/[0.07]" : ""}`}>
               <td className="stat-number px-4 py-2 text-mist">{i + 1}</td>
-              <td className="px-4 py-2"><PlayerLink row={row} /> <span className="text-xs text-mist">{row.position}</span></td>
+              <td className="px-4 py-2"><PlayerLink row={row} site={site} /> <span className="text-xs text-mist">{row.position}</span></td>
               <td className="px-4 py-2">
                 {row.team && <span className="flex items-center gap-2"><TeamCrest team={row.team} size={18} />{row.team.abbreviation}</span>}
               </td>

@@ -34,6 +34,8 @@ frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 +
                   /trades, /history, /stats, /players/[id], /league, /members, /leagues,
                   /leagues/new, /account
   src/app/(auth)/ /signin, /signup, /join (invite links) (no sidebar; a second root layout)
+  src/app/(share)/ /share/[token]/… a league's read-only public link (no account; a third
+                  root layout): standings, schedule, games, watch, playoffs, stats, history
   src/proxy.ts    sends visitors without a session cookie to /signin
   src/components/ UI by feature (dashboard, roster, league, field, watch, coach, ui, shell)
   src/lib/        api client, types (mirror of schemas.py), pure helpers
@@ -214,6 +216,14 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`settle`: expiry, offers whose players or picks moved, the end of the veto window) on
   every read and answer, and on the worker's tick. A trade's `team_id` is the proposer:
   show it from the viewer's side (`trades._trade_out(trade, viewer)`).
+- **The read-only public link** (`services/sharing.py`, `api/public.py`): routes under
+  `/api/public/{token}` need no session and only read; never return contracts there
+  (`test_sharing.py` checks). The token is a key: `observability.loggable_path` hides it
+  in request logs and Sentry. The views it reuses take a `site` (`lib/site.ts`): links go
+  under `site.base`, and with `site.shared` there are no player pages, sim or coach
+  controls. Public pages live under `PUBLIC_PREFIXES` in `proxy.ts`.
+- **The league export** (`sharing.export_league`, docs/league-export.md) dumps each table's
+  rows as stored; a new league-owned table goes there (or in the list of what's left out).
 - **Notifications** (`services/notifications.py`): call `notify` / `notify_team` /
   `notify_members` where something happens (a new kind goes in `KINDS`); pass a `key` when
   it must only happen once. Email is never sent in a request: a notification is marked

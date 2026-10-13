@@ -26,7 +26,7 @@ from app.main import create_app
 from app.models import Franchise, Game, League, Player, PlayerGameStats, Season, User
 from app.schemas import SimulateRequest
 from app.seed.generator import clear_database, generate_league
-from app.services import accounts, draft, free_agency, offseason
+from app.services import accounts, draft, free_agency, offseason, sharing
 from app.services import season as season_service
 from app.services.members import give_league
 from app.services.teams import current_season
@@ -93,9 +93,11 @@ def reads(client: TestClient) -> dict[str, str]:
                            .where(Player.team_id == franchise.team_id)
                            .group_by(PlayerGameStats.player_id)
                            .order_by(PlayerGameStats.player_id).limit(1))
+        token = sharing.create_link(db, league)  # (the public link's reads are timed too)
+        db.commit()
     ids = {"league_id": league.id, "season_id": season.id, "team_id": franchise.team_id,
            "player_id": player, "game_id": game.id, "franchise_id": franchise.id,
-           "slot": "QB", "fmt": "csv"}
+           "slot": "QB", "fmt": "csv", "token": token}
     urls = {}
     for path, methods in client.app.openapi()["paths"].items():
         names = re.findall(r"{(\w+)}", path)

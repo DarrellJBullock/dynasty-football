@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PageHeader, Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { LeagueSettingsPanel } from "./LeagueSettingsPanel";
+import { SharingPanel } from "./SharingPanel";
 import { api } from "@/lib/api";
 import { hardNavigate } from "@/lib/navigation";
 import type { Invite, Member, Members } from "@/lib/types";
@@ -161,6 +162,8 @@ export function MembersView({ initial }: { initial: Members }) {
         )}
 
         {commissioner && <LeagueSettingsPanel leagueId={leagueId} />}
+
+        <SharingPanel leagueId={leagueId} commissioner={commissioner} initialSharedAt={view.shared_at} />
 
         <Panel title="Open teams">
           {view.open_teams.length === 0 ? (

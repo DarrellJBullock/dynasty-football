@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatPhase } from "@/lib/format";
+import { GAME, type Site } from "@/lib/site";
 import type { Game, ScheduleWeek } from "@/lib/types";
 import { SimControls } from "./SimControls";
 
-export function ScheduleView({ schedule, teamId, canRun = true }: {
-  schedule: ScheduleWeek; teamId: number; canRun?: boolean;
+export function ScheduleView({ schedule, teamId, canRun = true, site = GAME }: {
+  schedule: ScheduleWeek; teamId: number; canRun?: boolean; site?: Site;
 }) {
   const { season, week } = schedule;
   const weeks = Array.from({ length: season.weeks }, (_, i) => i + 1);
@@ -21,7 +22,7 @@ export function ScheduleView({ schedule, teamId, canRun = true }: {
           </div>
           <h1 className="font-display text-4xl font-bold uppercase tracking-wide">Schedule</h1>
         </div>
-        <SimControls season={season} teamId={teamId} canRun={canRun} />
+        {!site.shared && <SimControls season={season} teamId={teamId} canRun={canRun} />}
       </div>
 
       <nav aria-label="Weeks" className="panel flex gap-1 overflow-x-auto p-2">
@@ -30,7 +31,7 @@ export function ScheduleView({ schedule, teamId, canRun = true }: {
           return (
             <Link
               key={w}
-              href={`/schedule?week=${w}`}
+              href={`${site.base}/schedule?week=${w}`}
               aria-current={w === week ? "page" : undefined}
               className={`shrink-0 rounded-md px-3 py-1.5 font-display text-sm font-semibold ${
                 w === week ? "bg-gold text-ink-950" : played ? "text-chalk hover:bg-white/5" : "text-mist hover:bg-white/5"
@@ -40,7 +41,7 @@ export function ScheduleView({ schedule, teamId, canRun = true }: {
             </Link>
           );
         })}
-        <Link href="/playoffs" className="shrink-0 rounded-md px-3 py-1.5 font-display text-sm font-semibold text-gold hover:bg-white/5">
+        <Link href={`${site.base}/playoffs`} className="shrink-0 rounded-md px-3 py-1.5 font-display text-sm font-semibold text-gold hover:bg-white/5">
           Playoffs →
         </Link>
       </nav>
@@ -50,8 +51,8 @@ export function ScheduleView({ schedule, teamId, canRun = true }: {
         <ul className="grid gap-3 md:grid-cols-2">
           {[...mine, ...others].map((game) => (
             <li key={game.id}>
-              <GameCard game={game} highlight={mine.includes(game)}
-                coachable={mine.includes(game) && game.status !== "final" && week === season.current_week
+              <GameCard game={game} highlight={mine.includes(game)} base={site.base}
+                coachable={!site.shared && mine.includes(game) && game.status !== "final" && week === season.current_week
                   && ["preseason", "regular_season", "playoffs"].includes(season.phase)} />
             </li>
           ))}
@@ -63,14 +64,16 @@ export function ScheduleView({ schedule, teamId, canRun = true }: {
 
 /** A game: the card opens the box score; final games can be watched, and the franchise's
  * game this week can be coached. (Separate links, so none is nested in another.) */
-function GameCard({ game, highlight, coachable }: { game: Game; highlight: boolean; coachable: boolean }) {
+function GameCard({ game, highlight, coachable, base }: {
+  game: Game; highlight: boolean; coachable: boolean; base: string;
+}) {
   const final = game.status === "final";
   const awayWon = final && game.away_score! > game.home_score!;
   const homeWon = final && game.home_score! > game.away_score!;
   const matchup = `${game.away.full_name} at ${game.home.full_name}`;
   return (
     <div className={`panel relative flex items-center gap-4 px-4 py-3 hover:border-white/15 ${highlight ? "ring-1 ring-gold/40" : ""}`}>
-      <Link href={`/games/${game.id}`} aria-label={matchup}
+      <Link href={`${base}/games/${game.id}`} aria-label={matchup}
         className="absolute inset-0 rounded-[inherit] focus-visible:outline-2 focus-visible:outline-gold" />
       <div className="min-w-0 flex-1 space-y-1.5">
         {[
@@ -91,7 +94,7 @@ function GameCard({ game, highlight, coachable }: { game: Game; highlight: boole
           {final ? (game.overtime ? "Final/OT" : "Final") : "Upcoming"}
         </span>
         {final && (
-          <Link href={`/games/${game.id}/watch?auto=1`} aria-label={`Watch ${matchup}`}
+          <Link href={`${base}/games/${game.id}/watch?auto=1`} aria-label={`Watch ${matchup}`}
             className="relative inline-flex min-h-6 items-center text-xs font-semibold text-gold hover:underline">
             Watch
           </Link>
