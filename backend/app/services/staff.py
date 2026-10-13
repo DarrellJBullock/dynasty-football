@@ -125,16 +125,17 @@ def coach(member: StaffMember | None) -> rules.Coach | None:
     return rules.Coach(member.rating, member.specialty) if member is not None else None
 
 
-def development_factors(crew: dict[int, dict[str, StaffMember]],
-                        player: Player) -> tuple[float, float]:
-    """(growth, decline) for a player's offseason: his team's coordinator and head coach
-    (a player without a team develops on his own)."""
+def development_factors(crew: dict[int, dict[str, StaffMember]], player: Player,
+                        levels: dict[int, dict[str, int]] | None = None) -> tuple[float, float]:
+    """(growth, decline) for a player's offseason: his team's coordinator, head coach and
+    training facility (a player without a team develops on his own)."""
     if player.team_id is None or player.team_id not in crew:
         return 1.0, 1.0
     team = crew[player.team_id]
     role = rules.coordinator_role(player.position)
+    training = (levels or {}).get(player.team_id, {}).get("training", 1)
     return rules.development_factors(player.position, coach(team.get(role)) if role else None,
-                                     coach(team.get("head_coach")))
+                                     coach(team.get("head_coach")), training)
 
 
 def player_coaching(db: Session, player: Player) -> PlayerCoachingOut:
@@ -142,17 +143,22 @@ def player_coaching(db: Session, player: Player) -> PlayerCoachingOut:
     slowly he declines) this offseason, and how soon he'd be back from an injury."""
     if player.team_id is None or player.retired_year is not None:
         return PlayerCoachingOut(items=[], phase=None)
-    crew = by_team(db, db.get(League, player.league_id)).get(player.team_id, {})
+    league = db.get(League, player.league_id)
+    crew = by_team(db, league).get(player.team_id, {})
+    from app.services import facilities  # (it builds on the staff budget)
+
+    built = facilities.levels(db, league).get(player.team_id, {})
+    training, medical = built.get("training", 1), built.get("medical", 1)
     role = rules.coordinator_role(player.position)
     coordinator, head = crew.get(role) if role else None, crew.get("head_coach")
     age = effective_age(player.position, player.age + 1)  # (his age next offseason)
     phase = "growing" if age < PEAK_START else "declining" if age >= DECLINE_START else "peak"
     items = []
     if phase == "growing":
-        lift = rules.growth_lift(player.position, coach(coordinator), coach(head))
+        lift = rules.growth_lift(player.position, coach(coordinator), coach(head), training)
         verb = f"grows {rules.percent(lift)} {'faster' if lift >= 0 else 'slower'}"
     elif phase == "declining":
-        cut = rules.decline_cut(coach(coordinator), coach(head))
+        cut = rules.decline_cut(coach(coordinator), coach(head), training)
         verb = f"declines {rules.percent(cut)} {'slower' if cut >= 0 else 'faster'}"
     else:
         verb = None
@@ -165,7 +171,10 @@ def player_coaching(db: Session, player: Player) -> PlayerCoachingOut:
     if trainer is not None:
         items.append(CoachingItem(role="trainer", role_label=rules.role_label("trainer"),
                                   name=trainer.full_name, rating=trainer.rating, specialty=None))
-    trainer_text = rules.effect_text("trainer", trainer.rating, None) if trainer else None
+    sooner = 1 - rules.layoff(1000, coach(trainer), 10_000, medical) / 1000
+    trainer_text = (f"Injured players come back {rules.percent(sooner)} "
+                    f"{'sooner' if sooner >= 0 else 'later'}"
+                    f"{f' (medical center level {medical})' if medical > 1 else ''}.")
     summary = (f"With these coaches he {verb} this offseason than he would on his own."
                if verb else "At his peak: his coaches' growth and decline don't apply yet.")
     return PlayerCoachingOut(items=items, phase=phase, development=summary, injuries=trainer_text)
@@ -205,7 +214,7 @@ def team_staff(db: Session, team: Team) -> TeamStaffOut:
                                                           StaffMember.retired_year.is_(None))),
                      key=lambda m: (order.index(m.role), m.id))
     careers = _careers(db, [m.id for m in members])
-    from app.services import carousel  # (it builds on this module)
+    from app.services import carousel, facilities  # (they build on this module)
 
     year = season.year if (season := current_season(db, team.league_id)) else 0
     held = {m.role for m in members}
@@ -213,7 +222,8 @@ def team_staff(db: Session, team: Team) -> TeamStaffOut:
                         members=[_out(m, careers[m.id], team) for m in members],
                         payroll=sum(m.salary for m in members),
                         budget=carousel.budget(db, team, year),
-                        vacancies=[r for r in rules.ROLES if r not in held])
+                        vacancies=[r for r in rules.ROLES if r not in held],
+                        facilities=facilities.team_facilities(db, team))
 
 
 def coaches(db: Session, league: League) -> CoachesOut:

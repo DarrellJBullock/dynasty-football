@@ -31,7 +31,8 @@ a copy, for spreadsheets and scripts, and, later, for importing a league.
   "retired_numbers": [ … ],
   "staff": [ … ],
   "staff_seasons": [ … ],
-  "staff_dead_money": [ … ]
+  "staff_dead_money": [ … ],
+  "facilities": [ … ]
 }
 ```
 
@@ -53,6 +54,7 @@ Times are ISO 8601 strings in UTC, and money is whole dollars.
 | `awards` | MVP, offensive and defensive player and rookie of the year, by season |
 | `draft_picks`, `trades` | Picks (made and to come) and completed trades |
 | `staff`, `staff_seasons`, `staff_dead_money` | Every coach, scout and trainer (on a team, out of work, or retired), each one's seasons (the team's record, playoff wins, titles, Coach of the Year), and what teams still owe staff they let go |
+| `facilities` | Each team's training facility, medical center and scouting department: level 1–5, and an upgrade under way |
 | `hall_of_fame`, `retired_numbers` | Each year's Hall of Fame ballot (`inducted` marks the members; the rest came close), and numbers teams retired |
 
 ## What's left out

@@ -207,6 +207,8 @@ export const api = {
   staffMarket: (leagueId: number) => request<StaffMarket>(`/leagues/${leagueId}/staff-market`),
   hireStaff: (teamId: number, staffId: number, years: number) =>
     post<TeamStaff>(`/teams/${teamId}/staff/hire`, { staff_id: staffId, years }),
+  upgradeFacility: (teamId: number, kind: string) =>
+    post<TeamStaff>(`/teams/${teamId}/facilities/${kind}/upgrade`),
   fireStaff: (staffId: number) => post<TeamStaff>(`/staff/${staffId}/fire`),
   extendStaff: (staffId: number, years: number) => post<TeamStaff>(`/staff/${staffId}/extend`, { years }),
   teamStaff: (teamId: number) => request<TeamStaff>(`/teams/${teamId}/staff`),

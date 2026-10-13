@@ -135,9 +135,11 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
-def growth_lift(position: str, coordinator: Coach | None, head: Coach | None) -> float:
-    """How much faster than normal a young player grows (0.18 = 18% faster)."""
-    lift = 0.0
+def growth_lift(position: str, coordinator: Coach | None, head: Coach | None,
+                training: int = 1) -> float:
+    """How much faster than normal a young player grows (0.18 = 18% faster), with his
+    team's training facility at `training` (1 adds nothing)."""
+    lift = (training - 1) * TRAINING_GROWTH_PER_LEVEL
     if coordinator is not None:
         lift += (coordinator.rating - NEUTRAL) * GROWTH_PER_POINT
         if coordinator.specialty is not None and coordinator.specialty == GROUP.get(position):
@@ -149,9 +151,9 @@ def growth_lift(position: str, coordinator: Coach | None, head: Coach | None) ->
     return _clamp(1 + lift, FACTOR_MIN, FACTOR_MAX) - 1
 
 
-def decline_cut(coordinator: Coach | None, head: Coach | None) -> float:
+def decline_cut(coordinator: Coach | None, head: Coach | None, training: int = 1) -> float:
     """How much slower than normal a veteran declines (0.15 = 15% slower)."""
-    cut = 0.0
+    cut = (training - 1) * TRAINING_DECLINE_PER_LEVEL
     if coordinator is not None:
         cut += (coordinator.rating - NEUTRAL) * DECLINE_PER_POINT
     if head is not None:
@@ -159,32 +161,35 @@ def decline_cut(coordinator: Coach | None, head: Coach | None) -> float:
     return 1 - _clamp(1 - cut, FACTOR_MIN, FACTOR_MAX)
 
 
-def development_factors(position: str, coordinator: Coach | None,
-                        head: Coach | None) -> tuple[float, float]:
+def development_factors(position: str, coordinator: Coach | None, head: Coach | None,
+                        training: int = 1) -> tuple[float, float]:
     """(growth, decline) multipliers for `development.develop` (1.0 is no staff effect)."""
-    return 1 + growth_lift(position, coordinator, head), 1 - decline_cut(coordinator, head)
+    return (1 + growth_lift(position, coordinator, head, training),
+            1 - decline_cut(coordinator, head, training))
 
 
-def scout_scale(scout: Coach | None) -> float:
-    """How far off unscouted projections are, against an average scout's (1.0)."""
-    if scout is None:
-        return 1.0
-    return _clamp(1 - (scout.rating - NEUTRAL) * SCOUT_SD_PER_POINT,
-                  SCOUT_SCALE_MIN, SCOUT_SCALE_MAX)
+def scout_scale(scout: Coach | None, scouting: int = 1) -> float:
+    """How far off unscouted projections are, against an average scout's (1.0), with the
+    team's scouting department at `scouting`."""
+    rating = scout.rating if scout is not None else NEUTRAL
+    return _clamp(1 - (rating - NEUTRAL) * SCOUT_SD_PER_POINT
+                  - (scouting - 1) * SCOUTING_SCALE_PER_LEVEL, SCOUT_SCALE_MIN, SCOUT_SCALE_MAX)
 
 
-def scouting_reports(base: int, scout: Coach | None) -> int:
-    if scout is None:
-        return base
-    return max(REPORTS_MIN, base + (scout.rating - NEUTRAL) // REPORTS_PER_POINTS)
+def scouting_reports(base: int, scout: Coach | None, scouting: int = 1) -> int:
+    rating = scout.rating if scout is not None else NEUTRAL
+    return max(REPORTS_MIN, base + (rating - NEUTRAL) // REPORTS_PER_POINTS
+               + (scouting - 1) * SCOUTING_REPORTS_PER_LEVEL)
 
 
-def layoff(weeks: int, trainer: Coach | None, season_ending: int) -> int:
-    """An injury's weeks out with this trainer (season-ending injuries stay so)."""
-    if trainer is None or weeks <= 1 or weeks >= season_ending:
+def layoff(weeks: int, trainer: Coach | None, season_ending: int, medical: int = 1) -> int:
+    """An injury's weeks out with this trainer and medical center (season-ending injuries
+    stay so)."""
+    if weeks <= 1 or weeks >= season_ending:
         return weeks
-    scale = _clamp(1 - (trainer.rating - NEUTRAL) * TRAINER_PER_POINT,
-                   TRAINER_SCALE_MIN, TRAINER_SCALE_MAX)
+    rating = trainer.rating if trainer is not None else NEUTRAL
+    scale = _clamp(1 - (rating - NEUTRAL) * TRAINER_PER_POINT
+                   - (medical - 1) * MEDICAL_PER_LEVEL, TRAINER_SCALE_MIN, TRAINER_SCALE_MAX)
     return max(1, round(weeks * scale))
 
 
@@ -261,3 +266,48 @@ def best_hire(candidates: Sequence[tuple[int, int, int, int]], room: int) -> int
     if fits:
         return max(fits, key=lambda c: (c[1], -c[2], -c[0]))[0]
     return min(candidates, key=lambda c: (c[3], c[0]))[0]
+
+
+# ---------- facilities (part 5) ----------
+
+FACILITIES = {  # kind: (name, what it does)
+    "training": ("Training facility", "Young players grow faster and veterans decline slower."),
+    "medical": ("Medical center", "Injured players come back sooner."),
+    "scouting": ("Scouting department", "Sharper draft projections, and more scouting reports."),
+}
+LEVEL_MIN, LEVEL_MAX = 1, 5
+UPGRADE_COST = {2: 1_000_000, 3: 2_000_000, 4: 3_000_000, 5: 4_000_000}  # to reach a level
+UPKEEP_PER_LEVEL = 300_000  # a season, for each level above 1
+TRAINING_GROWTH_PER_LEVEL = 0.04
+TRAINING_DECLINE_PER_LEVEL = 0.03
+MEDICAL_PER_LEVEL = 0.05
+SCOUTING_SCALE_PER_LEVEL = 0.06
+SCOUTING_REPORTS_PER_LEVEL = 1
+
+
+def upkeep(level: int) -> int:
+    return (level - 1) * UPKEEP_PER_LEVEL
+
+
+def facility_effect(kind: str, level: int) -> str:
+    """What a facility at this level adds, in a line."""
+    above = level - 1
+    if above == 0:
+        return "Level 1: adds nothing yet."
+    if kind == "training":
+        return (f"Young players grow {percent(above * TRAINING_GROWTH_PER_LEVEL)} faster; "
+                f"veterans decline {percent(above * TRAINING_DECLINE_PER_LEVEL)} slower.")
+    if kind == "medical":
+        return f"Injured players come back {percent(above * MEDICAL_PER_LEVEL)} sooner."
+    return (f"Draft projections {percent(above * SCOUTING_SCALE_PER_LEVEL)} closer; "
+            f"+{above * SCOUTING_REPORTS_PER_LEVEL} scouting reports a class.")
+
+
+def ai_upgrade(levels: dict[str, int], room: int) -> str | None:
+    """Which facility an AI team builds with `room` to spare: the lowest it can afford
+    (and keep up next season), training first. None if none."""
+    for kind in sorted(FACILITIES, key=lambda k: (levels.get(k, 1), list(FACILITIES).index(k))):
+        level = levels.get(kind, 1)
+        if level < LEVEL_MAX and UPGRADE_COST[level + 1] + UPKEEP_PER_LEVEL <= room:
+            return kind
+    return None

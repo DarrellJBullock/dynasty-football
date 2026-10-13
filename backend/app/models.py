@@ -356,6 +356,22 @@ class StaffMember(Base):
         return f"{self.first_name} {self.last_name}"
 
 
+class Facility(Base):
+    """A team's training facility, medical center or scouting department, level 1-5
+    (services/facilities.py). An upgrade is paid from the staff budget in `upgrade_year`
+    and the new level arrives at the next offseason."""
+
+    __tablename__ = "facilities"
+    __table_args__ = (UniqueConstraint("team_id", "kind", name="uq_facilities_team_kind"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(12))  # training | medical | scouting
+    level: Mapped[int] = mapped_column(Integer, default=1)
+    upgrade_year: Mapped[int | None] = mapped_column(Integer)  # an upgrade under way
+    upgrade_cost: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class StaffDeadMoney(Base):
     """What a team still owes a staff member it fired, charged to its staff budget one
     season at a time (services/carousel.py)."""
