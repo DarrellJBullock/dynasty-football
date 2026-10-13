@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Coaches,
+  StaffMarket,
   PlayerCoaching,
   Credentials,
   TeamStaff,
@@ -203,6 +204,11 @@ export const api = {
   },
   publicHistory: (token: string) => request<HistoryOut>(`/public/${encodeURIComponent(token)}/history`),
   playerCoaching: (playerId: number) => request<PlayerCoaching>(`/players/${playerId}/coaching`),
+  staffMarket: (leagueId: number) => request<StaffMarket>(`/leagues/${leagueId}/staff-market`),
+  hireStaff: (teamId: number, staffId: number, years: number) =>
+    post<TeamStaff>(`/teams/${teamId}/staff/hire`, { staff_id: staffId, years }),
+  fireStaff: (staffId: number) => post<TeamStaff>(`/staff/${staffId}/fire`),
+  extendStaff: (staffId: number, years: number) => post<TeamStaff>(`/staff/${staffId}/extend`, { years }),
   teamStaff: (teamId: number) => request<TeamStaff>(`/teams/${teamId}/staff`),
   coaches: (leagueId: number) => request<Coaches>(`/leagues/${leagueId}/coaches`),
   hallOfFame: (leagueId: number) => request<HallOfFame>(`/leagues/${leagueId}/hall-of-fame`),

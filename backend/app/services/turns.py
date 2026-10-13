@@ -105,6 +105,7 @@ def turn_view(db: Session, league: League, user: User) -> TurnOut:
                    next_advance_at=next_advance_at(league),
                    pick_clock_ends_at=clock,
                    trade_review_hours=league.trade_review_hours,
+                   staff_budget=league.staff_budget,
                    can_advance=you is not None and you.role == "commissioner")
 
 
@@ -143,6 +144,11 @@ def update_settings(db: Session, league: League, settings: LeagueSettingsIn) -> 
         if changes["draft_clock_minutes"] not in DRAFT_CLOCKS:
             raise RosterError("Pick one of the draft clocks offered.", 422)
         league.draft_clock_minutes = changes["draft_clock_minutes"]
+    if "staff_budget" in changes:
+        amount = changes["staff_budget"]
+        if amount is None or not 5_000_000 <= amount <= 100_000_000:
+            raise RosterError("A staff budget is $5M to $100M.", 422)
+        league.staff_budget = amount
     if "trade_review_hours" in changes:
         if changes["trade_review_hours"] not in REVIEW_HOURS:
             raise RosterError("A veto window is none, 24 or 48 hours.", 422)

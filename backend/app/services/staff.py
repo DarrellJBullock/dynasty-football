@@ -54,6 +54,14 @@ def ensure_staff(db: Session, league: League) -> None:
                                age=made.age, rating=made.rating, specialty=made.specialty,
                                salary=rules.salary(role, made.rating),
                                contract_end=year + made.years - 1))
+    # A market to hire from (after the teams' draws, so they're the same either way).
+    for role in rules.ROLES:
+        for _ in range(max(2, len(league.teams) // rules.NEW_PER_ROLE_DIVISOR)):
+            made = rules.make_new(rng, role)
+            db.add(StaffMember(league_id=league.id, team_id=None, role=role,
+                               first_name=rng.choice(first), last_name=rng.choice(data.LAST_NAMES),
+                               age=made.age, rating=made.rating, specialty=made.specialty,
+                               salary=rules.salary(role, made.rating), contract_end=year))
     db.flush()
 
 
@@ -197,9 +205,15 @@ def team_staff(db: Session, team: Team) -> TeamStaffOut:
                                                           StaffMember.retired_year.is_(None))),
                      key=lambda m: (order.index(m.role), m.id))
     careers = _careers(db, [m.id for m in members])
+    from app.services import carousel  # (it builds on this module)
+
+    year = season.year if (season := current_season(db, team.league_id)) else 0
+    held = {m.role for m in members}
     return TeamStaffOut(team=team_summary(team),
                         members=[_out(m, careers[m.id], team) for m in members],
-                        payroll=sum(m.salary for m in members))
+                        payroll=sum(m.salary for m in members),
+                        budget=carousel.budget(db, team, year),
+                        vacancies=[r for r in rules.ROLES if r not in held])
 
 
 def coaches(db: Session, league: League) -> CoachesOut:

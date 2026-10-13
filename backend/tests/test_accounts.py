@@ -174,6 +174,14 @@ class TestTheAccount:
         assert accounts.authenticate(db, "dev@example.test", "changed-password").id == user.id
 
 
+def _a_staff_member(db: Session, league: League):
+    from app.models import StaffMember
+    from app.services.staff import ensure_staff
+
+    ensure_staff(db, league)
+    return db.scalar(select(StaffMember).where(StaffMember.league_id == league.id))
+
+
 def _an_offer(db: Session, league: League, season: Season, franchise: Franchise) -> TradeOffer:
     other = db.scalar(select(Team.id).where(Team.league_id == league.id,
                                             Team.id != franchise.team_id))
@@ -213,6 +221,7 @@ class TestLeaguesBelongToTheirOwner:
             "invite_id": members.create_invite(db, league, owner)[0].id,
             "member_id": members.member(db, league.id, owner).id,
             "offer_id": _an_offer(db, league, season, franchise).id,
+            "staff_id": _a_staff_member(db, league).id,
             "slot": "QB", "fmt": "csv", "token": "not-a-shared-link",
         }
         unscoped = set()

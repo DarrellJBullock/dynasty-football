@@ -96,6 +96,10 @@ class League(Base):
     advance_minute_utc: Mapped[int | None] = mapped_column(Integer)
     # Trades between managers wait this long for the commissioner's veto (0: they don't).
     trade_review_hours: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # What each team may spend on staff a season: salaries and staff dead money
+    # (services/carousel.py). Separate from the player salary cap.
+    staff_budget: Mapped[int] = mapped_column(Integer, default=20_000_000,
+                                              server_default="20000000")
     # The read-only public link (services/sharing.py): only its token's SHA-256 is kept.
     share_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     shared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -350,6 +354,19 @@ class StaffMember(Base):
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+
+class StaffDeadMoney(Base):
+    """What a team still owes a staff member it fired, charged to its staff budget one
+    season at a time (services/carousel.py)."""
+
+    __tablename__ = "staff_dead_money"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id", ondelete="CASCADE"))
+    year: Mapped[int] = mapped_column(Integer)
+    amount: Mapped[int] = mapped_column(Integer)
 
 
 class StaffSeason(Base):

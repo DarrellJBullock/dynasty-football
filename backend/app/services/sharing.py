@@ -31,6 +31,7 @@ from app.models import (
     PlayoffSeed,
     RetiredNumber,
     Season,
+    StaffDeadMoney,
     StaffMember,
     StaffSeason,
     Team,
@@ -134,6 +135,7 @@ def export_league(db: Session, league: League) -> dict:
         "retired_numbers": _rows(db, RetiredNumber, RetiredNumber.team_id.in_(team_ids)),
         "staff": _rows(db, StaffMember, StaffMember.league_id == league.id),
         "staff_seasons": _rows(db, StaffSeason, StaffSeason.season_id.in_(season_ids)),
+        "staff_dead_money": _rows(db, StaffDeadMoney, StaffDeadMoney.team_id.in_(team_ids)),
     }
 
 

@@ -47,7 +47,11 @@ def test_every_team_gets_a_staff_once_the_same_way(db: Session, league: League):
     staff.ensure_staff(db, league)
     members = db.scalars(select(StaffMember).where(StaffMember.league_id == league.id)
                          .order_by(StaffMember.id)).all()
-    assert len(members) == len(league.teams) * len(rules.ROLES)
+    hired = [m for m in members if m.team_id is not None]
+    assert len(hired) == len(league.teams) * len(rules.ROLES)
+    # ...and a market to hire from: a few of each role out of work.
+    market = len(members) - len(hired)
+    assert market == len(rules.ROLES) * max(2, len(league.teams) // rules.NEW_PER_ROLE_DIVISOR)
     for team in league.teams:
         assert sorted(m.role for m in members if m.team_id == team.id) == sorted(rules.ROLES)
     names = [(m.full_name, m.role, m.rating) for m in members]
@@ -80,7 +84,7 @@ def test_a_new_league_has_its_staff_from_the_start(client: TestClient, db: Sessi
     made = client.post("/api/leagues", json={**spec.json(), "players": "women"}).json()
     members = db.scalars(select(StaffMember).where(
         StaffMember.league_id == made["league"]["id"])).all()
-    assert len(members) == 4 * len(rules.ROLES)
+    assert len([m for m in members if m.team_id is not None]) == 4 * len(rules.ROLES)
     assert all(m.first_name in data.FIRST_NAMES_WOMEN for m in members)
 
 
@@ -133,7 +137,9 @@ def test_the_offseason_ages_the_staff(db: Session, league: League):
     season = league.seasons[0]
     season.phase = "offseason"
     offseason.advance(db, season)
-    assert all(m.age == ages[m.id] + 1 for m in db.scalars(select(StaffMember)))
+    # (everyone who was there and didn't retire; the carousel brings newcomers)
+    stayed = [m for m in db.scalars(select(StaffMember)) if m.id in ages and not m.retired_year]
+    assert stayed and all(m.age == ages[m.id] + 1 for m in stayed)
 
 
 def test_staff_go_with_the_league_and_into_the_export(db: Session, league: League):
@@ -141,7 +147,8 @@ def test_staff_go_with_the_league_and_into_the_export(db: Session, league: Leagu
 
     staff.ensure_staff(db, league)
     data_out = sharing.export_league(db, league)
-    assert len(data_out["staff"]) == len(league.teams) * len(rules.ROLES)
+    assert len([m for m in data_out["staff"] if m["team_id"]]) == (
+        len(league.teams) * len(rules.ROLES))
     assert "staff_seasons" in data_out
     delete_league(db, league)
     db.flush()

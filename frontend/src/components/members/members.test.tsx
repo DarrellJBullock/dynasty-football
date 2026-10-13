@@ -167,6 +167,14 @@ describe("LeagueSettingsPanel (on the Members page, for a commissioner)", () => 
     expect(mocked.updateLeagueSettings).toHaveBeenLastCalledWith(1, { advance_minute_utc: null });
   });
 
+  it("sets the staff budget", async () => {
+    mocked.updateLeagueSettings.mockResolvedValue({ ...turn, staff_budget: 30_000_000 });
+    render(<MembersView initial={members} />);
+    const settings = await screen.findByRole("region", { name: "League settings" });
+    await userEvent.selectOptions(within(settings).getByLabelText("Staff budget"), "$30M a season");
+    expect(mocked.updateLeagueSettings).toHaveBeenCalledWith(1, { staff_budget: 30_000_000 });
+  });
+
   it("sets the trade veto window", async () => {
     mocked.updateLeagueSettings.mockResolvedValue({ ...turn, trade_review_hours: 24 });
     render(<MembersView initial={members} />);

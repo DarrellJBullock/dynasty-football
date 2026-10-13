@@ -218,3 +218,46 @@ def effect_text(role: str, rating: int, specialty: str | None) -> str:
     scale = _clamp(1 - (rating - NEUTRAL) * TRAINER_PER_POINT, TRAINER_SCALE_MIN,
                    TRAINER_SCALE_MAX)
     return f"Injured players come back {percent(1 - scale)} {'sooner' if scale <= 1 else 'later'}."
+
+
+# ---------- the coaching carousel (part 4) ----------
+
+RETIRE_FROM = 62  # staff may retire from this age...
+RETIRE_PER_YEAR = 0.12  # ...more likely each year...
+MUST_RETIRE = 70  # ...and do by this one
+AI_KEEPS_RATING = 60  # an AI team re-signs staff this good...
+AI_KEEPS_AGE = 66  # ...and younger than this
+FIRE_WIN_PCT = 0.35  # an AI team fires a head coach whose team won less than this
+NEW_PER_ROLE_DIVISOR = 4  # new staff on the market each offseason: teams ÷ this, per role
+NEW_AGES = {"head_coach": (36, 50), "offensive_coordinator": (30, 45),
+            "defensive_coordinator": (30, 45), "scout": (27, 45), "trainer": (28, 45)}
+
+
+def retire_chance(age: int) -> float:
+    if age >= MUST_RETIRE:
+        return 1.0
+    return max(0.0, (age - RETIRE_FROM + 1) * RETIRE_PER_YEAR)
+
+
+def ai_keeps(rating: int, age: int) -> bool:
+    return rating >= AI_KEEPS_RATING and age < AI_KEEPS_AGE
+
+
+def make_new(rng: random.Random, role: str) -> NewStaff:
+    """A newcomer to the market: younger than most, ratings as anyone's."""
+    low, high = NEW_AGES[role]
+    specialties = SPECIALTIES[role]
+    return NewStaff(role=role, age=rng.randint(low, high), rating=rating(rng),
+                    specialty=rng.choice(specialties) if specialties else None,
+                    years=rng.randint(2, 4))
+
+
+def best_hire(candidates: Sequence[tuple[int, int, int, int]], room: int) -> int | None:
+    """Of (staff id, rating, age, salary), the best the team can afford (then the
+    youngest); if none fits, the cheapest. None if there's nobody."""
+    if not candidates:
+        return None
+    fits = [c for c in candidates if c[3] <= room]
+    if fits:
+        return max(fits, key=lambda c: (c[1], -c[2], -c[0]))[0]
+    return min(candidates, key=lambda c: (c[3], c[0]))[0]

@@ -1192,12 +1192,15 @@ export interface Turn {
   pick_clock_ends_at: string | null;
   /** Trades between managers wait this long for a veto (0: they don't). */
   trade_review_hours: number;
+  /** Each team's staff budget a season. */
+  staff_budget?: number;
 }
 
 export interface LeagueSettings {
   draft_clock_minutes?: number;
   advance_minute_utc?: number | null;
   trade_review_hours?: number;
+  staff_budget?: number;
 }
 
 /** Something for you to know (`schemas.NotificationOut`). */
@@ -1267,11 +1270,32 @@ export interface StaffMember {
   career: StaffCareer;
 }
 
+export interface StaffBudget {
+  year: number;
+  budget: number;
+  /** Salaries and dead money this season. */
+  payroll: number;
+  /** Owed to staff the team let go. */
+  dead_money: number;
+  room: number;
+}
+
 export interface TeamStaff {
   team: TeamSummary;
   /** Head coach first. */
   members: StaffMember[];
   payroll: number;
+  budget?: StaffBudget | null;
+  /** Jobs open. */
+  vacancies?: StaffRole[];
+}
+
+export interface StaffMarket {
+  year: number;
+  /** Out of work, by role then rating; `salary` is what they'd sign for. */
+  candidates: StaffMember[];
+  /** The viewer's team's. */
+  budget: StaffBudget | null;
 }
 
 export interface CoachOfTheYear {

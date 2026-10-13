@@ -16,7 +16,18 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import Franchise, Game, Job, League, Player, Season, Team, TradeOffer, User
+from app.models import (
+    Franchise,
+    Game,
+    Job,
+    League,
+    Player,
+    Season,
+    StaffMember,
+    Team,
+    TradeOffer,
+    User,
+)
 from app.services import accounts, members
 
 SESSION_COOKIE = "df_session"
@@ -37,7 +48,8 @@ def league_of(db: Session, params: dict[str, str]) -> int | None:
     if "league_id" in params:
         return int(params["league_id"])
     models = {"season_id": Season, "team_id": Team, "player_id": Player,
-              "franchise_id": Franchise, "job_id": Job, "offer_id": TradeOffer}
+              "franchise_id": Franchise, "job_id": Job, "offer_id": TradeOffer,
+              "staff_id": StaffMember}
     for key, model in models.items():
         if key in params:
             row = db.get(model, int(params[key]))
@@ -75,6 +87,7 @@ def owned_league(request: Request, user: User = Depends(current_user),
 # - game: the user runs a team in the game, or is a commissioner and a member's team
 #   plays in it.
 # - has_team: any member who runs a team (the service acts for that team).
+# - staff: the staff member's team is the user's, or they're a commissioner.
 # - member: any member.
 # - own_franchise: the franchise is the user's.
 WRITES = {
@@ -125,6 +138,9 @@ WRITES = {
     "POST /api/leagues/{league_id}/share": "commissioner",
     "DELETE /api/leagues/{league_id}/share": "commissioner",
     "POST /api/teams/{team_id}/retired-numbers": "team",
+    "POST /api/teams/{team_id}/staff/hire": "team",
+    "POST /api/staff/{staff_id}/fire": "staff",
+    "POST /api/staff/{staff_id}/extend": "staff",
     "DELETE /api/leagues/{league_id}/invites/{invite_id}": "commissioner",
     "PATCH /api/leagues/{league_id}/members/{member_id}": "commissioner",
     "DELETE /api/leagues/{league_id}/members/{member_id}": "member",  # (leave, or remove)
@@ -169,6 +185,9 @@ def _passes(db: Session, rule: str, params: dict[str, str], league_id: int,
             members.human_team_ids(db, league_id) & playing))
     if rule == "has_team":
         return mine is not None
+    if rule == "staff":
+        member = db.get(StaffMember, int(params["staff_id"]))
+        return commissioner or (member.team_id is not None and member.team_id == mine)
     if rule == "own_franchise":
         return db.get(Franchise, int(params["franchise_id"])).user_id == user.id
     return rule == "member"

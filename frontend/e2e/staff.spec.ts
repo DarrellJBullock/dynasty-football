@@ -17,6 +17,19 @@ test("the staff page: our coaches, scout and trainer, another team's, and the le
   // Each card says what that staff member does at his rating.
   await expect(staff.getByRole("article", { name: "Head trainer" })).toContainText(/come back \d+% (sooner|later)/);
 
+  // The coaching carousel: let our scout go, then hire another off the market.
+  const scout = staff.getByRole("article", { name: "Scout" });
+  await scout.getByRole("button", { name: "Let go" }).click();
+  await expect(main.getByRole("status")).toContainText("What's left of the contract is owed");
+  await expect(staff.getByRole("article", { name: "Scout (open)" })).toBeVisible();
+  await expect(main.getByText(/owed to staff let go/)).toBeVisible();
+  const market = main.getByRole("table", { name: "Staff on the market" });
+  const hire = market.getByRole("row").filter({ hasText: "Scout" }).first().getByRole("button", { name: /^Hire / });
+  const name = (await hire.getAttribute("aria-label"))!.replace(/^Hire /, "");
+  await hire.click();
+  await expect(main.getByRole("status")).toContainText(`${name} is your new scout`);
+  await expect(staff.getByRole("article", { name: "Scout" })).toContainText(name);
+
   // A player's page says what his coaches do for him.
   const roster = await (await page.request.get(`/api/teams/${franchise.team.id}/roster`)).json();
   const qb = roster.find((p: { position: string }) => p.position === "QB");
