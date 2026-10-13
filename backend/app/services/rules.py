@@ -33,7 +33,7 @@ def fields(league: League) -> dict:
     """The rules as the League log shows a change to them."""
     return {"roster_max": league.roster_max, "salary_cap": league.salary_cap,
             "cap_growth_bp": league.cap_growth_bp, "playoff_seeds": league.playoff_seeds,
-            "season_weeks": league.season_weeks}
+            "season_weeks": league.season_weeks, "firing": league.firing}
 
 
 def _smallest_conference(db: Session, league_id: int) -> int:
@@ -68,6 +68,7 @@ def rules_view(db: Session, league: League) -> RulesOut:
         seeds=seeds, byes=len(byes),
         seed_choices=[n for n in SEED_CHOICES if n <= conference],
         season_weeks=league.season_weeks or _weeks(db, season), max_weeks=MAX_WEEKS,
+        firing=league.firing,
         locked_reason=locked_reason(season))
 
 
@@ -94,6 +95,12 @@ def update(db: Session, league: League, rules: RulesIn) -> None:
         weeks = changes["season_weeks"]
         if weeks is None or not 1 <= weeks <= MAX_WEEKS:
             raise RosterError(f"A regular season is 1 to {MAX_WEEKS} weeks.", 422)
+    if "firing" in changes:
+        from app.services.careers import FIRINGS
+
+        if changes["firing"] not in FIRINGS:
+            raise RosterError("Firing is automatic, on or off.", 422)
+        league.firing = changes["firing"]
     for name in ("salary_cap", "cap_growth_pct"):
         if name in changes and changes[name] is None:
             raise RosterError("Give a value for each rule you change.", 422)

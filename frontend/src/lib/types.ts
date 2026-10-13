@@ -195,6 +195,8 @@ export interface Franchise {
   season: Season;
   /** The user's role in the league: commissioners run the season and its members. */
   role: MemberRole;
+  /** The owner fired you: choose your next job on the Career page. */
+  fired?: boolean;
 }
 
 export interface PositionGroupSummary {
@@ -753,6 +755,50 @@ export interface Finances {
   history: { year: number; revenue: number; expenses: number; profit: number }[];
 }
 
+/** A member's career as a general manager (`schemas.GmCareerOut`, services/careers.py). */
+export interface GmJob {
+  team: TeamSummary;
+  why: string;
+  owner: string;
+  wants: string;
+  patience: number;
+  market: "small" | "medium" | "large";
+  fan_mood: number;
+  rating: number;
+  situation: "contender" | "middle" | "rebuilding";
+  /** Its record last season ("6-11"). */
+  last_season: string | null;
+}
+
+export interface GmStint {
+  team: TeamSummary;
+  from_year: number;
+  /** null: still there */
+  to_year: number | null;
+  seasons: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  playoffs: number;
+  titles: number;
+  ended: "fired" | null;
+}
+
+export interface GmCareer {
+  name: string;
+  team: TeamSummary;
+  fired: boolean;
+  stints: GmStint[];
+  wins: number;
+  losses: number;
+  ties: number;
+  playoffs: number;
+  titles: number;
+  firings: number;
+  open_jobs: GmJob[];
+  firing: "auto" | "on" | "off";
+}
+
 /** The league's rules (`schemas.RulesOut`): changed between seasons by the commissioner. */
 export interface LeagueRules {
   roster_max: number;
@@ -769,10 +815,12 @@ export interface LeagueRules {
   max_weeks: number;
   /** Why they can't change now (null: they can). */
   locked_reason: string | null;
+  /** Owners fire general managers: automatic (members only when one runs a team), on, off. */
+  firing: "auto" | "on" | "off";
 }
 
 export type LeagueRulesIn = Partial<Pick<LeagueRules,
-  "roster_max" | "salary_cap" | "cap_growth_pct" | "playoff_seeds" | "season_weeks">>;
+  "roster_max" | "salary_cap" | "cap_growth_pct" | "playoff_seeds" | "season_weeks" | "firing">>;
 
 /** The week (or playoff round) a commissioner can roll back, if any. */
 export interface Rollback {

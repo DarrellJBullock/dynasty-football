@@ -172,6 +172,10 @@ def enqueue(db: Session, league: League, kind: str, params: dict | None = None,
     `team_id`: the requester's team, whose games and signings the result singles out."""
     if kind not in KINDS:
         raise RosterError(f"Unknown job: {kind}", 422)
+    if kind == "advance_offseason":
+        from app.services.careers import settle_before_offseason  # (it builds on seasons)
+
+        settle_before_offseason(db, league, autopilot=False)  # (refused: someone's fired)
     if kind == "sim_seasons":
         seasons = (params or {}).get("seasons")
         if not isinstance(seasons, int) or not 1 <= seasons <= MAX_SEASONS_AHEAD:

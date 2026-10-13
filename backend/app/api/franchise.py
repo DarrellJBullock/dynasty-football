@@ -5,7 +5,8 @@ from app.api.access import current_user
 from app.api.errors import roster_errors
 from app.db import get_db
 from app.models import Franchise, User
-from app.schemas import Dashboard, FranchiseListItem, FranchiseOut
+from app.schemas import Dashboard, FranchiseListItem, FranchiseOut, GmCareerOut, TakeJobIn
+from app.services import careers
 from app.services import leagues as league_service
 from app.services.dashboard import build_dashboard, current_franchise, franchise_out
 
@@ -31,6 +32,22 @@ def read_franchise(franchise: Franchise = Depends(get_franchise), db: Session = 
 @router.get("/dashboard", response_model=Dashboard)
 def dashboard(franchise: Franchise = Depends(get_franchise), db: Session = Depends(get_db)):
     return build_dashboard(db, franchise)
+
+
+@router.get("/career", response_model=GmCareerOut)
+def career(franchise: Franchise = Depends(get_franchise), db: Session = Depends(get_db)):
+    """Your career as a general manager in this league (every team, its seasons, wins,
+    playoffs and titles, and how it ended), and, if you've been fired, the open jobs."""
+    return careers.career_view(db, franchise)
+
+
+@router.post("/take-job", response_model=GmCareerOut)
+def take_job(body: TakeJobIn, franchise: Franchise = Depends(get_franchise),
+             db: Session = Depends(get_db)):
+    """Fired: take one of the open jobs (your old team goes to the AI)."""
+    with roster_errors(db):
+        careers.take_job(db, franchise, body.team_id)
+    return careers.career_view(db, franchise)
 
 
 franchises_router = APIRouter(prefix="/franchises", tags=["franchise"])

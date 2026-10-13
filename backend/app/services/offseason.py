@@ -67,6 +67,9 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
                                          Season.year > season.year)):
         raise RosterError("The next season has already started.")
     league = season.league
+    from app.services.careers import settle_before_offseason  # (careers build on this)
+
+    settle_before_offseason(db, league, autopilot)
     year = season.year + 1
     rng = offseason_rng(league.id, year)
     log: dict = {"from_year": season.year, "retired": [], "departed": [], "re_signed": [],
