@@ -13,9 +13,12 @@ export default function DashboardPage() {
 }
 
 async function DashboardContent() {
-  const result = await attempt(api.dashboard);
+  const result = await attempt(async () => {
+    const data = await api.dashboard();
+    return { data, owner: await api.owner(data.team.id) };
+  });
   if (!result.ok) return <ServerError error={result.error} />;
-  return <DashboardView data={result.data} />;
+  return <DashboardView data={result.data.data} owner={result.data.owner} />;
 }
 
 function DashboardSkeleton() {

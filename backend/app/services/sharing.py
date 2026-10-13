@@ -27,6 +27,8 @@ from app.models import (
     Game,
     HallOfFameVote,
     League,
+    Owner,
+    OwnerSeason,
     Player,
     PlayerRatings,
     PlayoffSeed,
@@ -139,6 +141,8 @@ def export_league(db: Session, league: League) -> dict:
         "staff_seasons": _rows(db, StaffSeason, StaffSeason.season_id.in_(season_ids)),
         "staff_dead_money": _rows(db, StaffDeadMoney, StaffDeadMoney.team_id.in_(team_ids)),
         "facilities": _rows(db, Facility, Facility.team_id.in_(team_ids)),
+        "owners": _rows(db, Owner, Owner.league_id == league.id),
+        "owner_seasons": _rows(db, OwnerSeason, OwnerSeason.season_id.in_(season_ids)),
     }
 
 

@@ -160,6 +160,10 @@ class Team(Base):
     primary_color: Mapped[str] = mapped_column(String(7))  # "#RRGGBB"
     secondary_color: Mapped[str] = mapped_column(String(7))
     stadium: Mapped[str] = mapped_column(String(80))
+    # Its fans (services/owners.py): the market's size, and their mood after the last
+    # season (this season's form is worked out live). None until the league has owners.
+    market: Mapped[str | None] = mapped_column(String(8))
+    fan_mood: Mapped[int | None] = mapped_column(Integer)
 
     league: Mapped[League] = relationship(back_populates="teams")
     division: Mapped[Division] = relationship(back_populates="teams")
@@ -550,6 +554,58 @@ class CoachedGame(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     game: Mapped[Game] = relationship()
+
+
+class Owner(Base):
+    """A team's owner (services/owners.py, domain/owners.py): what they want, how patient
+    they are, and their confidence in the general manager (0-100). Made once per league with
+    its own random stream."""
+
+    __tablename__ = "owners"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"),
+                                         unique=True)
+    first_name: Mapped[str] = mapped_column(String(40))
+    last_name: Mapped[str] = mapped_column(String(40))
+    priority: Mapped[str] = mapped_column(String(10))  # see domain/owners.PRIORITIES
+    patience: Mapped[int] = mapped_column(Integer)  # 1-5
+    confidence: Mapped[int] = mapped_column(Integer)
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+
+_NULLABLE_JSON = JSON(none_as_null=True).with_variant(JSONB(none_as_null=True), "postgresql")
+
+
+class OwnerSeason(Base):
+    """An owner's season with a team: the goals set before it (and where the roster stood),
+    then the review once the champion is crowned (what moved confidence and fan mood)."""
+
+    __tablename__ = "owner_seasons"
+    __table_args__ = (UniqueConstraint("season_id", "team_id", name="uq_owner_seasons"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"),
+                                           index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    situation: Mapped[str] = mapped_column(String(12))  # contender | middle | rebuilding
+    goals: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    # The review (None until then): [{label, met}], [[part, change]] for each, and before
+    # and after (so a rolled-back final can undo it).
+    # (None is SQL NULL, not JSON null, so "not reviewed yet" can be queried.)
+    results: Mapped[list | None] = mapped_column(_NULLABLE_JSON)
+    confidence_parts: Mapped[list | None] = mapped_column(_NULLABLE_JSON)
+    fan_parts: Mapped[list | None] = mapped_column(_NULLABLE_JSON)
+    confidence_before: Mapped[int | None] = mapped_column(Integer)
+    confidence_after: Mapped[int | None] = mapped_column(Integer)
+    fan_mood_before: Mapped[int | None] = mapped_column(Integer)
+    fan_mood_after: Mapped[int | None] = mapped_column(Integer)
+    verdict: Mapped[str | None] = mapped_column(String(40))
 
 
 class WeekSnapshot(Base):

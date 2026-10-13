@@ -200,6 +200,9 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
     if request.until == "end_of_playoffs" and not regular_done:
         raise RosterError("Finish the regular season before simming the playoffs.")
 
+    from app.services.owners import ensure_owners  # (owners build on this module)
+
+    ensure_owners(db, season.league)  # (the owners' goals are set before a game is played)
     sim_teams = league_sim_teams(db, season.league_id)
     played: list[Game] = []
     steps = 0
@@ -244,6 +247,9 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
             from app.services.staff import record_season  # (it builds on this module)
 
             record_season(db, season)
+            from app.services.owners import review  # (it builds on this module)
+
+            review(db, season)
         if request.until == "next_week":
             break
         if on_step:

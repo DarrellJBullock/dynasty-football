@@ -107,6 +107,9 @@ def roll_back(db: Session, league_id: int) -> str:
         delete(StaffSeason).where(StaffSeason.season_id == season.id),
     ):
         db.execute(statement)
+    from app.services.owners import unreview  # (owners build on the season services)
+
+    unreview(db, season)  # (a rolled-back final: the owners' review goes too)
     season.champion_team_id = None
     season.phase, season.current_week = shot.phase, shot.current_week
 

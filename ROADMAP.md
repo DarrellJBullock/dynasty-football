@@ -210,6 +210,21 @@ Design: `docs/design/head-to-head-and-commissioner.md`.
 - [x] League rules (roster size, the cap and its growth, the playoff format, season
       length)
 
+## M14 — Owners and front offices
+
+Design: `docs/design/owners-and-front-offices.md`.
+
+- [x] Owners and fans (owners with priorities and patience, markets, fan mood, the
+      season's goals and the owner's review, confidence; the Dashboard's owner card)
+- [ ] Money (revenue and expenses each week and season, ticket prices, the Finances
+      page, profit goals)
+- [ ] Job security (firing, open jobs, taking another team, the career record; AI GMs
+      judged and replaced)
+- [ ] AI direction and roster building (contending, middle, rebuilding; free agency, the
+      draft, re-signing and cap planning by direction)
+- [ ] AI trades (offers to managers, AI-to-AI deadline deals, the Transactions list,
+      parity calibration)
+
 ## Later
 
 - [x] Women's leagues (a men's / women's choice in the league builder; women's leagues get

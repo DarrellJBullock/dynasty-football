@@ -10,6 +10,7 @@ import type {
   LeagueRulesIn,
   LeagueLogAction,
   LiveState,
+  Owner,
   Rollback,
   SeasonTrade,
   TeamStaff,
@@ -327,6 +328,7 @@ export const api = {
     const qs = query.toString();
     return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
   },
+  owner: (teamId: number) => request<Owner>(`/teams/${teamId}/owner`),
   leagueRules: (leagueId: number) => request<LeagueRules>(`/leagues/${leagueId}/rules`),
   updateRules: (leagueId: number, rules: LeagueRulesIn) =>
     request<LeagueRules>(`/leagues/${leagueId}/rules`, { method: "PATCH", body: JSON.stringify(rules) }),
