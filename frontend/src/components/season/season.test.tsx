@@ -7,6 +7,7 @@ import { opponent, team } from "@/test/fixtures";
 import { GameView } from "./GameView";
 import { ScheduleView } from "./ScheduleView";
 import { SimControls } from "./SimControls";
+import { sharedSite } from "@/lib/site";
 
 const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -416,5 +417,32 @@ describe("routing helpers", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sim week 3" }));
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     expect(router.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("on a league's read-only public link", () => {
+  const site = sharedSite("tok-1");
+
+  it("the schedule links within the link, with nothing to sim or coach", () => {
+    render(<ScheduleView teamId={0} site={site} schedule={{ season, week: 3, games: [
+      game({ id: 21, week: 3, status: "scheduled", home_score: null, away_score: null }),
+      game({ id: 22, week: 3 }),
+    ] }} />);
+    expect(screen.queryByRole("button")).toBeNull(); // (no sim controls)
+    expect(screen.getByRole("link", { name: "Wk 1" })).toHaveAttribute("href", "/share/tok-1/schedule?week=1");
+    expect(screen.getByRole("link", { name: "Playoffs →" })).toHaveAttribute("href", "/share/tok-1/playoffs");
+    const cards = screen.getAllByRole("link", { name: /at Hartford Ironclads$/ });
+    expect(cards[0]).toHaveAttribute("href", "/share/tok-1/games/21");
+    expect(screen.queryByRole("link", { name: /^Coach/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /^Watch/ })).toHaveAttribute("href", "/share/tok-1/games/22/watch?auto=1");
+  });
+
+  it("a box score names players without linking to their pages", () => {
+    render(<GameView detail={detail} site={site} />);
+    expect(screen.getByRole("link", { name: /Week 3 schedule/ })).toHaveAttribute("href", "/share/tok-1/schedule?week=3");
+    const passing = screen.getByRole("table", { name: "HFD passing" });
+    expect(passing).toHaveTextContent("Keegan Quarles");
+    expect(within(passing).queryByRole("link")).toBeNull();
+    expect(screen.getByRole("link", { name: "Watch in 3D" })).toHaveAttribute("href", `/share/tok-1/games/${detail.game.id}/watch?auto=1`);
   });
 });

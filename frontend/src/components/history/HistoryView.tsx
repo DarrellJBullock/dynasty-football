@@ -3,13 +3,18 @@
 import Link from "next/link";
 import { useState } from "react";
 import { TeamCrest } from "@/components/ui/TeamCrest";
+import { PlayerName } from "@/components/ui/PlayerName";
+import { GAME, type Site } from "@/lib/site";
 import type { HistoryOut, RecordRow, SeasonHistory, TeamSummary } from "@/lib/types";
 
-export function HistoryView({ history, team, league }: {
-  history: HistoryOut; team: TeamSummary; league: string;
+export function HistoryView({ history, team = null, league, site = GAME }: {
+  history: HistoryOut;
+  /** The viewer's team (its titles and record); none on a public link. */
+  team?: TeamSummary | null;
+  league: string; site?: Site;
 }) {
   const [view, setView] = useState<"single_season" | "career">("single_season");
-  const titles = history.seasons.filter((s) => s.champion?.id === team.id).length;
+  const titles = history.seasons.filter((s) => team && s.champion?.id === team.id).length;
   // The last ten finished seasons (a report covers up to ten).
   const finished = history.seasons.filter((s) => s.complete).map((s) => s.year);
   const report = finished.length
@@ -22,9 +27,9 @@ export function HistoryView({ history, team, league }: {
         <div className="eyebrow text-gold">{league}</div>
         <h1 className="font-display text-4xl font-bold uppercase tracking-wide">History</h1>
         <p className="mt-1 text-sm text-mist">
-          {history.seasons.length} season{history.seasons.length === 1 ? "" : "s"} ·{" "}
-          {titles} {team.nickname} championship{titles === 1 ? "" : "s"}
-          {report && (
+          {history.seasons.length} season{history.seasons.length === 1 ? "" : "s"}
+          {team && <> · {titles} {team.nickname} championship{titles === 1 ? "" : "s"}</>}
+          {report && !site.shared && (
             <>
               {" · "}
               <Link href={`/dynasty?from=${report.from}&to=${report.to}`} className="text-gold hover:underline">
@@ -36,7 +41,9 @@ export function HistoryView({ history, team, league }: {
       </div>
 
       <section className="space-y-4" aria-label="Seasons">
-        {history.seasons.map((season) => <SeasonCard key={season.season_id} season={season} team={team} />)}
+        {history.seasons.map((season) => (
+          <SeasonCard key={season.season_id} season={season} team={team} site={site} />
+        ))}
       </section>
 
       <section className="panel p-5" aria-label="Records">
@@ -61,7 +68,7 @@ export function HistoryView({ history, team, league }: {
                 <p className="text-sm text-mist">No games played yet.</p>
               ) : (
                 <ol className="space-y-1">
-                  {category[view].map((row, i) => <RecordLine key={`${row.player_id}-${row.year}`} row={row} rank={i + 1} />)}
+                  {category[view].map((row, i) => <RecordLine key={`${row.player_id}-${row.year}`} row={row} rank={i + 1} site={site} />)}
                 </ol>
               )}
             </div>
@@ -73,9 +80,11 @@ export function HistoryView({ history, team, league }: {
 }
 
 /** One season: its champion, awards, and how the franchise did. */
-export function SeasonCard({ season, team }: { season: SeasonHistory; team: TeamSummary }) {
+export function SeasonCard({ season, team, site = GAME }: {
+  season: SeasonHistory; team: TeamSummary | null; site?: Site;
+}) {
   const record = season.franchise_record;
-  const won = season.champion?.id === team.id;
+  const won = !!team && season.champion?.id === team.id;
   return (
     <article className={`panel p-5 ${won ? "ring-1 ring-gold/50" : ""}`} aria-label={`${season.year} season`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -95,7 +104,7 @@ export function SeasonCard({ season, team }: { season: SeasonHistory; team: Team
               ? "In progress" : "Not finished"}</span>
           )}
         </div>
-        {record && (
+        {record && team && (
           <div className="text-right text-sm" aria-label="Your season">
             <div className="eyebrow">{team.nickname}</div>
             <div className="stat-number text-xl">
@@ -110,10 +119,10 @@ export function SeasonCard({ season, team }: { season: SeasonHistory; team: Team
           {season.awards.map((a) => (
             <li key={a.award} className="text-sm">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-gold">{a.label}</div>
-              <Link href={`/players/${a.player_id}`} className="hover:text-gold">
+              <PlayerName id={a.player_id} site={site} className="hover:text-gold">
                 <span className="mr-1.5 text-xs text-mist">{a.position}</span>
                 {a.name}
-              </Link>
+              </PlayerName>
               {a.team && <span className="ml-1.5 text-xs text-mist">{a.team.abbreviation}</span>}
               <div className="text-xs text-mist">{a.summary}</div>
             </li>
@@ -124,15 +133,15 @@ export function SeasonCard({ season, team }: { season: SeasonHistory; team: Team
   );
 }
 
-function RecordLine({ row, rank }: { row: RecordRow; rank: number }) {
+function RecordLine({ row, rank, site }: { row: RecordRow; rank: number; site: Site }) {
   return (
     <li className="flex items-center gap-2 text-sm">
       <span className="w-4 text-xs tabular-nums text-mist">{rank}</span>
-      <Link href={`/players/${row.player_id}`} className="min-w-0 flex-1 truncate hover:text-gold">
+      <PlayerName id={row.player_id} site={site} className="min-w-0 flex-1 truncate hover:text-gold">
         <span className="mr-1.5 text-xs text-mist">{row.position}</span>
         {row.name}
         {row.retired && <span className="ml-1 text-[10px] uppercase text-mist">ret.</span>}
-      </Link>
+      </PlayerName>
       <span className="text-xs text-mist">{row.year ?? `${row.games} G`}</span>
       <span className="w-14 text-right font-semibold tabular-nums">{row.value.toLocaleString()}</span>
     </li>

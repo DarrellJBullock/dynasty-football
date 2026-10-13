@@ -61,9 +61,20 @@ SCRUBBED = "[scrubbed]"
 _SECRET_KEYS = re.compile(r"password|token|secret|cookie|authorization", re.IGNORECASE)
 
 
+_PUBLIC_LINK = re.compile(r"(/api/public/)[^/?#]+")
+
+
+def loggable_path(path: str) -> str:
+    """A path safe to log: a public link's token is a key to the league, so it's hidden."""
+    return _PUBLIC_LINK.sub(r"\1{token}", path)
+
+
 def scrub(event: dict, _hint: dict | None = None) -> dict:
-    """Sentry `before_send`: drop cookies, auth headers, and anything password-like."""
+    """Sentry `before_send`: drop cookies, auth headers, anything password-like, and public
+    links' tokens."""
     request = event.get("request") or {}
+    if isinstance(request.get("url"), str):
+        request["url"] = loggable_path(request["url"])
     request.pop("cookies", None)
     headers = request.get("headers") or {}
     for key in list(headers):
@@ -127,7 +138,7 @@ def add_request_logging(app: FastAPI) -> None:
             return response
         finally:
             template = _route_template(request)
-            log.info("%s %s %s", request.method, request.url.path, status, extra={
+            log.info("%s %s %s", request.method, loggable_path(request.url.path), status, extra={
                 "method": request.method, "route": template,
                 "status": status, "duration_ms": round((time.perf_counter() - started) * 1000, 1),
                 "user_id": getattr(request.state, "user_id", None)})

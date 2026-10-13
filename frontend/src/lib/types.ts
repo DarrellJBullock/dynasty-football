@@ -1080,6 +1080,21 @@ export interface Members {
   /** Open links (commissioners only). */
   invites: Invite[];
   open_teams: TeamSummary[];
+  /** The read-only public link, shared since (null: not shared). */
+  shared_at: string | null;
+}
+
+/** A new public link (`schemas.ShareLinkOut`): its token is shown only now. */
+export interface ShareLink {
+  token: string;
+  shared_at: string;
+}
+
+/** What a public link opens on (`schemas.PublicLeagueOut`). */
+export interface PublicLeague {
+  league: League;
+  season: Season;
+  teams: TeamSummary[];
 }
 
 /** What an invite link leads to (`schemas.InvitePreview`). */

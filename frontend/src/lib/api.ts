@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Credentials,
+  PublicLeague,
+  ShareLink,
   Notifications,
   NotificationSettings,
   TradeOffer,
@@ -174,6 +176,27 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ email: kinds }),
     }),
+  shareLeague: (leagueId: number) => post<ShareLink>(`/leagues/${leagueId}/share`),
+  unshareLeague: (leagueId: number) => request<void>(`/leagues/${leagueId}/share`, { method: "DELETE" }),
+  // The read-only public link: no account needed (api/public.py).
+  publicLeague: (token: string) => request<PublicLeague>(`/public/${encodeURIComponent(token)}`),
+  publicStandings: (token: string) =>
+    request<DivisionStandings[]>(`/public/${encodeURIComponent(token)}/standings`),
+  publicSchedule: (token: string, week?: number) =>
+    request<ScheduleWeek>(`/public/${encodeURIComponent(token)}/schedule${week ? `?week=${week}` : ""}`),
+  publicPlayoffs: (token: string) => request<PlayoffsOut>(`/public/${encodeURIComponent(token)}/playoffs`),
+  publicGame: (token: string, gameId: number) =>
+    request<GameDetail>(`/public/${encodeURIComponent(token)}/games/${gameId}`),
+  publicPlayback: (token: string, gameId: number) =>
+    request<GamePlayback>(`/public/${encodeURIComponent(token)}/games/${gameId}/playback`),
+  publicLeaders: (token: string, category?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (limit) params.set("limit", String(limit));
+    const query = params.size ? `?${params}` : "";
+    return request<LeadersOut>(`/public/${encodeURIComponent(token)}/leaders${query}`);
+  },
+  publicHistory: (token: string) => request<HistoryOut>(`/public/${encodeURIComponent(token)}/history`),
   turn: (leagueId: number) => request<Turn>(`/leagues/${leagueId}/turn`),
   setReady: (leagueId: number, ready: boolean) =>
     request<Turn>(`/leagues/${leagueId}/ready`, { method: "PUT", body: JSON.stringify({ ready }) }),

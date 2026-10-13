@@ -259,7 +259,8 @@ def members_view(db: Session, league: League, user: User) -> MembersOut:
         league=league_out(league), you=you, members=rows,
         invites=[InviteOut(id=i.id, created_at=i.created_at, expires_at=i.expires_at,
                            uses=i.uses) for i in invites],
-        open_teams=[team_summary(t) for t in open_teams(db, league.id)])
+        open_teams=[team_summary(t) for t in open_teams(db, league.id)],
+        shared_at=league.shared_at)
 
 
 def invite_preview(db: Session, token: str, user: User) -> InvitePreview:

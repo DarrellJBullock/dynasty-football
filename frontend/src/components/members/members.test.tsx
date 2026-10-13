@@ -7,6 +7,7 @@ import type { InvitePreview, Member, Members, TeamSummary, Turn } from "@/lib/ty
 import { team } from "@/test/fixtures";
 import { JoinLeague } from "./JoinLeague";
 import { localToUtcMinutes, utcMinutesToLocal } from "./LeagueSettingsPanel";
+import { shareUrl } from "./SharingPanel";
 import { inviteUrl, MembersView } from "./MembersView";
 
 const search = { value: "" };
@@ -16,7 +17,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return { ...actual, api: { members: vi.fn(), createInvite: vi.fn(), revokeInvite: vi.fn(),
     setMemberRole: vi.fn(), removeMember: vi.fn(), previewInvite: vi.fn(), joinLeague: vi.fn(),
-    turn: vi.fn(), updateLeagueSettings: vi.fn() } };
+    turn: vi.fn(), updateLeagueSettings: vi.fn(), shareLeague: vi.fn(), unshareLeague: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -29,7 +30,8 @@ const you: Member = { id: 1, display_name: "Coach Sam", role: "commissioner", te
 const friend: Member = { id: 2, display_name: "Robin", role: "manager", team: rival, is_you: false,
   joined_at: "2026-10-02T00:00:00Z" };
 const league = { id: 1, name: "Harbor League", abbreviation: "HBL", salary_cap: 255_000_000, players: "men" as const };
-const members: Members = { league, you, members: [you, friend], invites: [], open_teams: [open] };
+const members: Members = { league, you, members: [you, friend], invites: [], open_teams: [open],
+  shared_at: null };
 
 const turn: Turn = { step: "Week 3", step_key: "1:week:3", managers: [], all_ready: false,
   can_advance: true, draft_clock_minutes: 1440, advance_minute_utc: null, next_advance_at: null,
@@ -184,5 +186,32 @@ describe("LeagueSettingsPanel (on the Members page, for a commissioner)", () => 
     expect(utcMinutesToLocal(2 * 60, 300)).toBe("21:00");
     expect(localToUtcMinutes("00:30", -120)).toBe(22 * 60 + 30); // UTC+2
     expect(utcMinutesToLocal(22 * 60 + 30, -120)).toBe("00:30");
+  });
+});
+
+describe("SharingPanel (on the Members page)", () => {
+  it("lets a commissioner share a read-only link, shown once, and stop sharing", async () => {
+    mocked.shareLeague.mockResolvedValue({ token: "pub-123", shared_at: "2026-10-13T12:00:00Z" });
+    mocked.unshareLeague.mockResolvedValue(undefined);
+    render(<MembersView initial={members} />);
+    const panel = screen.getByRole("region", { name: "Share and export" });
+    expect(panel).toHaveTextContent("Not shared.");
+    await userEvent.click(within(panel).getByRole("button", { name: "Share a read-only link" }));
+    expect(mocked.shareLeague).toHaveBeenCalledWith(1);
+    expect(await within(panel).findByLabelText("Public link (shown once)")).toHaveValue(
+      shareUrl(window.location.origin, "pub-123"));
+    expect(panel).toHaveTextContent("Shared since Oct 13");
+    await userEvent.click(within(panel).getByRole("button", { name: "Stop sharing" }));
+    expect(mocked.unshareLeague).toHaveBeenCalledWith(1);
+    expect(await within(panel).findByText(/Not shared/)).toBeInTheDocument();
+    expect(within(panel).queryByLabelText("Public link (shown once)")).toBeNull();
+  });
+
+  it("gives every member the download, and only a commissioner the link", () => {
+    render(<MembersView initial={{ ...members, you: { ...friend, is_you: true }, shared_at: "2026-10-13T00:00:00Z" }} />);
+    const panel = screen.getByRole("region", { name: "Share and export" });
+    expect(within(panel).getByRole("link", { name: "Download the league (JSON)" }))
+      .toHaveAttribute("href", "/api/leagues/1/export");
+    expect(within(panel).queryByRole("button")).toBeNull();
   });
 });

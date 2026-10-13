@@ -1,6 +1,7 @@
 """A league's members and invite links (docs/design/leagues-with-friends.md §3)."""
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.access import current_user
@@ -16,8 +17,10 @@ from app.schemas import (
     JoinRequest,
     MembersOut,
     RoleChange,
+    ShareLinkOut,
 )
 from app.services import members as member_service
+from app.services import sharing
 from app.services.dashboard import franchise_out
 
 router = APIRouter(tags=["members"])
@@ -84,3 +87,27 @@ def join(body: JoinRequest, user: User = Depends(current_user),
     with roster_errors(db):
         franchise = member_service.join(db, body.token, user, body.team_id)
     return franchise_out(db, franchise)
+
+
+# ---------- sharing and export (services/sharing.py) ----------
+
+@router.post("/leagues/{league_id}/share", response_model=ShareLinkOut, status_code=201)
+def share(league: League = Depends(get_league), db: Session = Depends(get_db)):
+    """A read-only public link to the league (shown once); any earlier link stops working."""
+    with roster_errors(db):
+        token = sharing.create_link(db, league)
+    return ShareLinkOut(token=token, shared_at=league.shared_at)
+
+
+@router.delete("/leagues/{league_id}/share", status_code=204)
+def unshare(league: League = Depends(get_league), db: Session = Depends(get_db)):
+    """Stop sharing: the public link stops working."""
+    with roster_errors(db):
+        sharing.revoke_link(db, league)
+
+
+@router.get("/leagues/{league_id}/export")
+def export(league: League = Depends(get_league), db: Session = Depends(get_db)) -> JSONResponse:
+    """The whole league as one JSON file (docs/league-export.md)."""
+    return JSONResponse(sharing.export_league(db, league), headers={
+        "Content-Disposition": f'attachment; filename="{sharing.export_filename(league)}"'})

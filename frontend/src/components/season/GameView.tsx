@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PlayerName } from "@/components/ui/PlayerName";
+import { GAME, type Site } from "@/lib/site";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { Panel } from "@/components/ui/Panel";
 import { callLabel, formatPossession } from "@/lib/games";
@@ -10,7 +12,8 @@ type Side = "home" | "away";
 
 const PERIOD_LABELS = ["1", "2", "3", "4"];
 
-export function GameView({ detail }: { detail: GameDetail }) {
+export function GameView({ detail, site = GAME }: { detail: GameDetail; site?: Site }) {
+  const base = site.base;
   const { game } = detail;
   const final = game.status === "final";
   const teams: Record<Side, TeamSummary> = { home: game.home, away: game.away };
@@ -19,9 +22,9 @@ export function GameView({ detail }: { detail: GameDetail }) {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {game.stage === "playoff" ? (
-          <Link href="/playoffs" className="text-sm text-gold hover:underline">← Playoff bracket</Link>
+          <Link href={`${base}/playoffs`} className="text-sm text-gold hover:underline">← Playoff bracket</Link>
         ) : (
-          <Link href={`/schedule?week=${game.week}`} className="text-sm text-gold hover:underline">
+          <Link href={`${base}/schedule?week=${game.week}`} className="text-sm text-gold hover:underline">
             ← Week {game.week} schedule
           </Link>
         )}
@@ -45,7 +48,8 @@ export function GameView({ detail }: { detail: GameDetail }) {
 
       {!final ? (
         <p className="panel p-6 text-center text-sm text-mist">
-          This game hasn&apos;t been played yet. Sim the week from the Schedule or Dashboard to see the box score.
+          This game hasn&apos;t been played yet.{" "}
+          {site.shared ? "Its box score shows up here once it is." : "Sim the week from the Schedule or Dashboard to see the box score."}
         </p>
       ) : (
         <>
@@ -62,7 +66,7 @@ export function GameView({ detail }: { detail: GameDetail }) {
           </Panel>
           <div className="grid gap-6 lg:grid-cols-2">
             {(["away", "home"] as const).map((side) => (
-              <BoxScore key={side} team={teams[side]}
+              <BoxScore key={side} team={teams[side]} site={site}
                 players={detail.players.filter((p) => p.team_id === teams[side].id)} />
             ))}
           </div>
@@ -78,10 +82,10 @@ export function GameView({ detail }: { detail: GameDetail }) {
                         {injury.quarter > 4 ? "OT" : `Q${injury.quarter}`} {injury.clock}
                       </span>
                       <span className="w-10 text-xs font-semibold text-mist">{team.abbreviation}</span>
-                      <Link href={`/players/${injury.player_id}`} className="hover:text-gold">
+                      <PlayerName id={injury.player_id} site={site} className="hover:text-gold">
                         <span className="mr-1.5 text-xs text-mist">{injury.position}</span>
                         {injury.name}
-                      </Link>
+                      </PlayerName>
                       <span className="text-mist">{injury.injury}</span>
                       <span className="text-xs text-rose-300">{injuryDuration(injury.weeks)}</span>
                     </li>
@@ -96,20 +100,20 @@ export function GameView({ detail }: { detail: GameDetail }) {
                 Full play-by-play is kept for the last two seasons, and for your games and the
                 playoffs before that. This game keeps its scoring plays and injuries.
               </p>
-              <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} />
+              <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} base={base} />
             </Panel>
           ) : (
             <Panel title="Play-by-play" action={
               <div className="flex gap-2">
-                <Link href={`/games/${game.id}/watch?highlights=1&auto=1`} className="btn btn-ghost px-3 py-1 text-xs">
+                <Link href={`${base}/games/${game.id}/watch?highlights=1&auto=1`} className="btn btn-ghost px-3 py-1 text-xs">
                   Highlights
                 </Link>
-                <Link href={`/games/${game.id}/watch?auto=1`} className="btn btn-primary px-3 py-1 text-xs">
+                <Link href={`${base}/games/${game.id}/watch?auto=1`} className="btn btn-primary px-3 py-1 text-xs">
                   Watch in 3D
                 </Link>
               </div>
             }>
-              <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} />
+              <PlayByPlay gameId={game.id} plays={detail.plays} teams={teams} base={base} />
             </Panel>
           )}
         </>
@@ -204,7 +208,7 @@ function TeamStats({ detail, teams }: { detail: GameDetail; teams: Record<Side, 
   );
 }
 
-function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLine[] }) {
+function BoxScore({ team, players, site }: { team: TeamSummary; players: PlayerGameLine[]; site: Site }) {
   return (
     <section className="panel space-y-4 p-5" aria-label={`${team.full_name} box score`}>
       <h2 className="flex items-center gap-2 font-display text-xl font-bold uppercase">
@@ -231,7 +235,7 @@ function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLin
                 {rows.map((p) => (
                   <tr key={p.player_id} className="border-t border-white/5">
                     <td className="py-1 pr-2">
-                      <Link href={`/players/${p.player_id}`} className="hover:text-gold">{p.name}</Link>{" "}
+                      <PlayerName id={p.player_id} site={site} className="hover:text-gold">{p.name}</PlayerName>{" "}
                       <span className="text-xs text-mist">{p.position}</span>
                     </td>
                     {section.columns.map(([label, fmt]) => (
@@ -244,13 +248,13 @@ function BoxScore({ team, players }: { team: TeamSummary; players: PlayerGameLin
           </div>
         );
       })}
-      <SnapCounts team={team} players={players} />
+      <SnapCounts team={team} players={players} site={site} />
     </section>
   );
 }
 
 /** Everyone who played, by position, with his share of his unit's snaps. */
-function SnapCounts({ team, players }: { team: TeamSummary; players: PlayerGameLine[] }) {
+function SnapCounts({ team, players, site }: { team: TeamSummary; players: PlayerGameLine[]; site: Site }) {
   const rows = snapShares(players).sort((a, b) =>
     POSITIONS.indexOf(a.position as Position) - POSITIONS.indexOf(b.position as Position)
     || b.snaps - a.snaps);
@@ -272,7 +276,7 @@ function SnapCounts({ team, players }: { team: TeamSummary; players: PlayerGameL
           {rows.map((p) => (
             <tr key={p.player_id} className="border-t border-white/5">
               <td className="px-3 py-1">
-                <Link href={`/players/${p.player_id}`} className="hover:text-gold">{p.name}</Link>{" "}
+                <PlayerName id={p.player_id} site={site} className="hover:text-gold">{p.name}</PlayerName>{" "}
                 <span className="text-xs text-mist">{p.position}</span>
               </td>
               <td className="py-1 text-right tabular-nums">{p.snaps}</td>
@@ -310,8 +314,8 @@ function PlayList({ plays, teams }: { plays: PlayOut[]; teams: Record<Side, Team
   );
 }
 
-function PlayByPlay({ gameId, plays, teams }: {
-  gameId: number; plays: PlayOut[]; teams: Record<Side, TeamSummary>;
+function PlayByPlay({ gameId, plays, teams, base }: {
+  gameId: number; plays: PlayOut[]; teams: Record<Side, TeamSummary>; base: string;
 }) {
   const quarters = [...new Set(plays.map((p) => p.quarter))];
   return (
@@ -335,7 +339,7 @@ function PlayByPlay({ gameId, plays, teams }: {
                     <span className="block text-xs text-mist">{callLabel(play.play_name, play.defense_name)}</span>
                   )}
                 </span>
-                <Link href={`/games/${gameId}/watch?play=${play.n}`} aria-label={`Watch play ${play.n}`}
+                <Link href={`${base}/games/${gameId}/watch?play=${play.n}`} aria-label={`Watch play ${play.n}`}
                   className="self-start text-xs font-semibold text-gold hover:underline">
                   Watch
                 </Link>

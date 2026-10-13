@@ -58,3 +58,22 @@ test("signing in and out", async ({ browser }) => {
   await context.close();
   expect(problems, problems.join("\n")).toEqual([]);
 });
+
+test("a shared league's public pages, signed out", async ({ page, browser }) => {
+  test.slow();
+  const franchise = await (await page.request.get("/api/franchise")).json();
+  await page.request.post(`/api/seasons/${franchise.season.id}/simulate`, { data: { until: "next_week" } });
+  const { token } = await (await page.request.post(`/api/leagues/${franchise.league.id}/share`)).json();
+  const schedule = await (await page.request.get(`/api/leagues/${franchise.league.id}/schedule?week=1`)).json();
+  const game = schedule.games[0].id;
+  const base = `/share/${token}`;
+  const context = await browser.newContext(); // (signed out)
+  const visitor = await context.newPage();
+  const problems: string[] = [];
+  for (const url of [base, `${base}/schedule?week=1`, `${base}/games/${game}`,
+    `${base}/games/${game}/watch?play=2`, `${base}/playoffs`, `${base}/stats`, `${base}/history`]) {
+    problems.push(...await audit(visitor, url));
+  }
+  await context.close();
+  expect(problems, problems.join("\n")).toEqual([]);
+});

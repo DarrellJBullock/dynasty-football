@@ -6,6 +6,8 @@ export const SESSION_COOKIE = "df_session";
 
 /** Pages that don't need a session. */
 const PUBLIC = ["/signin", "/signup", "/forgot-password", "/reset-password"];
+/** ...and every page under these (a league's read-only public link). */
+const PUBLIC_PREFIXES = ["/share/"];
 
 /**
  * Runs before every request (but Next.js's own files):
@@ -25,7 +27,8 @@ export function proxy(request: NextRequest) {
     if (!headers.has("x-request-id")) headers.set("x-request-id", crypto.randomUUID());
     return NextResponse.rewrite(target, { request: { headers } });
   }
-  if (PUBLIC.includes(pathname) || request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
+  if (PUBLIC.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
+    || request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
   const signIn = new URL("/signin", request.url);
   const next = pathname + search;
   if (next !== "/") signIn.searchParams.set("next", next);

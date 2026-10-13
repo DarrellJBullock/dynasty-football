@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatRecord } from "@/lib/format";
+import { GAME, type Site } from "@/lib/site";
 import type { Game, PlayoffConference, PlayoffsOut, TeamSummary } from "@/lib/types";
 import { SimControls } from "./SimControls";
 
-export function BracketView({ bracket, teamId, canRun = true }: {
-  bracket: PlayoffsOut; teamId: number; canRun?: boolean;
+export function BracketView({ bracket, teamId, canRun = true, site = GAME }: {
+  bracket: PlayoffsOut; teamId: number; canRun?: boolean; site?: Site;
 }) {
   const seedOf = new Map<number, number>();
   const conferenceOf = new Map<number, string>();
@@ -29,7 +30,7 @@ export function BracketView({ bracket, teamId, canRun = true }: {
             </p>
           )}
         </div>
-        <SimControls season={bracket.season} teamId={teamId} canRun={canRun} />
+        {!site.shared && <SimControls season={bracket.season} teamId={teamId} canRun={canRun} />}
       </div>
 
       {bracket.champion && <ChampionBanner team={bracket.champion} year={bracket.season.year} />}
@@ -55,7 +56,7 @@ export function BracketView({ bracket, teamId, canRun = true }: {
                         <div className="text-[10px] uppercase tracking-wider text-mist">{conference}</div>
                       )}
                       {games.map((game) => (
-                        <MatchupCard key={game.id} game={game} seedOf={seedOf} teamId={teamId} />
+                        <MatchupCard key={game.id} game={game} seedOf={seedOf} teamId={teamId} base={site.base} />
                       ))}
                     </div>
                   ))
@@ -122,7 +123,9 @@ function SeedList({ conference, teamId }: { conference: PlayoffConference; teamI
   );
 }
 
-function MatchupCard({ game, seedOf, teamId }: { game: Game; seedOf: Map<number, number>; teamId: number }) {
+function MatchupCard({ game, seedOf, teamId, base }: {
+  game: Game; seedOf: Map<number, number>; teamId: number; base: string;
+}) {
   const final = game.status === "final";
   const rows = [
     { team: game.away, score: game.away_score, won: final && game.away_score! > game.home_score! },
@@ -130,7 +133,7 @@ function MatchupCard({ game, seedOf, teamId }: { game: Game; seedOf: Map<number,
   ];
   const mine = game.home.id === teamId || game.away.id === teamId;
   return (
-    <Link href={`/games/${game.id}`} aria-label={`${game.away.full_name} at ${game.home.full_name}`}
+    <Link href={`${base}/games/${game.id}`} aria-label={`${game.away.full_name} at ${game.home.full_name}`}
       className={`block rounded-lg border bg-white/[0.02] p-2.5 hover:border-white/20 ${mine ? "border-gold/40" : "border-white/5"}`}>
       {rows.map(({ team, score, won }) => (
         <div key={team.id} className={`flex items-center gap-2 py-0.5 text-sm ${final && !won ? "text-mist" : ""}`}>

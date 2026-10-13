@@ -1323,6 +1323,18 @@ class MembersOut(BaseModel):
     members: list[MemberOut]
     invites: list[InviteOut]  # open links (commissioners only; empty for managers)
     open_teams: list[TeamSummary]
+    shared_at: datetime | None = None  # the read-only public link, since (None: none)
+
+
+class ShareLinkOut(BaseModel):
+    token: str  # shown once: only its hash is kept
+    shared_at: datetime
+
+
+class PublicLeagueOut(BaseModel):
+    league: LeagueOut
+    season: SeasonOut
+    teams: list[TeamSummary]
 
 
 class RoleChange(BaseModel):
