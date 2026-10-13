@@ -8,11 +8,14 @@ test("the owner sets goals for the season and reviews it at the end", async ({ p
   await expect(card.getByRole("list", { name: "Goals" }).getByRole("listitem")).not.toHaveCount(0);
   await expect(card.getByRole("meter", { name: "Owner confidence" })).toHaveAttribute("aria-valuenow", "60");
 
-  // A whole season (through the API: simming has its own spec), then the owner's review.
+  // A whole season, a week at a time (through the API: simming has its own spec; a week
+  // per request stays well inside the proxy's time on a slow runner), then the review.
   const franchise = await (await page.request.get("/api/franchise")).json();
-  for (const until of ["end_of_regular_season", "end_of_playoffs"]) {
+  for (let step = 0; step < 40; step++) {
+    const season = (await (await page.request.get("/api/franchise")).json()).season;
+    if (season.phase === "offseason") break;
     expect((await page.request.post(`/api/seasons/${franchise.season.id}/simulate`,
-      { data: { until } })).ok()).toBe(true);
+      { data: { until: "next_week" } })).ok()).toBe(true);
   }
   await page.reload();
   const review = card.getByText(new RegExp(`${franchise.season.year} review: the owner `));
