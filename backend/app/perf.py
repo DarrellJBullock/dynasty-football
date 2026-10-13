@@ -101,9 +101,10 @@ def reads(client: TestClient) -> dict[str, str]:
     urls = {}
     for path, methods in client.app.openapi()["paths"].items():
         names = re.findall(r"{(\w+)}", path)
-        # (no job to read, health isn't a read, and Coach Mode reads a game being coached)
+        # (no job to read, health isn't a read, and Coach Mode and a live game read a game
+        # being coached)
         if ("get" not in methods or "job_id" in names
-                or path.endswith(("/health", "/ready", "/coach"))):
+                or path.endswith(("/health", "/ready", "/coach", "/live"))):
             continue
         urls[path] = re.sub(r"{(\w+)}", lambda m: str(ids[m.group(1)]), path)
         if path.endswith("/dynasty"):  # (every season played, as a Dynasty report)
