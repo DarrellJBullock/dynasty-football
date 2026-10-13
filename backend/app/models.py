@@ -328,6 +328,8 @@ class StaffMember(Base):
     §3). `team_id` None: out of work (part 4's market) or retired (`retired_year`)."""
 
     __tablename__ = "staff"
+    # One of each role per team (staff out of work have no team).
+    __table_args__ = (UniqueConstraint("team_id", "role", name="uq_staff_team_role"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),

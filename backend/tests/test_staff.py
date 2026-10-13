@@ -61,6 +61,20 @@ def test_every_team_gets_a_staff_once_the_same_way(db: Session, league: League):
     assert [(m.full_name, m.role, m.rating) for m in again] == names  # (its own seed)
 
 
+def test_a_team_has_one_of_each_role(db: Session, league: League):
+    """A request that raced another to make the staff would fail, not double it."""
+    from sqlalchemy.exc import IntegrityError
+
+    staff.ensure_staff(db, league)
+    team = league.teams[0]
+    db.add(StaffMember(league_id=league.id, team_id=team.id, role="head_coach",
+                       first_name="Extra", last_name="Coach", age=50, rating=60,
+                       salary=1, contract_end=2030))
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+
+
 def test_a_new_league_has_its_staff_from_the_start(client: TestClient, db: Session):
     spec = client.get("/api/leagues/template?conferences=1&divisions=1&teams_per_division=4")
     made = client.post("/api/leagues", json={**spec.json(), "players": "women"}).json()

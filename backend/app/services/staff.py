@@ -26,9 +26,13 @@ def _rng(league: League) -> random.Random:
 
 
 def ensure_staff(db: Session, league: League) -> None:
-    """Give every team a staff, once (a league from before staff gets one now)."""
+    """Give every team a staff, once (a league from before staff gets one now). The league's
+    row is locked first, so two requests at once can't both make one."""
     if db.scalar(select(StaffMember.id).where(StaffMember.league_id == league.id).limit(1)):
         return
+    db.execute(select(League.id).where(League.id == league.id).with_for_update())
+    if db.scalar(select(StaffMember.id).where(StaffMember.league_id == league.id).limit(1)):
+        return  # (another request made them while this one waited)
     season = current_season(db, league.id)
     year = season.year if season else 0
     rng = _rng(league)

@@ -36,7 +36,8 @@ def upgrade() -> None:
     sa.Column('retired_year', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['league_id'], ['leagues.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['team_id'], ['teams.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('team_id', 'role', name='uq_staff_team_role')
     )
     op.create_index(op.f('ix_staff_league_id'), 'staff', ['league_id'], unique=False)
     op.create_index(op.f('ix_staff_team_id'), 'staff', ['team_id'], unique=False)
