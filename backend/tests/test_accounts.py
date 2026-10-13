@@ -16,6 +16,7 @@ from app.models import (
     Player,
     Season,
     Team,
+    Trade,
     TradeOffer,
     User,
     UserSession,
@@ -193,6 +194,17 @@ def _an_offer(db: Session, league: League, season: Season, franchise: Franchise)
     return offer
 
 
+def _a_trade(db: Session, league: League, season: Season, franchise: Franchise) -> Trade:
+    other = db.scalar(select(Team.id).where(Team.league_id == league.id,
+                                            Team.id != franchise.team_id))
+    trade = Trade(league_id=league.id, season_id=season.id, team_id=franchise.team_id,
+                  partner_id=other, phase=season.phase, week=season.current_week,
+                  sent=[], received=[])
+    db.add(trade)
+    db.flush()
+    return trade
+
+
 class TestLeaguesBelongToTheirOwner:
     def test_each_account_has_its_own_leagues_and_active_franchise(
             self, client: TestClient, intruder: TestClient, franchise: Franchise):
@@ -222,6 +234,7 @@ class TestLeaguesBelongToTheirOwner:
             "member_id": members.member(db, league.id, owner).id,
             "offer_id": _an_offer(db, league, season, franchise).id,
             "staff_id": _a_staff_member(db, league).id,
+            "trade_id": _a_trade(db, league, season, franchise).id,
             "slot": "QB", "fmt": "csv", "token": "not-a-shared-link", "kind": "training",
         }
         unscoped = set()

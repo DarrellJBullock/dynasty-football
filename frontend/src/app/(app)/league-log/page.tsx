@@ -25,8 +25,15 @@ export default function LeagueLogPage() {
 async function LeagueLogContent() {
   const result = await attempt(async () => {
     const franchise = await api.franchise();
-    return { leagueId: franchise.league.id, log: await api.leagueLog(franchise.league.id) };
+    const commissioner = franchise.role === "commissioner";
+    const [log, rollback] = await Promise.all([
+      api.leagueLog(franchise.league.id),
+      commissioner ? api.rollback(franchise.league.id) : null,
+    ]);
+    return { leagueId: franchise.league.id, log, rollback };
   });
   if (!result.ok) return <ServerError error={result.error} />;
-  return <LeagueLogView leagueId={result.data.leagueId} initial={result.data.log} />;
+  const { leagueId, log, rollback } = result.data;
+  return <LeagueLogView leagueId={leagueId} initial={log}
+    rollback={rollback ? rollback.label : undefined} />;
 }

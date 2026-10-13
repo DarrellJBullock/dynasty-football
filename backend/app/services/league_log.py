@@ -20,7 +20,7 @@ from app.services.retired import retired_numbers
 from app.services.teams import current_season, load_roster
 
 ACTIONS = ("player", "new_player", "move", "contract", "team", "import", "veto", "approve",
-           "settings", "member")
+           "settings", "member", "reverse", "rollback")
 PAGE = 50
 
 # What an edit can change about a player, as the log shows it.

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatAttribute, formatMoney } from "@/lib/format";
@@ -13,7 +14,7 @@ const when = new Intl.DateTimeFormat("en-US", {
 export const ACTION_LABELS: Record<LeagueLogAction, string> = {
   player: "Player edit", new_player: "New player", move: "Player moved", contract: "Contract",
   team: "Team edit", import: "Roster import", veto: "Trade vetoed", approve: "Trade approved",
-  settings: "Settings", member: "Members",
+  settings: "Settings", member: "Members", reverse: "Trade reversed", rollback: "Week rolled back",
 };
 
 function value(field: string, v: LeagueLogEntry["changes"][number]["before"]): string {
@@ -27,7 +28,12 @@ function value(field: string, v: LeagueLogEntry["changes"][number]["before"]): s
  * The League log: every edit to a player or team and every commissioner action, newest
  * first, for every member to see.
  */
-export function LeagueLogView({ leagueId, initial }: { leagueId: number; initial: LeagueLog }) {
+export function LeagueLogView({ leagueId, initial, rollback }: {
+  leagueId: number;
+  initial: LeagueLog;
+  /** For a commissioner: the week that can be rolled back (null: none). */
+  rollback?: string | null;
+}) {
   const [log, setLog] = useState(initial);
   const [action, setAction] = useState<LeagueLogAction | "">("");
   const [busy, setBusy] = useState(false);
@@ -71,6 +77,10 @@ export function LeagueLogView({ leagueId, initial }: { leagueId: number; initial
           </select>
         </label>
       </div>
+
+      {rollback !== undefined && (
+        <RollbackPanel leagueId={leagueId} label={rollback} onRolledBack={() => load(action)} />
+      )}
 
       <section className="panel p-0" aria-label="League log entries" aria-busy={busy}>
         {log.entries.length === 0 ? (
@@ -128,5 +138,68 @@ export function LeagueLogView({ leagueId, initial }: { leagueId: number; initial
       )}
       {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
     </div>
+  );
+}
+
+/** The commissioner rolls back the last week (or playoff round): once, and only that one. */
+function RollbackPanel({ leagueId, label: initial, onRolledBack }: {
+  leagueId: number; label: string | null; onRolledBack: () => void;
+}) {
+  const router = useRouter();
+  const [label, setLabel] = useState(initial);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function rollBack() {
+    setBusy(true);
+    setError(null);
+    try {
+      const done = await api.rollBack(leagueId);
+      setNotice(`${done.label} was rolled back: it will be played again.`);
+      setLabel(null);
+      setConfirming(false);
+      onRolledBack();
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="panel space-y-2 p-5" aria-label="Roll back a week">
+      <h2 className="font-display text-lg font-bold uppercase">Roll back a week</h2>
+      {label ? (
+        <>
+          <p className="text-sm text-mist">
+            Undo {label}: its games, box scores, injuries, awards and notifications go, and it
+            will be played again. Rosters stay as they are now. Only the last week (or playoff
+            round) can be rolled back, once.
+          </p>
+          {confirming ? (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-danger" disabled={busy} onClick={rollBack}>
+                {busy ? "Rolling back…" : `Confirm: roll back ${label}`}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>Cancel</button>
+            </div>
+          ) : (
+            <button type="button" className="btn btn-ghost" onClick={() => setConfirming(true)}>
+              Roll back {label}
+            </button>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-mist">
+          Nothing to roll back: only the last week (or playoff round) of this season can be,
+          once.
+        </p>
+      )}
+      {notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}
+      {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
+    </section>
   );
 }

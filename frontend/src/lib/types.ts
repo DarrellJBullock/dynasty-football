@@ -652,6 +652,27 @@ export interface TradeOut {
   week: number;
   sent: TradeItem[];
   received: TradeItem[];
+  /** The commissioner undid it. */
+  reversed?: boolean;
+}
+
+/** A trade this season, for the commissioner: `team` sent `sent` to `partner`. */
+export interface SeasonTrade {
+  id: number;
+  team: TeamSummary;
+  partner: TeamSummary;
+  season_phase: string;
+  week: number;
+  sent: TradeItem[];
+  received: TradeItem[];
+  reversed: boolean;
+  /** Why it can't be reversed (null: it can). */
+  problem: string | null;
+}
+
+/** The week (or playoff round) a commissioner can roll back, if any. */
+export interface Rollback {
+  label: string | null;
 }
 
 export interface TradeCenter {
@@ -672,6 +693,8 @@ export interface TradeCenter {
   offers: TradeOffer[];
   /** The commissioner's veto window in hours (0: none). */
   review_hours: number;
+  /** Every trade this season (commissioners only). */
+  season_trades?: SeasonTrade[];
 }
 
 export interface TradeOfferItem {
@@ -1037,7 +1060,7 @@ export interface CoachCallIn {
 
 /** The League log (`schemas.LeagueLogEntryOut`): an edit or a commissioner's action. */
 export type LeagueLogAction = "player" | "new_player" | "move" | "contract" | "team" | "import"
-  | "veto" | "approve" | "settings" | "member";
+  | "veto" | "approve" | "settings" | "member" | "reverse" | "rollback";
 
 export interface LeagueLogEntry {
   id: number;

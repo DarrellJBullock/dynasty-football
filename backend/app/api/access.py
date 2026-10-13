@@ -25,6 +25,7 @@ from app.models import (
     Season,
     StaffMember,
     Team,
+    Trade,
     TradeOffer,
     User,
 )
@@ -49,7 +50,7 @@ def league_of(db: Session, params: dict[str, str]) -> int | None:
         return int(params["league_id"])
     models = {"season_id": Season, "team_id": Team, "player_id": Player,
               "franchise_id": Franchise, "job_id": Job, "offer_id": TradeOffer,
-              "staff_id": StaffMember}
+              "staff_id": StaffMember, "trade_id": Trade}
     for key, model in models.items():
         if key in params:
             row = db.get(model, int(params[key]))
@@ -106,6 +107,8 @@ WRITES = {
     "PATCH /api/players/{player_id}": "team",  # (a manager: only a jersey number)
     "POST /api/players/{player_id}/move": "commissioner",
     "PUT /api/players/{player_id}/contract": "commissioner",
+    "POST /api/trades/{trade_id}/reverse": "commissioner",
+    "POST /api/leagues/{league_id}/rollback": "commissioner",
     "POST /api/players/{player_id}/release": "team",
     "POST /api/players/{player_id}/re-sign": "team",
     "POST /api/players/{player_id}/offer": "free_agent",

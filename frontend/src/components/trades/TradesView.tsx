@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
+import { SeasonTrades } from "./SeasonTrades";
 import { TradeOffers } from "./TradeOffers";
 import { formatMoney } from "@/lib/format";
 import type {
@@ -212,10 +213,17 @@ export function TradesView({ center, team, leagueId, commissioner = false, count
                 <span>sent {t.sent.map((i) => i.label).join(", ") || "nothing"}</span>
                 <span className="text-mist">for</span>
                 <span>{t.received.map((i) => i.label).join(", ") || "nothing"}</span>
+                {t.reversed && (
+                  <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-xs text-mist">Reversed by the commissioner</span>
+                )}
               </li>
             ))}
           </ul>
         </section>
+      )}
+
+      {commissioner && (center.season_trades ?? []).length > 0 && (
+        <SeasonTrades trades={center.season_trades ?? []} />
       )}
     </div>
   );

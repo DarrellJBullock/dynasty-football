@@ -8,6 +8,8 @@ import type {
   LeagueLog,
   LeagueLogAction,
   LiveState,
+  Rollback,
+  SeasonTrade,
   TeamStaff,
   HallOfFame,
   TeamRecords,
@@ -323,6 +325,9 @@ export const api = {
     const qs = query.toString();
     return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
   },
+  reverseTrade: (tradeId: number) => post<SeasonTrade>(`/trades/${tradeId}/reverse`),
+  rollback: (leagueId: number) => request<Rollback>(`/leagues/${leagueId}/rollback`),
+  rollBack: (leagueId: number) => post<Rollback>(`/leagues/${leagueId}/rollback`),
   movePlayer: (playerId: number, teamId: number | null) =>
     post<PlayerDetail>(`/players/${playerId}/move`, { team_id: teamId }),
   setContract: (playerId: number, salary: number, years: number) =>

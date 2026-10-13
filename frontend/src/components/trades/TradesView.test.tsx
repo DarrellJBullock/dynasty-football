@@ -12,7 +12,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return { ...actual, api: { evaluateTrade: vi.fn(), proposeTrade: vi.fn(), makeTradeOffer: vi.fn(),
     counterOffer: vi.fn(), acceptOffer: vi.fn(), rejectOffer: vi.fn(), withdrawTradeOffer: vi.fn(),
-    vetoOffer: vi.fn(), approveOffer: vi.fn() } };
+    vetoOffer: vi.fn(), approveOffer: vi.fn(), reverseTrade: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -169,5 +169,34 @@ describe("TradesView", () => {
     expect(waiting).toHaveTextContent("Accepted · in the veto window");
     await userEvent.click(within(waiting).getByRole("button", { name: "Veto" }));
     expect(mocked.vetoOffer).toHaveBeenCalledWith(33);
+  });
+
+  it("lets the commissioner reverse a trade from this season", async () => {
+    const norfolk = { ...opponent, id: 3, full_name: "Norfolk Squall", nickname: "Squall", abbreviation: "NOR" };
+    const trades = [
+      { id: 21, team: norfolk, partner: opponent, season_phase: "regular_season", week: 3,
+        sent: [{ kind: "player" as const, id: 8, label: "QB Ari Vance (80)" }],
+        received: [{ kind: "pick" as const, id: 71, label: "2027 round 2" }], reversed: false, problem: null },
+      { id: 20, team: norfolk, partner: opponent, season_phase: "regular_season", week: 2,
+        sent: [{ kind: "player" as const, id: 9, label: "RB Bo Lane (70)" }], received: [],
+        reversed: false, problem: "Bo Lane is no longer with the team he was traded to." },
+    ];
+    mocked.reverseTrade.mockResolvedValue({ ...trades[0], reversed: true, problem: "It's already been reversed." });
+    render(<TradesView center={{ ...center, season_trades: trades,
+      history: [{ ...center.history[0], reversed: true }] }} team={team} leagueId={4} commissioner />);
+    expect(screen.getByRole("region", { name: "Trade history" })).toHaveTextContent("Reversed by the commissioner");
+    const list = screen.getByRole("region", { name: "This season's trades" });
+    expect(list).toHaveTextContent("Bo Lane is no longer with the team he was traded to.");
+    await userEvent.click(within(list).getByRole("button", {
+      name: "Reverse the trade between the Squall and the Roadrunners" }));
+    await userEvent.click(within(list).getByRole("button", { name: "Confirm: reverse it" }));
+    expect(mocked.reverseTrade).toHaveBeenCalledWith(21);
+    expect(await within(list).findByRole("status")).toHaveTextContent("have everyone back");
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("shows managers no season list", () => {
+    render(<TradesView center={{ ...center, season_trades: [] }} team={team} leagueId={4} />);
+    expect(screen.queryByRole("region", { name: "This season's trades" })).not.toBeInTheDocument();
   });
 });

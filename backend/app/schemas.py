@@ -26,6 +26,11 @@ def _validate_rating_keys(value: dict[str, int] | None) -> dict[str, int] | None
 LeaguePlayers = Literal["men", "women"]
 
 
+class RollbackOut(BaseModel):
+    """The week (or playoff round) a commissioner can roll back, if any."""
+    label: str | None
+
+
 class LeagueOut(BaseModel):
     id: int
     name: str
@@ -845,6 +850,20 @@ class TradeOut(BaseModel):
     week: int
     sent: list[TradeItem]  # from the franchise's side
     received: list[TradeItem]
+    reversed: bool = False  # the commissioner undid it
+
+
+class SeasonTradeOut(BaseModel):
+    """A trade this season, for the commissioner: `team` sent `sent` to `partner`."""
+    id: int
+    team: TeamSummary
+    partner: TeamSummary
+    season_phase: str
+    week: int
+    sent: list[TradeItem]
+    received: list[TradeItem]
+    reversed: bool
+    problem: str | None  # why it can't be reversed (None: it can)
 
 
 class TradeCenter(BaseModel):
@@ -861,6 +880,7 @@ class TradeCenter(BaseModel):
     history: list[TradeOut]  # latest first
     offers: list["TradeOfferOut"] = []  # yours, open first; and, for a commissioner, reviews
     review_hours: int = 0  # the commissioner's veto window (0: none)
+    season_trades: list[SeasonTradeOut] = []  # every trade this season (commissioners only)
 
 
 class TradeOfferItem(BaseModel):

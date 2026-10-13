@@ -232,6 +232,15 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   commissioner action records there too (add its action to `ACTIONS` and the frontend's
   `LeagueLogAction`). Editing players (ratings, bio, adding, importing, moving, contracts) is
   the commissioner's; a manager may only change their own player's jersey number.
+- **Rolling back a week** (`services/rollback.py`): `season.simulate` takes a
+  `WeekSnapshot` before each week or round (the phase, the week, the games, every injury;
+  one per league). `roll_back` undoes the week's games and everything they led to. Anything
+  new that playing a week changes (and that rosters don't keep) must be saved in the
+  snapshot or undone there, or a rollback leaves it behind. A week played as part of a
+  longer sim replays with today's lineups (a long sim builds lineups once).
+- **Reversing a trade** (`trades.reverse`): needs the trade's own contracts (the
+  bonus-free one it gave each player, and the one before) and its dead money; a trade path
+  that moves contracts differently must keep `reverse` working.
 - **The read-only public link** (`services/sharing.py`, `api/public.py`): routes under
   `/api/public/{token}` need no session and only read; never return contracts there
   (`test_sharing.py` checks). The token is a key: `observability.loggable_path` hides it

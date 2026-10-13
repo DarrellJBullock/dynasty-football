@@ -26,6 +26,7 @@ from app.domain.trades import (
 )
 from app.models import Contract, DraftPick, League, Player, Season, Team, Trade
 from app.schemas import (
+    SeasonTradeOut,
     TradeAssetOut,
     TradeAssets,
     TradeCenter,
@@ -160,7 +161,31 @@ def trade_center(db: Session, league: League, partner_id: int | None,
         theirs=_assets(desk, partner.id) if partner else TradeAssets(players=[], picks=[]),
         history=[_trade_out(t, team_id) for t in history],
         offers=trade_offers.offers_for(db, league, team_id, commissioner),
-        review_hours=league.trade_review_hours)
+        review_hours=league.trade_review_hours,
+        season_trades=_season_trades(db, desk.season) if commissioner else [])
+
+
+def season_trade_out(db: Session, trade: Trade,
+                     counts: dict[int, int] | None = None) -> SeasonTradeOut:
+    return SeasonTradeOut(
+        id=trade.id, team=team_summary(trade.team), partner=team_summary(trade.partner),
+        season_phase=trade.phase, week=trade.week, sent=trade.sent, received=trade.received,
+        reversed=trade.reversed_at is not None, problem=reverse_problem(db, trade, counts))
+
+
+def _season_trades(db: Session, season: Season) -> list[SeasonTradeOut]:
+    """Every trade this season, newest first, and whether each can be reversed."""
+    from sqlalchemy import func
+
+    trades = db.scalars(select(Trade).where(Trade.season_id == season.id)
+                        .order_by(Trade.id.desc())).all()
+    if not trades:
+        return []
+    counts = dict(db.execute(select(Player.team_id, func.count(Player.id))
+                             .where(Player.league_id == season.league_id,
+                                    Player.team_id.is_not(None))
+                             .group_by(Player.team_id)).all())
+    return [season_trade_out(db, t, counts) for t in trades]
 
 
 def _trade_out(trade: Trade, viewer: int | None = None) -> TradeOut:
@@ -168,10 +193,10 @@ def _trade_out(trade: Trade, viewer: int | None = None) -> TradeOut:
     if viewer is not None and viewer == trade.partner_id:
         return TradeOut(id=trade.id, partner=team_summary(trade.team),
                         season_phase=trade.phase, week=trade.week, sent=trade.received,
-                        received=trade.sent)
+                        received=trade.sent, reversed=trade.reversed_at is not None)
     return TradeOut(id=trade.id, partner=team_summary(trade.partner),
                     season_phase=trade.phase, week=trade.week, sent=trade.sent,
-                    received=trade.received)
+                    received=trade.received, reversed=trade.reversed_at is not None)
 
 
 class _Deal:
@@ -330,3 +355,91 @@ def _execute(db: Session, deal: _Deal) -> Trade:
     db.flush()
     return trade
 
+
+
+# ---------- reversing a trade (the commissioner) ----------
+
+def _sides(trade: Trade) -> list[tuple[dict, int, int]]:
+    """Each item with the team it left and the team it went to."""
+    return ([(item, trade.team_id, trade.partner_id) for item in trade.sent]
+            + [(item, trade.partner_id, trade.team_id) for item in trade.received])
+
+
+def _trade_contracts(player: Player, left: int, went: int) -> tuple[Contract, Contract] | None:
+    """The contract the trade gave him (still his) and the one he had before, or None if
+    he's signed another since."""
+    active = player.active_contract
+    if active is None or active.team_id != went or active.signing_bonus != 0:
+        return None
+    before = max((c for c in player.contracts if c.team_id == left and not c.is_active
+                  and c.id < active.id), key=lambda c: c.id, default=None)
+    return (active, before) if before is not None else None
+
+
+def reverse_problem(db: Session, trade: Trade,
+                    counts: dict[int, int] | None = None) -> str | None:
+    """Why `trade` can't be reversed (None: it can be). `counts`: roster sizes by team, if
+    known (a list of trades counts them once)."""
+    if trade.reversed_at is not None:
+        return "It's already been reversed."
+    season = current_season(db, trade.league_id)
+    if season is None or trade.season_id != season.id:
+        return "Only a trade from this season can be reversed."
+    for item, left, went in _sides(trade):
+        if item["kind"] == "player":
+            player = db.get(Player, item["id"])
+            if player is None or player.team_id != went:
+                name = player.full_name if player else "A player"
+                return f"{name} is no longer with the team he was traded to."
+            if _trade_contracts(player, left, went) is None:
+                return f"{player.full_name} has signed a new contract since."
+        else:
+            pick = db.get(DraftPick, item["id"])
+            if pick is None or pick.team_id != went or pick.player_id is not None:
+                return f"{item['label']} has been traded again or used."
+    for team_id in (trade.team_id, trade.partner_id):
+        coming = sum(1 for item, _left, went in _sides(trade)
+                     if item["kind"] == "player" and went != team_id)
+        going = sum(1 for item, _left, went in _sides(trade)
+                    if item["kind"] == "player" and went == team_id)
+        size = counts[team_id] if counts is not None else len(load_roster(db, team_id))
+        if size - going + coming > ROSTER_MAX:
+            team = db.get(Team, team_id)
+            return f"The {team.full_name} would be over {ROSTER_MAX} players."
+    return None
+
+
+def reverse(db: Session, trade: Trade) -> None:
+    """Undo a trade: every player and pick goes back, the players on the contracts they
+    had (the dead money the trade charged is cleared)."""
+    from datetime import UTC, datetime
+
+    from app.models import DeadMoney
+
+    problem = reverse_problem(db, trade)
+    if problem:
+        raise RosterError(f"This trade can't be reversed: {problem}")
+    taken: dict[int, set[int]] = {}
+    for item, left, went in _sides(trade):
+        if item["kind"] == "pick":
+            db.get(DraftPick, item["id"]).team_id = left
+            continue
+        player = db.get(Player, item["id"])
+        given, before = _trade_contracts(player, left, went)
+        player.contracts.remove(given)
+        db.delete(given)
+        before.is_active = True
+        charged = db.scalar(select(DeadMoney).where(
+            DeadMoney.player_id == player.id, DeadMoney.team_id == left,
+            DeadMoney.reason == "traded").order_by(DeadMoney.id.desc()).limit(1))
+        if charged is not None:
+            db.delete(charged)
+        remove_player(db, player)
+        numbers = taken.setdefault(left, {p.jersey_number for p in load_roster(db, left)}
+                                   | retired_numbers(db, left))
+        if player.jersey_number in numbers:
+            player.jersey_number = available_jersey(player.position, numbers)
+        numbers.add(player.jersey_number)
+        player.team_id = left
+    trade.reversed_at = datetime.now(UTC)
+    db.flush()
