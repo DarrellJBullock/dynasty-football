@@ -28,6 +28,7 @@ const NAV: { heading: string; items: NavItem[] }[] = [
       { label: "Roster", href: "/roster", icon: <IconUsers /> },
       { label: "Depth Chart", href: "/depth-chart", icon: <IconList /> },
       { label: "Game Plan", href: "/game-plan", icon: <IconPlan /> },
+      { label: "Staff", href: "/staff", icon: <IconUsers /> },
       { label: "Contracts", href: "/contracts", icon: <IconContract /> },
       { label: "Free Agency", href: "/free-agency", icon: <IconSign /> },
       { label: "Draft", href: "/draft", icon: <IconDraft /> },

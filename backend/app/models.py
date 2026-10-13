@@ -323,6 +323,55 @@ class Award(Base):
     team: Mapped["Team | None"] = relationship()
 
 
+class StaffMember(Base):
+    """A team's coach, scout or trainer (services/staff.py; docs/design/staff-and-legacy.md
+    §3). `team_id` None: out of work (part 4's market) or retired (`retired_year`)."""
+
+    __tablename__ = "staff"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"), index=True)
+    # head_coach | offensive_coordinator | defensive_coordinator | scout | trainer
+    role: Mapped[str] = mapped_column(String(24))
+    first_name: Mapped[str] = mapped_column(String(40))
+    last_name: Mapped[str] = mapped_column(String(40))
+    age: Mapped[int] = mapped_column(Integer)
+    rating: Mapped[int] = mapped_column(Integer)  # 40-99
+    specialty: Mapped[str | None] = mapped_column(String(12))  # e.g. "QB" for an OC
+    salary: Mapped[int] = mapped_column(Integer)  # whole dollars a season
+    contract_end: Mapped[int] = mapped_column(Integer)  # the last season of the contract
+    retired_year: Mapped[int | None] = mapped_column(Integer)
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+
+class StaffSeason(Base):
+    """A staff member's season with a team: the team's record, its playoffs, and Coach of
+    the Year (a head coach's award). Written when the season's champion is crowned."""
+
+    __tablename__ = "staff_seasons"
+    __table_args__ = (UniqueConstraint("staff_id", "season_id", name="uq_staff_seasons"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id", ondelete="CASCADE"),
+                                          index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"),
+                                           index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    role: Mapped[str] = mapped_column(String(24))
+    wins: Mapped[int] = mapped_column(Integer)
+    losses: Mapped[int] = mapped_column(Integer)
+    ties: Mapped[int] = mapped_column(Integer)
+    playoff_wins: Mapped[int] = mapped_column(Integer, default=0)
+    champion: Mapped[bool] = mapped_column(default=False)
+    coach_of_the_year: Mapped[bool] = mapped_column(default=False)
+
+
 class HallOfFameVote(Base):
     """A player's case on a year's Hall of Fame ballot (services/legacy.py): his legacy
     score, and whether he got in. The Hall of Fame is everyone `inducted`."""

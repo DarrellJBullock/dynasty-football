@@ -221,6 +221,9 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
             from app.services.history import award_season  # (it builds on this module)
 
             award_season(db, season)
+            from app.services.staff import record_season  # (it builds on this module)
+
+            record_season(db, season)
         if request.until == "next_week":
             break
         if on_step:

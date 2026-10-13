@@ -1229,3 +1229,62 @@ export interface NotificationKind {
 export interface NotificationSettings {
   kinds: NotificationKind[];
 }
+
+// ---------- staff (schemas: StaffOut, TeamStaffOut, CoachesOut) ----------
+
+export type StaffRole = "head_coach" | "offensive_coordinator" | "defensive_coordinator" | "scout" | "trainer";
+
+export interface StaffCareer {
+  seasons: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  playoff_wins: number;
+  titles: number;
+  coach_of_the_year: number;
+}
+
+export interface StaffMember {
+  id: number;
+  role: StaffRole;
+  /** "Offensive coordinator" */
+  role_label: string;
+  /** What the role does, in a line. */
+  duty: string;
+  name: string;
+  age: number;
+  /** 40–99 */
+  rating: number;
+  /** e.g. "QB" for an OC. */
+  specialty: string | null;
+  salary: number;
+  /** The last season of the contract. */
+  contract_end: number;
+  team: TeamSummary | null;
+  /** Seasons with any team in this league. */
+  career: StaffCareer;
+}
+
+export interface TeamStaff {
+  team: TeamSummary;
+  /** Head coach first. */
+  members: StaffMember[];
+  payroll: number;
+}
+
+export interface CoachOfTheYear {
+  year: number;
+  staff_id: number;
+  name: string;
+  team: TeamSummary;
+  wins: number;
+  losses: number;
+  ties: number;
+}
+
+export interface Coaches {
+  /** Most career wins first. */
+  head_coaches: StaffMember[];
+  /** Latest first. */
+  coach_of_the_year: CoachOfTheYear[];
+}

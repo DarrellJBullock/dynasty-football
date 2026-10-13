@@ -1007,6 +1007,59 @@ class RetireNumberIn(BaseModel):
     player_id: int
 
 
+# ---------- staff (services/staff.py) ----------
+
+
+StaffRole = Literal["head_coach", "offensive_coordinator", "defensive_coordinator", "scout",
+                    "trainer"]
+
+
+class StaffCareer(BaseModel):
+    seasons: int = 0
+    wins: int = 0
+    losses: int = 0
+    ties: int = 0
+    playoff_wins: int = 0
+    titles: int = 0
+    coach_of_the_year: int = 0
+
+
+class StaffOut(BaseModel):
+    id: int
+    role: StaffRole
+    role_label: str  # "Offensive coordinator"
+    duty: str  # what the role does, in a line
+    name: str
+    age: int
+    rating: int  # 40-99
+    specialty: str | None  # e.g. "QB" for an OC
+    salary: int
+    contract_end: int  # the last season of the contract
+    team: "TeamSummary | None"
+    career: StaffCareer  # seasons with any team, in this league
+
+
+class TeamStaffOut(BaseModel):
+    team: "TeamSummary"
+    members: list[StaffOut]  # head coach first
+    payroll: int  # the staff's salaries a season
+
+
+class CoachOfTheYear(BaseModel):
+    year: int
+    staff_id: int
+    name: str
+    team: "TeamSummary"
+    wins: int
+    losses: int
+    ties: int
+
+
+class CoachesOut(BaseModel):
+    head_coaches: list[StaffOut]  # most career wins first
+    coach_of_the_year: list[CoachOfTheYear]  # latest first
+
+
 # ---------- playback (3D) ----------
 # Play events as the engine writes them (app/sim/resolve.py, engine.py): the contract
 # between the simulation and the 3D choreographer. Ids are player ids; negative ids are

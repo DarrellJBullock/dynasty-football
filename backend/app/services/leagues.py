@@ -31,6 +31,8 @@ from app.models import (
     PlayoffSeed,
     RetiredNumber,
     Season,
+    StaffMember,
+    StaffSeason,
     Team,
     TeamGamePlan,
     TeamGameStats,
@@ -53,6 +55,9 @@ def create_league(db: Session, spec: LeagueCreate, user: User) -> Franchise:
     seed = spec.seed if spec.seed is not None else random.SystemRandom().randrange(2**31)
     franchise = build_league(db, spec, seed)
     give_league(db, franchise.league, user)
+    from app.services.staff import ensure_staff  # (staff builds on leagues' seasons)
+
+    ensure_staff(db, franchise.league)
     return franchise
 
 
@@ -112,6 +117,8 @@ def delete_league(db: Session, league: League, user: User | None = None) -> None
         delete(PlayoffSeed).where(PlayoffSeed.season_id.in_(season_ids)),
         delete(Award).where(Award.season_id.in_(season_ids)),
         delete(HallOfFameVote).where(HallOfFameVote.league_id == league.id),
+        delete(StaffSeason).where(StaffSeason.season_id.in_(season_ids)),
+        delete(StaffMember).where(StaffMember.league_id == league.id),
         delete(RetiredNumber).where(RetiredNumber.team_id.in_(team_ids)),
         delete(FreeAgentOffer).where(FreeAgentOffer.season_id.in_(season_ids)),
         delete(DraftPick).where(DraftPick.league_id == league.id),

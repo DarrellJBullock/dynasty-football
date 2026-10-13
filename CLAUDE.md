@@ -228,6 +228,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   year, at the end of `offseason.advance`, from careers summed out of the box scores.
   **Anywhere that issues a jersey number must skip the team's retired numbers**
   (`services/retired.py`: add them to the `taken` set given to `available_jersey`).
+- **Staff** (`services/staff.py`, `domain/staff.py`): made once per league by
+  `ensure_staff` with their own `random.Random(f"staff:{league.id}")`, never the
+  generator's stream (a new league at creation; an older one the first time staff are
+  read). Each staff member's season is written with the champion (`record_season`).
 - **Notifications** (`services/notifications.py`): call `notify` / `notify_team` /
   `notify_members` where something happens (a new kind goes in `KINDS`); pass a `key` when
   it must only happen once. Email is never sent in a request: a notification is marked
