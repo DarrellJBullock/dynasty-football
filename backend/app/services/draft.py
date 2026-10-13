@@ -9,6 +9,7 @@ scouts it during season Y-1, and it's drafted in season Y after free agency (pha
 import hashlib
 import random
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -314,7 +315,47 @@ def user_pick(db: Session, league: League, player_id: int, team_id: int | None) 
         raise RosterError("That player isn't available.")
     _make_pick(db, season, pick, player, _Board(db, season))
     db.flush()
+    if _clocked(db, season):  # (AI teams pick at once, up to the next manager)
+        season.pick_clock_started_at = None
+        play(db, season, "my_pick")
     return pick
+
+
+# ---------- the draft clock (several managers: docs/design/leagues-with-friends.md §4) ----------
+
+def _clocked(db: Session, season: Season) -> bool:
+    """Picks are on a clock when more than one member runs a team."""
+    return len(human_team_ids(db, season.league_id)) > 1
+
+
+def _as_utc(moment: datetime) -> datetime:
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)  # (SQLite drops it)
+
+
+def clock_ends_at(db: Session, season: Season) -> datetime | None:
+    """When the manager on the clock runs out of time (None: no clock running)."""
+    if season.phase != "draft" or season.pick_clock_started_at is None:
+        return None
+    return (_as_utc(season.pick_clock_started_at)
+            + timedelta(minutes=season.league.draft_clock_minutes))
+
+
+def run_clock(db: Session, season: Season, now: datetime | None = None) -> list[DraftPick]:
+    """If the manager on the clock ran out of time, pick for them (by their needs, as
+    auto-pick does) and let AI teams pick up to the next manager, whose clock starts.
+    Returns the picks made."""
+    ends = clock_ends_at(db, season)
+    if ends is None or (now or datetime.now(UTC)) < ends:
+        return []
+    pick = on_the_clock(db, season)
+    if pick is None:
+        season.pick_clock_started_at = None
+        return []
+    board = _Board(db, season)
+    _make_pick(db, season, pick, _auto_pick(season, pick, board, user=True), board)
+    season.pick_clock_started_at = None
+    db.flush()
+    return [pick, *play(db, season, "my_pick")]
 
 
 def play(db: Session, season: Season, until: str, autopilot: bool = False) -> list[DraftPick]:
@@ -330,11 +371,14 @@ def play(db: Session, season: Season, until: str, autopilot: bool = False) -> li
     for pick in remaining:
         mine = pick.team_id in humans
         if mine and until == "my_pick":
+            if (made or season.pick_clock_started_at is None) and _clocked(db, season):
+                season.pick_clock_started_at = datetime.now(UTC)  # (their clock starts)
             break
         _make_pick(db, season, pick, _auto_pick(season, pick, board, user=mine), board)
         made.append(pick)
     db.flush()
     if on_the_clock(db, season) is None:
+        season.pick_clock_started_at = None
         _finish(db, season, autopilot)
     return made
 
@@ -470,6 +514,7 @@ def draft_view(db: Session, league: League, user_team: int | None = None) -> Dra
     season = current_season(db, league.id)
     year = class_year(db, season)
     ensure_class(db, league, year)
+    run_clock(db, season)  # (a clock that ran out while nobody was looking)
     picks = _picks(db, season) if year == season.year else []
     clock = on_the_clock(db, season)
     status = "live" if clock else "complete" if picks else "upcoming"
@@ -485,7 +530,8 @@ def draft_view(db: Session, league: League, user_team: int | None = None) -> Dra
         my_next_pick=next((p.number for p in picks
                            if p.player_id is None and p.team_id == user_team), None),
         prospects=prospects, scouting_left=scouting_left(db, league.id, year),
-        roster_count=roster_count, roster_max=ROSTER_MAX)
+        roster_count=roster_count, roster_max=ROSTER_MAX,
+        clock_ends_at=clock_ends_at(db, season) if clock else None)
 
 
 def play_result(db: Session, season: Season, picks: list[DraftPick]) -> DraftResult:

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FieldPreviewLoader } from "@/components/field/FieldPreviewLoader";
 import { SimControls } from "@/components/season/SimControls";
+import { TurnPanel } from "@/components/season/TurnPanel";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
@@ -191,7 +192,9 @@ function Hero({ data, awayColor, awayAccent }: {
         </div>
       </div>
       <div className="relative border-t border-white/5 px-6 py-4 md:px-8">
-        <SimControls season={franchise.season} teamId={team.id} />
+        <TurnPanel leagueId={franchise.league.id} />
+        <SimControls season={franchise.season} teamId={team.id}
+          canRun={franchise.role === "commissioner"} />
       </div>
     </section>
   );

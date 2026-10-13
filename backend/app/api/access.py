@@ -111,6 +111,9 @@ WRITES = {
     "POST /api/games/{game_id}/coach/auto": "game",
     "POST /api/franchises/{franchise_id}/activate": "own_franchise",
     "POST /api/leagues/{league_id}/invites": "commissioner",
+    "PUT /api/leagues/{league_id}/ready": "has_team",
+    "POST /api/leagues/{league_id}/advance": "commissioner",
+    "PATCH /api/leagues/{league_id}/settings": "commissioner",
     "DELETE /api/leagues/{league_id}/invites/{invite_id}": "commissioner",
     "PATCH /api/leagues/{league_id}/members/{member_id}": "commissioner",
     "DELETE /api/leagues/{league_id}/members/{member_id}": "member",  # (leave, or remove)

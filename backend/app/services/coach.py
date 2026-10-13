@@ -15,6 +15,7 @@ from app.models import CoachedGame, Game, Season
 from app.schemas import AudibleOption, CoachLook, CoachSituation, CoachStateOut, FatigueLine
 from app.services.errors import RosterError
 from app.services.games import play_out
+from app.services.members import human_team_ids
 from app.services.season import (
     _check_franchise_roster,
     game_seed,
@@ -67,6 +68,9 @@ def start(db: Session, game: Game, team_id: int | None) -> CoachedGame:
     upcoming = next_game(db, season, team_id)
     if upcoming is None or upcoming.id != game.id:
         raise RosterError("You can only coach your team's next game.")
+    if {game.home_team_id, game.away_team_id} <= human_team_ids(db, season.league_id):
+        raise RosterError("Games between two members' teams are simulated from both game "
+                          "plans: set yours on the Game Plan page.")
     if season.phase == "preseason":
         _check_franchise_roster(db, season)
     sim_teams = league_sim_teams(db, season.league_id)

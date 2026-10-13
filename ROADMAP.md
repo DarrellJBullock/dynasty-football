@@ -179,7 +179,7 @@ Design: `docs/design/leagues-with-friends.md`.
 
 - [x] Members, roles and invites (commissioners and managers, display names, a franchise
       per member, invite links, access checks)
-- [ ] The season together (ready check-ins, the commissioner advancing, the draft clock,
+- [x] The season together (ready check-ins, the commissioner advancing, the draft clock,
       several managers in free agency, games between managers simulated)
 - [ ] Trades between managers (offers, counters, expiry, an optional veto)
 - [ ] Notifications (an in-app inbox, optional email)

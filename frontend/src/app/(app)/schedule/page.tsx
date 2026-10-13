@@ -33,5 +33,6 @@ async function ScheduleContent({ searchParams }: Pick<PageProps<"/schedule">, "s
     return { franchise, schedule: await api.schedule(franchise.league.id, week) };
   });
   if (!result.ok) return <ServerError error={result.error} />;
-  return <ScheduleView schedule={result.data.schedule} teamId={result.data.franchise.team.id} />;
+  return <ScheduleView schedule={result.data.schedule} teamId={result.data.franchise.team.id}
+    canRun={result.data.franchise.role === "commissioner"} />;
 }

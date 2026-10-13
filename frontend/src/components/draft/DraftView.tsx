@@ -13,8 +13,10 @@ import type { DraftOut, DraftPickOut, ProspectRow, TeamSummary } from "@/lib/typ
 
 const SHOWN = 150;
 
-export function DraftView({ draft, team, leagueId }: {
-  draft: DraftOut; team: TeamSummary; leagueId: number;
+const clockTime = new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" });
+
+export function DraftView({ draft, team, leagueId, canRun = true }: {
+  draft: DraftOut; team: TeamSummary; leagueId: number; canRun?: boolean;
 }) {
   const router = useRouter();
   const [position, setPosition] = useState("");
@@ -55,10 +57,12 @@ export function DraftView({ draft, team, leagueId }: {
               ? `You're on the clock: round ${clock.round}, pick ${clock.pick_in_round} (#${clock.number}).`
               : `On the clock: ${clock.team.full_name} (#${clock.number}).` +
                 (draft.my_next_pick ? ` Your next pick: #${draft.my_next_pick}.` : ""))}
+            {live && draft.clock_ends_at &&
+              ` The clock runs out ${clockTime.format(new Date(draft.clock_ends_at))}; then the pick is made by need.`}
             {draft.status === "complete" && "The draft is complete."}
           </p>
         </div>
-        {live && <SimControls season={draft.season} teamId={team.id} />}
+        {live && <SimControls season={draft.season} teamId={team.id} canRun={canRun} />}
       </div>
 
       {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}

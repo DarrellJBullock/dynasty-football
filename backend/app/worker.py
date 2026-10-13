@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.observability import configure_logging, init_sentry
-from app.services import jobs
+from app.services import jobs, turns
 
 log = logging.getLogger("app.worker")
 
@@ -24,6 +24,7 @@ Sessions = Callable[[], AbstractContextManager[Session]]  # a new session per jo
 
 IDLE_WAIT = 0.5  # seconds between looks at the queue when it's empty
 REAP_EVERY = 30.0  # seconds between sweeps for jobs whose worker died
+TICK_EVERY = 60.0  # seconds between looks at draft clocks and leagues' daily advances
 
 
 def run_once(session: Sessions = SessionLocal) -> bool:
@@ -48,7 +49,7 @@ def run_once(session: Sessions = SessionLocal) -> bool:
 
 def work(stop: threading.Event, session: Sessions = SessionLocal) -> None:
     """Run jobs until `stop` is set (between jobs)."""
-    last_reap = 0.0
+    last_reap = last_tick = 0.0
     while not stop.is_set():
         try:
             if time.monotonic() - last_reap > REAP_EVERY:
@@ -56,6 +57,10 @@ def work(stop: threading.Event, session: Sessions = SessionLocal) -> None:
                     if reaped := jobs.reap_stale(db):
                         log.warning("failed %s stale job(s)", reaped)
                 last_reap = time.monotonic()
+            if time.monotonic() - last_tick > TICK_EVERY:
+                with session() as db:
+                    turns.tick(db)
+                last_tick = time.monotonic()
             if not run_once(session):
                 stop.wait(IDLE_WAIT)
         except Exception:  # e.g. the database is restarting: wait and carry on

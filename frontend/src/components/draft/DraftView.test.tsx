@@ -25,7 +25,7 @@ const season = { id: 6, league_id: 1, year: 2027, phase: "regular_season", curre
 
 const upcoming: DraftOut = {
   season, year: 2028, status: "upcoming", picks: [], on_the_clock: null, my_team_id: team.id,
-  my_next_pick: null, scouting_left: 24, roster_count: 53, roster_max: 53,
+  my_next_pick: null, scouting_left: 24, roster_count: 53, roster_max: 53, clock_ends_at: null,
   prospects: [prospect(1), prospect(2, { scouted: true, projected: 71, low: 71, high: 71,
     overall: 71, potential: 84, grade: "A" })],
 };

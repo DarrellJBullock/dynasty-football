@@ -31,5 +31,6 @@ async function PlayoffsContent() {
     return { franchise, bracket: await api.playoffs(franchise.league.id) };
   });
   if (!result.ok) return <ServerError error={result.error} />;
-  return <BracketView bracket={result.data.bracket} teamId={result.data.franchise.team.id} />;
+  return <BracketView bracket={result.data.bracket} teamId={result.data.franchise.team.id}
+    canRun={result.data.franchise.role === "commissioner"} />;
 }

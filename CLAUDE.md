@@ -202,6 +202,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **Audibles** are decided at the line inside a snap (`engine.at_the_line`): the answer is
   stored on that snap's recorded call (`CoachCall.audible`), not as a new call, and the look
   draws from its own `random.Random(f"look:{seed}:{n}:{role}")`, never the game's stream.
+- **The season together** (`services/turns.py`): in a league where more than one member
+  runs a team, managers check in (`league_members.ready_for` holds the `step_key` they're
+  ready for, so advancing resets everyone), the commissioner advances one step
+  (`turns.advance`), and the worker's minute (`turns.tick`) runs out draft clocks and the
+  daily advance. The draft clock only runs with several managers (`draft._clocked`); a
+  single-player league behaves as before. Sim ahead is refused with several managers.
 - **The franchise on autopilot:** the offseason, free agency and the draft take
   `autopilot=True` (sim ahead), which treats members' teams like AI teams. Anything new
   that skips the franchise for the user to decide needs the same flag.
