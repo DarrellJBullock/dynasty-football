@@ -79,13 +79,18 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
         .options(selectinload(Player.ratings), selectinload(Player.contracts))
         .order_by(Player.id)))
 
-    # 1. Aging and development.
+    # 1. Aging and development (faster growth and slower decline with good coaches:
+    # services/staff.py).
+    from app.services import staff  # (it builds on this module's league)
+
+    crew = staff.by_team(db, league)
     for player in players:
         before = player.overall
         player.age += 1
         player.years_pro += 1
+        growth, decline = staff.development_factors(crew, player)
         result = develop(rng, player.position, player.age, player.ratings.as_dict(),
-                         player.potential, player.development_trait)
+                         player.potential, player.development_trait, growth, decline)
         for name, value in result.ratings.items():
             setattr(player.ratings, name, value)
         player.overall = result.overall

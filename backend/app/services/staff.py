@@ -13,8 +13,17 @@ from sqlalchemy import Integer, func, select
 from sqlalchemy.orm import Session
 
 from app.domain import staff as rules
-from app.models import Game, League, Season, StaffMember, StaffSeason, Team
-from app.schemas import CoachesOut, CoachOfTheYear, StaffCareer, StaffOut, TeamStaffOut
+from app.domain.development import DECLINE_START, PEAK_START, effective_age
+from app.models import Game, League, Player, Season, StaffMember, StaffSeason, Team
+from app.schemas import (
+    CoachesOut,
+    CoachingItem,
+    CoachOfTheYear,
+    PlayerCoachingOut,
+    StaffCareer,
+    StaffOut,
+    TeamStaffOut,
+)
 from app.seed import data
 from app.services.serializers import team_summary
 from app.services.standings import compute_records
@@ -94,6 +103,66 @@ def age_staff(db: Session, league: League) -> None:
     db.flush()
 
 
+def by_team(db: Session, league: League) -> dict[int, dict[str, StaffMember]]:
+    """team id -> role -> its staff member (made first, if the league has none yet)."""
+    ensure_staff(db, league)
+    crew: dict[int, dict[str, StaffMember]] = {}
+    for member in db.scalars(select(StaffMember).where(StaffMember.league_id == league.id,
+                                                       StaffMember.team_id.is_not(None))):
+        crew.setdefault(member.team_id, {})[member.role] = member
+    return crew
+
+
+def coach(member: StaffMember | None) -> rules.Coach | None:
+    return rules.Coach(member.rating, member.specialty) if member is not None else None
+
+
+def development_factors(crew: dict[int, dict[str, StaffMember]],
+                        player: Player) -> tuple[float, float]:
+    """(growth, decline) for a player's offseason: his team's coordinator and head coach
+    (a player without a team develops on his own)."""
+    if player.team_id is None or player.team_id not in crew:
+        return 1.0, 1.0
+    team = crew[player.team_id]
+    role = rules.coordinator_role(player.position)
+    return rules.development_factors(player.position, coach(team.get(role)) if role else None,
+                                     coach(team.get("head_coach")))
+
+
+def player_coaching(db: Session, player: Player) -> PlayerCoachingOut:
+    """What his team's staff do for this player, in his terms: how fast he grows (or how
+    slowly he declines) this offseason, and how soon he'd be back from an injury."""
+    if player.team_id is None or player.retired_year is not None:
+        return PlayerCoachingOut(items=[], phase=None)
+    crew = by_team(db, db.get(League, player.league_id)).get(player.team_id, {})
+    role = rules.coordinator_role(player.position)
+    coordinator, head = crew.get(role) if role else None, crew.get("head_coach")
+    age = effective_age(player.position, player.age + 1)  # (his age next offseason)
+    phase = "growing" if age < PEAK_START else "declining" if age >= DECLINE_START else "peak"
+    items = []
+    if phase == "growing":
+        lift = rules.growth_lift(player.position, coach(coordinator), coach(head))
+        verb = f"grows {rules.percent(lift)} {'faster' if lift >= 0 else 'slower'}"
+    elif phase == "declining":
+        cut = rules.decline_cut(coach(coordinator), coach(head))
+        verb = f"declines {rules.percent(cut)} {'slower' if cut >= 0 else 'faster'}"
+    else:
+        verb = None
+    for member in (coordinator, head):
+        if member is not None:
+            items.append(CoachingItem(role=member.role, role_label=rules.role_label(member.role),
+                                      name=member.full_name, rating=member.rating,
+                                      specialty=member.specialty))
+    trainer = crew.get("trainer")
+    if trainer is not None:
+        items.append(CoachingItem(role="trainer", role_label=rules.role_label("trainer"),
+                                  name=trainer.full_name, rating=trainer.rating, specialty=None))
+    trainer_text = rules.effect_text("trainer", trainer.rating, None) if trainer else None
+    summary = (f"With these coaches he {verb} this offseason than he would on his own."
+               if verb else "At his peak: his coaches' growth and decline don't apply yet.")
+    return PlayerCoachingOut(items=items, phase=phase, development=summary, injuries=trainer_text)
+
+
 # ---------- views ----------
 
 def _careers(db: Session, ids: list[int]) -> dict[int, StaffCareer]:
@@ -116,6 +185,7 @@ def _out(member: StaffMember, career: StaffCareer, team: Team | None) -> StaffOu
     return StaffOut(id=member.id, role=member.role, role_label=rules.role_label(member.role),
                     duty=rules.describe(member.role), name=member.full_name, age=member.age,
                     rating=member.rating, specialty=member.specialty, salary=member.salary,
+                    effect=rules.effect_text(member.role, member.rating, member.specialty),
                     contract_end=member.contract_end,
                     team=team_summary(team) if team else None, career=career)
 

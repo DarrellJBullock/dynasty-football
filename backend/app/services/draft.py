@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.domain import staff as staff_rules
 from app.domain.contracts import MIN_SALARY, market_salary
 from app.domain.draft import (
     PROJECTION_RANGE,
@@ -113,16 +114,17 @@ def prospect_key(player: Player) -> str:
             f"{player.college}:{player.height_in}:{player.weight_lb}")
 
 
-def projection(league_id: int, player: Player) -> tuple[int, int]:
-    """The franchise's view of a prospect: (OVR, potential), exact once scouted."""
+def projection(league_id: int, player: Player, scale: float = 1.0) -> tuple[int, int]:
+    """A team's view of a prospect: (OVR, potential), exact once scouted. `scale`: how far
+    off its scout's projections are, against an average scout's (domain/staff.py)."""
     if player.scouted:
         return player.overall, player.potential
-    noise = scout_noise(league_id, prospect_key(player))
+    noise = scout_noise(league_id, prospect_key(player)) * scale
     return clamp_rating(player.overall + noise), clamp_rating(player.potential + noise)
 
 
-def prospect_row(league_id: int, player: Player) -> ProspectRow:
-    ovr, potential = projection(league_id, player)
+def prospect_row(league_id: int, player: Player, scale: float = 1.0) -> ProspectRow:
+    ovr, potential = projection(league_id, player, scale)
     spread = 0 if player.scouted else PROJECTION_RANGE
     return ProspectRow(
         id=player.id, full_name=player.full_name, position=player.position, age=player.age,
@@ -132,22 +134,40 @@ def prospect_row(league_id: int, player: Player) -> ProspectRow:
         potential=player.potential if player.scouted else None)
 
 
-def scouting_left(db: Session, league_id: int, year: int) -> int:
+def scouting_left(db: Session, league_id: int, year: int,
+                  reports: int = SCOUTING_REPORTS) -> int:
     used = db.scalar(select(func.count(Player.id)).where(
         Player.league_id == league_id, Player.draft_year == year, Player.scouted)) or 0
-    return max(0, SCOUTING_REPORTS - used)
+    return max(0, reports - used)
 
 
-def scout(db: Session, player: Player) -> ProspectRow:
+def _scout(db: Session, league_id: int, team_id: int | None):
+    """A team's scout, as staff rules see him (None: no team, so an average view)."""
+    from app.services import staff  # (staff builds on the season services)
+
+    if team_id is None:
+        return None
+    crew = staff.by_team(db, db.get(League, league_id))
+    return staff.coach(crew.get(team_id, {}).get("scout"))
+
+
+def scouting(db: Session, league_id: int, team_id: int | None) -> tuple[float, int]:
+    """(projection scale, scouting reports a class) for a team, from its scout."""
+    scout = _scout(db, league_id, team_id)
+    return staff_rules.scout_scale(scout), staff_rules.scouting_reports(SCOUTING_REPORTS, scout)
+
+
+def scout(db: Session, player: Player, team_id: int | None = None) -> ProspectRow:
     season = current_season(db, player.league_id)
     if not player.is_prospect or player.draft_year != class_year(db, season):
         raise RosterError(f"{player.full_name} isn't in the draft class you're scouting.")
     if not player.scouted:
-        if scouting_left(db, player.league_id, player.draft_year) <= 0:
-            raise RosterError(f"No scouting reports left ({SCOUTING_REPORTS} per class).")
+        scale, reports = scouting(db, player.league_id, team_id)
+        if scouting_left(db, player.league_id, player.draft_year, reports) <= 0:
+            raise RosterError(f"No scouting reports left ({reports} per class).")
         player.scouted = True
         db.flush()
-    return prospect_row(player.league_id, player)
+    return prospect_row(player.league_id, player, scouting(db, player.league_id, team_id)[0])
 
 
 # ---------- draft order ----------
@@ -286,7 +306,8 @@ def _make_pick(db: Session, season: Season, pick: DraftPick, player: Player,
     flag_modified(season, "offseason_log")
 
 
-def _auto_pick(season: Season, pick: DraftPick, board: _Board, user: bool) -> Player:
+def _auto_pick(season: Season, pick: DraftPick, board: _Board, user: bool,
+               scale: float = 1.0) -> Player:
     """AI teams value prospects by their own (noisy) read of OVR and potential; the
     franchise's auto-pick uses its scouting projection. Both favour positions of need."""
     league_id = season.league_id
@@ -296,7 +317,7 @@ def _auto_pick(season: Season, pick: DraftPick, board: _Board, user: bool) -> Pl
     rng = _rng("draft-pick", league_id, season.year, pick.number)
     if user:
         def value(p: Player) -> float:
-            ovr, potential = projection(league_id, p)
+            ovr, potential = projection(league_id, p, scale)
             return ai_value(rng, ovr, potential, p.position in needs)
     else:
         def value(p: Player) -> float:
@@ -362,7 +383,9 @@ def run_clock(db: Session, season: Season, now: datetime | None = None) -> list[
         season.pick_clock_started_at = None
         return []
     board = _Board(db, season)
-    _make_pick(db, season, pick, _auto_pick(season, pick, board, user=True), board)
+    _make_pick(db, season, pick, _auto_pick(season, pick, board, user=True,
+                                            scale=scouting(db, season.league_id,
+                                                           pick.team_id)[0]), board)
     season.pick_clock_started_at = None
     db.flush()
     return [pick, *play(db, season, "my_pick")]
@@ -388,7 +411,9 @@ def play(db: Session, season: Season, until: str, autopilot: bool = False) -> li
                             f"You have {_clock_words(season.league.draft_clock_minutes)}.",
                             "/draft", key=f"pick:{pick.id}")
             break
-        _make_pick(db, season, pick, _auto_pick(season, pick, board, user=mine), board)
+        scale = scouting(db, season.league_id, pick.team_id)[0] if mine else 1.0
+        _make_pick(db, season, pick, _auto_pick(season, pick, board, user=mine, scale=scale),
+                   board)
         made.append(pick)
     db.flush()
     if on_the_clock(db, season) is None:
@@ -532,7 +557,9 @@ def draft_view(db: Session, league: League, user_team: int | None = None) -> Dra
     picks = _picks(db, season) if year == season.year else []
     clock = on_the_clock(db, season)
     status = "live" if clock else "complete" if picks else "upcoming"
-    prospects = sorted((prospect_row(league.id, p) for p in _prospects(db, league.id, year)),
+    scale, reports = scouting(db, league.id, user_team)
+    prospects = sorted((prospect_row(league.id, p, scale)
+                        for p in _prospects(db, league.id, year)),
                        key=lambda r: (-r.projected, r.id))
     roster_count = len(_roster(db, user_team)) if user_team else 0
     teams = team_count(db, league.id)
@@ -543,7 +570,7 @@ def draft_view(db: Session, league: League, user_team: int | None = None) -> Dra
         my_team_id=user_team,
         my_next_pick=next((p.number for p in picks
                            if p.player_id is None and p.team_id == user_team), None),
-        prospects=prospects, scouting_left=scouting_left(db, league.id, year),
+        prospects=prospects, scouting_left=scouting_left(db, league.id, year, reports),
         roster_count=roster_count, roster_max=ROSTER_MAX,
         clock_ends_at=clock_ends_at(db, season) if clock else None)
 

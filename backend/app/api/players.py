@@ -77,7 +77,8 @@ def withdraw_offer(player: Player = Depends(get_player), user: User = Depends(cu
 
 
 @router.post("/{player_id}/scout", response_model=ProspectRow)
-def scout(player: Player = Depends(get_player), db: Session = Depends(get_db)):
+def scout(player: Player = Depends(get_player), user: User = Depends(current_user),
+          db: Session = Depends(get_db)):
     """Spend a scouting report on a draft prospect: reveals his true OVR and potential."""
     with roster_errors(db):
-        return draft_service.scout(db, player)
+        return draft_service.scout(db, player, user_team_id(db, player.league_id, user))

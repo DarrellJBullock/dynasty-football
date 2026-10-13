@@ -232,6 +232,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   `ensure_staff` with their own `random.Random(f"staff:{league.id}")`, never the
   generator's stream (a new league at creation; an older one the first time staff are
   read). Each staff member's season is written with the champion (`record_season`).
+  What staff do never adds a draw: development scales `develop`'s change (`growth`,
+  `decline`), scouting scales the projection error and the reports a class (per team:
+  `draft.scouting`), and the trainer shortens layoffs after the game (`injuries.after_week`;
+  the play log keeps the injury as it happened). Pass a team when a view depends on it.
 - **Notifications** (`services/notifications.py`): call `notify` / `notify_team` /
   `notify_members` where something happens (a new kind goes in `KINDS`); pass a `key` when
   it must only happen once. Email is never sent in a request: a notification is marked

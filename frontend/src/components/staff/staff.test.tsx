@@ -12,7 +12,7 @@ const none = { seasons: 0, wins: 0, losses: 0, ties: 0, playoff_wins: 0, titles:
 
 function member(id: number, overrides: Partial<StaffMember> = {}): StaffMember {
   return { id, role: "head_coach", role_label: "Head coach", duty: "Runs the team.", name: `Coach ${id}`,
-    age: 52, rating: 88, specialty: "offense", salary: 9_100_000, contract_end: 2028, team, career: none,
+    age: 52, rating: 88, specialty: "offense", effect: "Every young player grows 8% faster.", salary: 9_100_000, contract_end: 2028, team, career: none,
     ...overrides };
 }
 
@@ -36,6 +36,7 @@ describe("StaffView", () => {
     const head = screen.getByRole("article", { name: "Head coach" });
     expect(head).toHaveTextContent("Coach 1");
     expect(head).toHaveTextContent("offense specialist");
+    expect(head).toHaveTextContent("Every young player grows 8% faster.");
     expect(head).toHaveTextContent("3 seasons, through 2028");
     expect(head).toHaveTextContent("First season");
     expect(screen.getByRole("article", { name: "Offensive coordinator" })).toHaveTextContent("ends after 2026");

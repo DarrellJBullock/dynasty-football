@@ -10,7 +10,6 @@ from app.domain.contracts import MIN_SALARY
 from app.domain.draft import (
     ROOKIE_YEARS,
     ROUNDS,
-    SCOUTING_REPORTS,
     Finish,
     class_size,
     draft_order,
@@ -82,8 +81,9 @@ def test_next_class_is_generated_once_and_hidden(client: TestClient, db: Session
                                                  league: League, season: Season,
                                                  franchise: Franchise):
     view = _draft_view(client, league)
+    reports = draft.scouting(db, league.id, franchise.team_id)[1]  # (our scout's budget)
     assert view["year"] == season.year + 1 and view["status"] == "upcoming"
-    assert view["picks"] == [] and view["scouting_left"] == SCOUTING_REPORTS
+    assert view["picks"] == [] and view["scouting_left"] == reports
     assert len(view["prospects"]) == class_size(32)
     row = view["prospects"][0]
     assert row["overall"] is None and row["potential"] is None and not row["scouted"]
@@ -99,20 +99,21 @@ def test_next_class_is_generated_once_and_hidden(client: TestClient, db: Session
 
 
 def test_scouting_reveals_the_truth_within_a_budget(client: TestClient, db: Session,
-                                                    league: League):
+                                                    league: League, franchise: Franchise):
     prospects = _draft_view(client, league)["prospects"]
+    reports = draft.scouting(db, league.id, franchise.team_id)[1]  # (our scout's budget)
     report = client.post(f"/api/players/{prospects[0]['id']}/scout").json()
     player = db.get(Player, prospects[0]["id"])
     assert report["scouted"] and report["overall"] == player.overall == report["projected"]
     assert report["potential"] == player.potential and report["low"] == report["high"]
-    assert _draft_view(client, league)["scouting_left"] == SCOUTING_REPORTS - 1
+    assert _draft_view(client, league)["scouting_left"] == reports - 1
     # Scouting the same prospect again is free.
     client.post(f"/api/players/{prospects[0]['id']}/scout")
-    assert _draft_view(client, league)["scouting_left"] == SCOUTING_REPORTS - 1
+    assert _draft_view(client, league)["scouting_left"] == reports - 1
 
-    for row in prospects[1:SCOUTING_REPORTS]:
+    for row in prospects[1:reports]:
         assert client.post(f"/api/players/{row['id']}/scout").status_code == 200
-    over = client.post(f"/api/players/{prospects[SCOUTING_REPORTS]['id']}/scout")
+    over = client.post(f"/api/players/{prospects[reports]['id']}/scout")
     assert over.status_code == 409 and "No scouting reports left" in over.json()["detail"]
     veteran = db.scalars(select(Player).where(Player.team_id.is_not(None))).first()
     assert client.post(f"/api/players/{veteran.id}/scout").status_code == 409
