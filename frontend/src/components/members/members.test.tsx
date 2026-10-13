@@ -3,9 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
 import { hardNavigate } from "@/lib/navigation";
-import type { InvitePreview, Member, Members, TeamSummary } from "@/lib/types";
+import type { InvitePreview, Member, Members, TeamSummary, Turn } from "@/lib/types";
 import { team } from "@/test/fixtures";
 import { JoinLeague } from "./JoinLeague";
+import { localToUtcMinutes, utcMinutesToLocal } from "./LeagueSettingsPanel";
 import { inviteUrl, MembersView } from "./MembersView";
 
 const search = { value: "" };
@@ -14,7 +15,8 @@ vi.mock("@/lib/navigation", () => ({ hardNavigate: vi.fn() }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return { ...actual, api: { members: vi.fn(), createInvite: vi.fn(), revokeInvite: vi.fn(),
-    setMemberRole: vi.fn(), removeMember: vi.fn(), previewInvite: vi.fn(), joinLeague: vi.fn() } };
+    setMemberRole: vi.fn(), removeMember: vi.fn(), previewInvite: vi.fn(), joinLeague: vi.fn(),
+    turn: vi.fn(), updateLeagueSettings: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -29,9 +31,14 @@ const friend: Member = { id: 2, display_name: "Robin", role: "manager", team: ri
 const league = { id: 1, name: "Harbor League", abbreviation: "HBL", salary_cap: 255_000_000, players: "men" as const };
 const members: Members = { league, you, members: [you, friend], invites: [], open_teams: [open] };
 
+const turn: Turn = { step: "Week 3", step_key: "1:week:3", managers: [], all_ready: false,
+  can_advance: true, draft_clock_minutes: 1440, advance_minute_utc: null, next_advance_at: null,
+  pick_clock_ends_at: null };
+
 beforeEach(() => {
   vi.clearAllMocks();
   search.value = "";
+  mocked.turn.mockResolvedValue(turn);
 });
 
 describe("MembersView", () => {
@@ -131,5 +138,42 @@ describe("JoinLeague", () => {
     render(<JoinLeague />);
     expect(await screen.findByText(/You already run the Salem Comets here/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Join the league" })).toBeNull();
+  });
+});
+
+describe("LeagueSettingsPanel (on the Members page, for a commissioner)", () => {
+  it("sets the draft clock and a daily advance, and turns it off", async () => {
+    const offset = new Date().getTimezoneOffset();
+    mocked.updateLeagueSettings
+      .mockResolvedValueOnce({ ...turn, draft_clock_minutes: 60 })
+      .mockResolvedValueOnce({ ...turn, draft_clock_minutes: 60, advance_minute_utc: localToUtcMinutes("20:30", offset),
+        next_advance_at: "2026-10-13T00:30:00Z" })
+      .mockResolvedValueOnce({ ...turn, draft_clock_minutes: 60 });
+    render(<MembersView initial={members} />);
+    const settings = await screen.findByRole("region", { name: "League settings" });
+    await userEvent.selectOptions(within(settings).getByLabelText("Draft clock"), "1 hour");
+    expect(mocked.updateLeagueSettings).toHaveBeenCalledWith(1, { draft_clock_minutes: 60 });
+    expect(await within(settings).findByRole("status")).toHaveTextContent("Draft clock saved.");
+    const time = within(settings).getByLabelText("Advance every day at (your time)");
+    await userEvent.clear(time);
+    await userEvent.type(time, "20:30");
+    await userEvent.click(within(settings).getByRole("button", { name: "Advance daily" }));
+    expect(mocked.updateLeagueSettings).toHaveBeenLastCalledWith(
+      1, { advance_minute_utc: localToUtcMinutes("20:30", offset) });
+    expect(await within(settings).findByText(/On: the league plays the next step/)).toBeInTheDocument();
+    await userEvent.click(within(settings).getByRole("button", { name: "Turn off" }));
+    expect(mocked.updateLeagueSettings).toHaveBeenLastCalledWith(1, { advance_minute_utc: null });
+  });
+
+  it("isn't there for a manager", () => {
+    render(<MembersView initial={{ ...members, you: { ...friend, is_you: true } }} />);
+    expect(screen.queryByRole("region", { name: "League settings" })).toBeNull();
+  });
+
+  it("converts the time of day both ways, across midnight", () => {
+    expect(localToUtcMinutes("21:00", 300)).toBe(2 * 60); // UTC-5: 9 pm is 02:00 UTC
+    expect(utcMinutesToLocal(2 * 60, 300)).toBe("21:00");
+    expect(localToUtcMinutes("00:30", -120)).toBe(22 * 60 + 30); // UTC+2
+    expect(utcMinutesToLocal(22 * 60 + 30, -120)).toBe("00:30");
   });
 });

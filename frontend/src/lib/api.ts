@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Credentials,
+  LeagueSettings,
+  Turn,
   InviteCreated,
   InvitePreview,
   MemberRole,
@@ -159,6 +161,12 @@ export const api = {
     }),
   removeMember: (leagueId: number, memberId: number) =>
     request<void>(`/leagues/${leagueId}/members/${memberId}`, { method: "DELETE" }),
+  turn: (leagueId: number) => request<Turn>(`/leagues/${leagueId}/turn`),
+  setReady: (leagueId: number, ready: boolean) =>
+    request<Turn>(`/leagues/${leagueId}/ready`, { method: "PUT", body: JSON.stringify({ ready }) }),
+  advanceLeague: (leagueId: number) => post<Turn>(`/leagues/${leagueId}/advance`),
+  updateLeagueSettings: (leagueId: number, settings: LeagueSettings) =>
+    request<Turn>(`/leagues/${leagueId}/settings`, { method: "PATCH", body: JSON.stringify(settings) }),
   previewInvite: (token: string) => post<InvitePreview>("/invites/preview", { token }),
   joinLeague: (token: string, teamId: number) =>
     post<Franchise>("/invites/join", { token, team_id: teamId }),

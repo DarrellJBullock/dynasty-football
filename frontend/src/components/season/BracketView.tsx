@@ -4,7 +4,9 @@ import { formatRecord } from "@/lib/format";
 import type { Game, PlayoffConference, PlayoffsOut, TeamSummary } from "@/lib/types";
 import { SimControls } from "./SimControls";
 
-export function BracketView({ bracket, teamId }: { bracket: PlayoffsOut; teamId: number }) {
+export function BracketView({ bracket, teamId, canRun = true }: {
+  bracket: PlayoffsOut; teamId: number; canRun?: boolean;
+}) {
   const seedOf = new Map<number, number>();
   const conferenceOf = new Map<number, string>();
   for (const conference of bracket.conferences) {
@@ -27,7 +29,7 @@ export function BracketView({ bracket, teamId }: { bracket: PlayoffsOut; teamId:
             </p>
           )}
         </div>
-        <SimControls season={bracket.season} teamId={teamId} />
+        <SimControls season={bracket.season} teamId={teamId} canRun={canRun} />
       </div>
 
       {bracket.champion && <ChampionBanner team={bracket.champion} year={bracket.season.year} />}

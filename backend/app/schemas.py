@@ -763,6 +763,8 @@ class DraftOut(BaseModel):
     scouting_left: int
     roster_count: int
     roster_max: int
+    # When the manager on the clock runs out of time (a draft with several managers).
+    clock_ends_at: datetime | None = None
 
 
 class DraftPickRequest(BaseModel):
@@ -1303,6 +1305,36 @@ class InvitePreview(BaseModel):
 
 class JoinRequest(InviteToken):
     team_id: int
+
+
+class TurnMember(BaseModel):
+    member_id: int
+    display_name: str
+    team: TeamSummary
+    ready: bool
+    is_you: bool
+
+
+class TurnOut(BaseModel):
+    """The season together: what's next, who's ready for it, and when it happens."""
+    step: str  # what advancing plays next, e.g. "Week 3"
+    step_key: str
+    managers: list[TurnMember]  # members who run a team
+    all_ready: bool
+    can_advance: bool  # the viewer is a commissioner
+    draft_clock_minutes: int
+    advance_minute_utc: int | None  # the daily advance (minutes after midnight UTC)
+    next_advance_at: datetime | None
+    pick_clock_ends_at: datetime | None  # the draft: when the manager up runs out of time
+
+
+class ReadyIn(BaseModel):
+    ready: bool
+
+
+class LeagueSettingsIn(BaseModel):
+    draft_clock_minutes: int | None = None
+    advance_minute_utc: int | None = None  # (send null to turn the daily advance off)
 
 
 class PasswordChange(BaseModel):

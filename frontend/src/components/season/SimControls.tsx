@@ -20,7 +20,11 @@ import { useJob } from "./useJob";
  * run as background jobs (`useJob`) with a progress bar; a single week, market day or pick
  * is a plain request.
  */
-export function SimControls({ season, teamId }: { season: Season; teamId: number }) {
+export function SimControls({ season, teamId, canRun = true }: {
+  season: Season; teamId: number;
+  /** The viewer runs the season (a commissioner): managers see who does instead. */
+  canRun?: boolean;
+}) {
   const router = useRouter();
   // A sim ahead can end in another phase than it started (free agency → the preseason
   // seasons later): its outcome lives here, above whichever phase's controls show.
@@ -28,6 +32,9 @@ export function SimControls({ season, teamId }: { season: Season; teamId: number
   function aheadDone(job: Job) {
     setAhead(job);
     router.refresh();
+  }
+  if (!canRun) {
+    return <p role="status" className="text-sm text-mist">The commissioner advances the season.</p>;
   }
   const controls = season.phase === "free_agency"
     ? <FreeAgencyControls season={season} onAheadDone={aheadDone} />

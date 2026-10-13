@@ -176,6 +176,9 @@ def enqueue(db: Session, league: League, kind: str, params: dict | None = None,
         seasons = (params or {}).get("seasons")
         if not isinstance(seasons, int) or not 1 <= seasons <= MAX_SEASONS_AHEAD:
             raise RosterError(f"Sim ahead 1 to {MAX_SEASONS_AHEAD} seasons.", 422)
+        if len(human_team_ids(db, league.id)) > 1:
+            raise RosterError("Sim ahead is for leagues you play alone: with other managers, "
+                              "the season moves a step at a time.")
         params = {"seasons": seasons}
     else:
         params = {"team_id": team_id} if team_id is not None else None

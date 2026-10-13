@@ -88,6 +88,13 @@ class League(Base):
     # Who plays: "men" or "women" (names and builds of generated players).
     players: Mapped[str] = mapped_column(String(8), default="men", server_default="men")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # Leagues with friends (services/turns.py): how long a manager has to make a draft
+    # pick, and the time of day (minutes after midnight UTC) the league advances itself,
+    # if it does, with the last time it did.
+    draft_clock_minutes: Mapped[int] = mapped_column(Integer, default=1440,
+                                                     server_default="1440")
+    advance_minute_utc: Mapped[int | None] = mapped_column(Integer)
+    auto_advanced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     conferences: Mapped[list["Conference"]] = relationship(
         back_populates="league", cascade="all, delete-orphan", order_by="Conference.id"
@@ -342,6 +349,8 @@ class Season(Base):
         ForeignKey("teams.id", ondelete="SET NULL"))
     # Free agency market day to play next (phase "free_agency" only).
     free_agency_day: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # When the pick on the clock went on it (a draft with several managers).
+    pick_clock_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # What happened in the offseason before this season (see services/offseason.py).
     # Deferred: read only when the offseason, the market or the draft works on it.
     offseason_log: Mapped[dict | None] = mapped_column(
@@ -611,6 +620,9 @@ class LeagueMember(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(String(16))  # "commissioner" | "manager"
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # The step of the season (turns.step_key) the member is ready for: they're ready
+    # while it's still the league's current step.
+    ready_for: Mapped[str | None] = mapped_column(String(60))
 
     user: Mapped[User] = relationship()
 

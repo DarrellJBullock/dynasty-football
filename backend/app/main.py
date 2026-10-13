@@ -21,6 +21,7 @@ from app.api import (
     stats,
     teams,
     trades,
+    turns,
 )
 from app.api.access import allowed, owned_league, same_site
 from app.api.locks import league_unlocked
@@ -70,7 +71,7 @@ def create_app() -> FastAPI:
     locked = [Depends(same_site), Depends(owned_league), Depends(allowed),
               Depends(league_unlocked)]
     for module in (franchise, leagues, teams, depth_chart, gameplans, roster_import, players,
-                   season, stats, trades, history, playbook, coach):
+                   season, stats, trades, history, playbook, coach, turns):
         api.include_router(module.router, dependencies=locked)
     api.include_router(franchise.franchises_router, dependencies=locked)
     api.include_router(members.router, dependencies=locked)

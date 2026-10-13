@@ -4,7 +4,9 @@ import { formatPhase } from "@/lib/format";
 import type { Game, ScheduleWeek } from "@/lib/types";
 import { SimControls } from "./SimControls";
 
-export function ScheduleView({ schedule, teamId }: { schedule: ScheduleWeek; teamId: number }) {
+export function ScheduleView({ schedule, teamId, canRun = true }: {
+  schedule: ScheduleWeek; teamId: number; canRun?: boolean;
+}) {
   const { season, week } = schedule;
   const weeks = Array.from({ length: season.weeks }, (_, i) => i + 1);
   const mine = schedule.games.filter((g) => g.home.id === teamId || g.away.id === teamId);
@@ -19,7 +21,7 @@ export function ScheduleView({ schedule, teamId }: { schedule: ScheduleWeek; tea
           </div>
           <h1 className="font-display text-4xl font-bold uppercase tracking-wide">Schedule</h1>
         </div>
-        <SimControls season={season} teamId={teamId} />
+        <SimControls season={season} teamId={teamId} canRun={canRun} />
       </div>
 
       <nav aria-label="Weeks" className="panel flex gap-1 overflow-x-auto p-2">

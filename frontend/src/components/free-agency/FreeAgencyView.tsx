@@ -15,7 +15,9 @@ import type { ContractTerms, FreeAgencyOut, FreeAgentRow, TeamSummary } from "@/
 const MAX_YEARS = 5;
 const SHOWN = 120; // rows per position filter; the pool is sorted best first
 
-export function FreeAgencyView({ market, team }: { market: FreeAgencyOut; team: TeamSummary }) {
+export function FreeAgencyView({ market, team, canRun = true }: {
+  market: FreeAgencyOut; team: TeamSummary; canRun?: boolean;
+}) {
   const [position, setPosition] = useState<string>("");
   const [offering, setOffering] = useState<FreeAgentRow | null>(null);
   const rows = market.players.filter((r) => !position || r.player.position === position);
@@ -36,7 +38,7 @@ export function FreeAgencyView({ market, team }: { market: FreeAgencyOut; team: 
                 "after re-signing and teams bid against each other."}
           </p>
         </div>
-        {market.open && <SimControls season={market.season} teamId={team.id} />}
+        {market.open && <SimControls season={market.season} teamId={team.id} canRun={canRun} />}
       </div>
 
       <section className="grid gap-4 sm:grid-cols-3" aria-label="Your situation">

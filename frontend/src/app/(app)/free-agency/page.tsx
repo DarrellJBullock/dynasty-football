@@ -29,5 +29,6 @@ async function FreeAgencyContent() {
     return { franchise, market: await api.freeAgency(franchise.league.id) };
   });
   if (!result.ok) return <ServerError error={result.error} />;
-  return <FreeAgencyView market={result.data.market} team={result.data.franchise.team} />;
+  return <FreeAgencyView market={result.data.market} team={result.data.franchise.team}
+    canRun={result.data.franchise.role === "commissioner"} />;
 }

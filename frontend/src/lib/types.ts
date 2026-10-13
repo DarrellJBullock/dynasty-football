@@ -612,6 +612,8 @@ export interface DraftOut {
   scouting_left: number;
   roster_count: number;
   roster_max: number;
+  /** When the manager on the clock runs out of time (a draft with several managers). */
+  clock_ends_at: string | null;
 }
 
 export interface DraftResult {
@@ -1049,4 +1051,34 @@ export interface InvitePreview {
   open_teams: TeamSummary[];
   already_member: boolean;
   your_team: TeamSummary | null;
+}
+
+/** A manager in the season together (`schemas.TurnMember`). */
+export interface TurnMember {
+  member_id: number;
+  display_name: string;
+  team: TeamSummary;
+  ready: boolean;
+  is_you: boolean;
+}
+
+/** What's next in the season, who's ready for it, and when it happens (`schemas.TurnOut`). */
+export interface Turn {
+  /** What advancing plays next, e.g. "Week 3". */
+  step: string;
+  step_key: string;
+  managers: TurnMember[];
+  all_ready: boolean;
+  /** The viewer is a commissioner. */
+  can_advance: boolean;
+  draft_clock_minutes: number;
+  /** The daily advance, in minutes after midnight UTC (null: off). */
+  advance_minute_utc: number | null;
+  next_advance_at: string | null;
+  pick_clock_ends_at: string | null;
+}
+
+export interface LeagueSettings {
+  draft_clock_minutes?: number;
+  advance_minute_utc?: number | null;
 }

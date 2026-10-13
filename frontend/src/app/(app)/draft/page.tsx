@@ -30,5 +30,6 @@ async function DraftContent() {
   });
   if (!result.ok) return <ServerError error={result.error} />;
   const { franchise, draft } = result.data;
-  return <DraftView draft={draft} team={franchise.team} leagueId={franchise.league.id} />;
+  return <DraftView draft={draft} team={franchise.team} leagueId={franchise.league.id}
+    canRun={franchise.role === "commissioner"} />;
 }
