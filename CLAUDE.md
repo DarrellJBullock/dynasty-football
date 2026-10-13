@@ -239,6 +239,11 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`review`; a rolled-back final calls `unreview`). Fan mood and goal status during a
   season are derived from the record, never stored week by week. JSON columns that
   are queried for `None` need `none_as_null=True` (see `OwnerSeason`).
+- **Money** (`services/money.py`, `domain/money.py`): a season's finances are derived from
+  its games (each home gate from the fans' mood going into it) and the payrolls, never
+  stored week by week; the owners' review keeps the season's (`OwnerSeason.finances`).
+  Revenue scales with the league's salary cap. Money never limits spending (the cap and the
+  staff budget do).
 - **League rules** (`services/rules.py`, `League.roster_max`, `cap_growth_bp`,
   `playoff_seeds`, `season_weeks`) change only between seasons. **Never check a roster
   against `domain.positions.ROSTER_MAX`** (it's only the default): use the league's

@@ -216,7 +216,7 @@ Design: `docs/design/owners-and-front-offices.md`.
 
 - [x] Owners and fans (owners with priorities and patience, markets, fan mood, the
       season's goals and the owner's review, confidence; the Dashboard's owner card)
-- [ ] Money (revenue and expenses each week and season, ticket prices, the Finances
+- [x] Money (revenue and expenses each week and season, ticket prices, the Finances
       page, profit goals)
 - [ ] Job security (firing, open jobs, taking another team, the career record; AI GMs
       judged and replaced)

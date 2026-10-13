@@ -9,10 +9,12 @@ import type {
   LeagueRules,
   LeagueRulesIn,
   LeagueLogAction,
+  Finances,
   LiveState,
   Owner,
   Rollback,
   SeasonTrade,
+  TicketPrice,
   TeamStaff,
   HallOfFame,
   TeamRecords,
@@ -328,6 +330,9 @@ export const api = {
     const qs = query.toString();
     return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
   },
+  finances: (teamId: number) => request<Finances>(`/teams/${teamId}/finances`),
+  setTicketPrice: (teamId: number, price: TicketPrice) =>
+    request<Finances>(`/teams/${teamId}/ticket-price`, { method: "PUT", body: JSON.stringify({ price }) }),
   owner: (teamId: number) => request<Owner>(`/teams/${teamId}/owner`),
   leagueRules: (leagueId: number) => request<LeagueRules>(`/leagues/${leagueId}/rules`),
   updateRules: (leagueId: number, rules: LeagueRulesIn) =>

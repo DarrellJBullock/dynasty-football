@@ -28,6 +28,7 @@ from app.models import (
 )
 from app.schemas import OwnerGoalOut, OwnerOut, OwnerReviewOut
 from app.seed import data
+from app.services import money
 from app.services.serializers import team_summary
 from app.services.standings import compute_records
 from app.services.teams import (
@@ -92,7 +93,8 @@ def set_goals(db: Session, season: Season) -> None:
         if team_id in have or team_id not in owners:
             continue
         place = rules.situation(rank, len(ranked))
-        goals = rules.goals(owners[team_id].priority, place, weeks)
+        goals = rules.goals(owners[team_id].priority, place, weeks,
+                            db.get(League, season.league_id).salary_cap)
         db.add(OwnerSeason(season_id=season.id, team_id=team_id, situation=place,
                            goals=[{"kind": g.kind, "target": g.target, "weight": g.weight}
                                   for g in goals]))
@@ -103,9 +105,10 @@ def _goals(row: OwnerSeason) -> list[rules.Goal]:
     return [rules.Goal(g["kind"], g["target"], g["weight"]) for g in row.goals]
 
 
-def _facts(db: Session, season: Season, team_ids: list[int]) -> dict[int, rules.Season]:
-    """Each team's season so far: record, playoffs, and today's roster (young starters,
-    stars)."""
+def _facts(db: Session, season: Season,
+           team_ids: list[int]) -> dict[int, tuple[rules.Season, money.Finances]]:
+    """Each team's season so far: record, playoffs, today's roster (young starters, stars),
+    and its money."""
     records = compute_records(db, season, team_ids)
     seeds = {s.team_id: s for s in db.scalars(
         select(PlayoffSeed).where(PlayoffSeed.season_id == season.id))}
@@ -124,13 +127,17 @@ def _facts(db: Session, season: Season, team_ids: list[int]) -> dict[int, rules.
         starters = {p.id: p for players in lineup.values() for p in players}
         record = records[team_id]
         seed = seeds.get(team_id)
+        team = db.get(Team, team_id)
+        finances = money.season_finances(db, season, team)
         facts[team_id] = rules.Season(
             wins=record.wins, losses=record.losses, ties=record.ties, weeks=weeks,
             playoffs=seed is not None, playoff_wins=playoff_wins[team_id],
             title=season.champion_team_id == team_id,
             division=bool(seed and seed.division_winner),
             young_starters=sum(1 for p in starters.values() if p.age <= rules.YOUNG_AGE),
-            stars=sum(1 for p in roster if p.overall >= rules.STAR_OVERALL))
+            stars=sum(1 for p in roster if p.overall >= rules.STAR_OVERALL),
+            ticket_price=team.ticket_price, profit=finances.profit,
+            projected_profit=finances.projected_profit), finances
     return facts
 
 
@@ -144,7 +151,8 @@ def review(db: Session, season: Season) -> None:
         select(Owner).where(Owner.league_id == season.league_id))}
     facts = _facts(db, season, [r.team_id for r in rows])
     for row in rows:
-        owner, team, fact = owners[row.team_id], db.get(Team, row.team_id), facts[row.team_id]
+        owner, team = owners[row.team_id], db.get(Team, row.team_id)
+        fact, finances = facts[row.team_id]
         base = team.fan_mood if team.fan_mood is not None else 50
         mood = rules.fan_mood(base, fact, drift=True)
         results = [(g, bool(rules.met(g, fact, mood, final=True))) for g in _goals(row)]
@@ -156,6 +164,7 @@ def review(db: Session, season: Season) -> None:
         row.confidence_before, row.confidence_after = owner.confidence, after
         row.fan_mood_before, row.fan_mood_after = base, mood
         row.verdict = rules.verdict(after - owner.confidence, after)
+        row.finances = finances.summary(team.ticket_price)
         owner.confidence, team.fan_mood = after, mood
     db.flush()
 
@@ -172,6 +181,7 @@ def unreview(db: Session, season: Season) -> None:
         row.results = row.confidence_parts = row.fan_parts = row.verdict = None
         row.confidence_before = row.confidence_after = None
         row.fan_mood_before = row.fan_mood_after = None
+        row.finances = None
     db.flush()
 
 
@@ -189,7 +199,7 @@ def owner_view(db: Session, team: Team) -> OwnerOut:
     base = team.fan_mood if team.fan_mood is not None else 50
     mood, fan_parts, goals = base, [], []
     if row is not None:
-        fact = _facts(db, season, [team.id])[team.id]
+        fact, _finances = _facts(db, season, [team.id])[team.id]
         final = row.results is not None
         if not final:
             mood = rules.fan_mood(base, fact)

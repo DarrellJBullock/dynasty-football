@@ -6,6 +6,7 @@ from app.api.errors import roster_errors
 from app.db import get_db
 from app.models import Team, User
 from app.schemas import (
+    FinancesOut,
     OwnerOut,
     PlayerCreate,
     PlayerDetail,
@@ -14,10 +15,11 @@ from app.schemas import (
     TeamContracts,
     TeamDetail,
     TeamUpdate,
+    TicketPriceIn,
 )
 from app.services import contracts as contract_service
 from app.services import draft as draft_service
-from app.services import league_log, owners
+from app.services import league_log, money, owners
 from app.services import leagues as league_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
@@ -60,6 +62,24 @@ def read_owner(team: Team = Depends(get_team), db: Session = Depends(get_db)):
     view = owners.owner_view(db, team)
     db.commit()  # (a league from before owners gets them the first time they're asked)
     return view
+
+
+@router.get("/{team_id}/finances", response_model=FinancesOut)
+def read_finances(team: Team = Depends(get_team), db: Session = Depends(get_db)):
+    """The team's money this season: each home game's gate, media, merchandise, what it
+    pays its players and staff, the profit so far and at this pace, and past seasons."""
+    view = money.finances_view(db, team)
+    db.commit()  # (a league from before owners gets them the first time they're asked)
+    return view
+
+
+@router.put("/{team_id}/ticket-price", response_model=FinancesOut)
+def change_ticket_price(body: TicketPriceIn, team: Team = Depends(get_team),
+                        db: Session = Depends(get_db)):
+    """The team's ticket price for the coming season (between seasons only)."""
+    with roster_errors(db):
+        money.set_ticket_price(db, team, body.price)
+    return money.finances_view(db, team)
 
 
 @router.get("/{team_id}/roster", response_model=list[PlayerSummary])

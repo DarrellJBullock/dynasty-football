@@ -714,6 +714,45 @@ export interface Owner {
   last_review: OwnerReview | null;
 }
 
+/** A team's money this season (`schemas.FinancesOut`, services/money.py). */
+export type TicketPrice = "low" | "normal" | "high";
+
+export interface Gate {
+  game_id: number;
+  week: number;
+  playoff: boolean;
+  opponent: string;
+  /** The fans' mood going into it. */
+  fan_mood: number;
+  attendance: number;
+  capacity: number;
+  /** A seat. */
+  price: number;
+  revenue: number;
+}
+
+export interface Finances {
+  team: TeamSummary;
+  season_year: number | null;
+  market: "small" | "medium" | "large";
+  capacity: number;
+  ticket_price: TicketPrice;
+  prices: { price: TicketPrice; label: string; seat: number }[];
+  /** Why the price can't change now (null: it can). */
+  price_locked: string | null;
+  /** Of the regular season played. */
+  share: number;
+  gates: Gate[];
+  revenue: { label: string; amount: number }[];
+  expenses: { label: string; amount: number }[];
+  total_revenue: number;
+  total_expenses: number;
+  profit: number;
+  projected_profit: number;
+  /** Past seasons, newest first. */
+  history: { year: number; revenue: number; expenses: number; profit: number }[];
+}
+
 /** The league's rules (`schemas.RulesOut`): changed between seasons by the commissioner. */
 export interface LeagueRules {
   roster_max: number;

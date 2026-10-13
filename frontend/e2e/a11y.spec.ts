@@ -28,7 +28,7 @@ test("every page in a fresh league", async ({ page }) => {
   test.slow();
   const pages = ["/", "/roster", "/depth-chart", "/contracts", "/free-agency", "/draft", "/trades",
     "/schedule", "/playoffs", "/stats", "/league", "/history", "/leagues", "/leagues/new",
-    "/account", "/coach", "/dynasty", "/game-plan", "/members", "/join?token=x", "/inbox", "/hall-of-fame", "/records", "/staff", "/league-log"];
+    "/account", "/coach", "/dynasty", "/game-plan", "/members", "/join?token=x", "/inbox", "/hall-of-fame", "/records", "/staff", "/league-log", "/finances"];
   const problems: string[] = [];
   for (const url of pages) problems.push(...await audit(page, url));
   const next = await (await page.request.get("/api/franchise/next-game")).json();

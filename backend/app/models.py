@@ -164,6 +164,9 @@ class Team(Base):
     # season (this season's form is worked out live). None until the league has owners.
     market: Mapped[str | None] = mapped_column(String(8))
     fan_mood: Mapped[int | None] = mapped_column(Integer)
+    # Low, normal or high (domain/money.py), chosen between seasons.
+    ticket_price: Mapped[str] = mapped_column(String(8), default="normal",
+                                              server_default="normal")
 
     league: Mapped[League] = relationship(back_populates="teams")
     division: Mapped[Division] = relationship(back_populates="teams")
@@ -606,6 +609,8 @@ class OwnerSeason(Base):
     fan_mood_before: Mapped[int | None] = mapped_column(Integer)
     fan_mood_after: Mapped[int | None] = mapped_column(Integer)
     verdict: Mapped[str | None] = mapped_column(String(40))
+    # The season's money, as it ended (services/money.py): revenue, expenses, profit.
+    finances: Mapped[dict | None] = mapped_column(_NULLABLE_JSON)
 
 
 class WeekSnapshot(Base):

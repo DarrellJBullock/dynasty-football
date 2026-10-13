@@ -1788,3 +1788,58 @@ class OwnerOut(BaseModel):
     situation: str | None  # where the roster stood when the goals were set
     goals: list[OwnerGoalOut]
     last_review: OwnerReviewOut | None
+
+
+class GateOut(BaseModel):
+    """A home game's gate."""
+    game_id: int
+    week: int
+    playoff: bool
+    opponent: str  # abbreviation
+    fan_mood: int  # going into it
+    attendance: int
+    capacity: int
+    price: int  # a seat
+    revenue: int
+
+
+class TicketPriceOut(BaseModel):
+    price: Literal["low", "normal", "high"]
+    label: str
+    seat: int  # one seat at one regular-season game
+
+
+class FinanceLine(BaseModel):
+    label: str
+    amount: int
+
+
+class FinanceYear(BaseModel):
+    year: int
+    revenue: int
+    expenses: int
+    profit: int
+
+
+class FinancesOut(BaseModel):
+    """A team's money this season (services/money.py): so far, and at this pace."""
+    team: TeamSummary
+    season_year: int | None
+    market: str
+    capacity: int
+    ticket_price: Literal["low", "normal", "high"]
+    prices: list[TicketPriceOut]
+    price_locked: str | None  # why the price can't change now
+    share: float  # of the regular season played
+    gates: list[GateOut]
+    revenue: list[FinanceLine]
+    expenses: list[FinanceLine]
+    total_revenue: int
+    total_expenses: int
+    profit: int
+    projected_profit: int
+    history: list[FinanceYear]  # past seasons, newest first
+
+
+class TicketPriceIn(BaseModel):
+    price: Literal["low", "normal", "high"]
