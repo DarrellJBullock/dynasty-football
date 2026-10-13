@@ -13,7 +13,9 @@ import type {
   FrontOffice,
   GmCareer,
   LiveState,
+  LockerRoom,
   Owner,
+  PlayerMood,
   Rollback,
   SeasonTrade,
   TicketPrice,
@@ -341,6 +343,8 @@ export const api = {
   finances: (teamId: number) => request<Finances>(`/teams/${teamId}/finances`),
   setTicketPrice: (teamId: number, price: TicketPrice) =>
     request<Finances>(`/teams/${teamId}/ticket-price`, { method: "PUT", body: JSON.stringify({ price }) }),
+  playerMood: (playerId: number) => request<PlayerMood>(`/players/${playerId}/mood`),
+  lockerRoom: (teamId: number) => request<LockerRoom>(`/teams/${teamId}/locker-room`),
   owner: (teamId: number) => request<Owner>(`/teams/${teamId}/owner`),
   leagueRules: (leagueId: number) => request<LeagueRules>(`/leagues/${leagueId}/rules`),
   updateRules: (leagueId: number, rules: LeagueRulesIn) =>

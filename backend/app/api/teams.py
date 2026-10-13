@@ -7,6 +7,7 @@ from app.db import get_db
 from app.models import Team, User
 from app.schemas import (
     FinancesOut,
+    LockerRoomOut,
     OwnerOut,
     PlayerCreate,
     PlayerDetail,
@@ -19,7 +20,7 @@ from app.schemas import (
 )
 from app.services import contracts as contract_service
 from app.services import draft as draft_service
-from app.services import league_log, money, owners
+from app.services import league_log, money, mood, owners
 from app.services import leagues as league_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
@@ -61,6 +62,15 @@ def read_owner(team: Team = Depends(get_team), db: Session = Depends(get_db)):
     going, confidence and fan mood (and what moved them), and the last review."""
     view = owners.owner_view(db, team)
     db.commit()  # (a league from before owners gets them the first time they're asked)
+    return view
+
+
+@router.get("/{team_id}/locker-room", response_model=LockerRoomOut)
+def read_locker_room(team: Team = Depends(get_team), db: Session = Depends(get_db)):
+    """The team's mood at a glance: the average, how many are happy to miserable, and the
+    unhappiest players with what's eating them."""
+    view = mood.locker_room(db, team)
+    db.commit()  # (players from before personalities get theirs the first time)
     return view
 
 

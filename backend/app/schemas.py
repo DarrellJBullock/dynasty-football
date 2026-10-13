@@ -1918,3 +1918,41 @@ class TransactionOut(BaseModel):
     received: list[TradeItem]
     reversed: bool
     between: Literal["ai", "managers", "manager_and_ai"]  # who made it
+
+
+class PlayerMoodOut(BaseModel):
+    """A player's personality and mood (services/mood.py): the base he carried into the
+    season, and what this season has done to it."""
+    player_id: int
+    name: str
+    position: str
+    overall: int
+    drive: str
+    drive_label: str
+    drive_means: str
+    temperament: str
+    temperament_label: str
+    temperament_means: str
+    base: int
+    parts: list[tuple[str, int]]
+    mood: int
+    label: str  # Happy | Content | Unhappy | Miserable
+    role: str  # starter | benched | backup | free_agent
+
+
+class LockerRoomPlayer(BaseModel):
+    player_id: int
+    name: str
+    position: str
+    overall: int
+    mood: int
+    label: str
+    reason: str | None  # what's eating him most
+
+
+class LockerRoomOut(BaseModel):
+    """A team's mood at a glance."""
+    team: TeamSummary
+    average: int
+    counts: dict[str, int]  # Happy / Content / Unhappy / Miserable
+    unhappiest: list[LockerRoomPlayer]

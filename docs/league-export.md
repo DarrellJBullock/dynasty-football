@@ -49,7 +49,7 @@ Times are ISO 8601 strings in UTC, and money is whole dollars.
 |---|---|
 | `league` | Its name, salary cap, settings (draft clock, daily advance, veto window), rules (roster size, cap growth, playoff seeds, season length), men's or women's |
 | `conferences`, `divisions`, `teams` | The structure, and each team's identity (city, nickname, colors, stadium), market, fans' mood and ticket price |
-| `players`, `player_ratings` | Everyone (on a team, a free agent, a draft prospect, or retired), and the 24 ratings |
+| `players`, `player_ratings` | Everyone (on a team, a free agent, a draft prospect, or retired), with personality (drive, temperament) and the mood carried into the season, and the 24 ratings |
 | `contracts`, `dead_money` | Every contract, past and present, and cap charges left behind |
 | `depth_charts` | Each team's saved depth chart |
 | `seasons`, `games`, `team_game_stats`, `playoff_seeds` | Every season, its schedule and results, team box scores, and playoff seeding |

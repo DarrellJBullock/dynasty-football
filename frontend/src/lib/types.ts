@@ -825,6 +825,36 @@ export interface Transaction {
   between: "ai" | "managers" | "manager_and_ai";
 }
 
+/** A player's personality and mood (`schemas.PlayerMoodOut`, services/mood.py). */
+export interface PlayerMood {
+  player_id: number;
+  name: string;
+  position: string;
+  overall: number;
+  drive: "competitor" | "mercenary" | "loyal" | "steady";
+  drive_label: string;
+  drive_means: string;
+  temperament: "leader" | "team_player" | "volatile";
+  temperament_label: string;
+  temperament_means: string;
+  /** The mood he carried into the season. */
+  base: number;
+  /** What this season has done to it: [what, how much]. */
+  parts: [string, number][];
+  mood: number;
+  label: "Happy" | "Content" | "Unhappy" | "Miserable";
+  role: "starter" | "benched" | "backup" | "free_agent";
+}
+
+/** A team's mood at a glance (`schemas.LockerRoomOut`). */
+export interface LockerRoom {
+  team: TeamSummary;
+  average: number;
+  counts: Record<string, number>;
+  unhappiest: { player_id: number; name: string; position: string; overall: number;
+    mood: number; label: string; reason: string | null }[];
+}
+
 /** The league's rules (`schemas.RulesOut`): changed between seasons by the commissioner. */
 export interface LeagueRules {
   roster_max: number;

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { LockerRoomPanel } from "@/components/mood/LockerRoomPanel";
 import { RosterManager } from "@/components/roster/RosterManager";
 import { Skeleton } from "@/components/ui/Panel";
 import { ServerError } from "@/components/ui/ServerError";
@@ -26,23 +27,27 @@ export default function RosterPage() {
 async function RosterContent() {
   const result = await attempt(async () => {
     const franchise = await api.franchise();
-    const [team, roster] = await Promise.all([
+    const [team, roster, room] = await Promise.all([
       api.team(franchise.team.id),
       api.roster(franchise.team.id),
+      api.lockerRoom(franchise.team.id),
     ]);
-    return { franchise, team, roster };
+    return { franchise, team, roster, room };
   });
   if (!result.ok) return <ServerError error={result.error} />;
-  const { franchise, team, roster } = result.data;
+  const { franchise, team, roster, room } = result.data;
   return (
-    <RosterManager
-      initialTeam={team}
-      initialRoster={roster}
-      leagueId={franchise.league.id}
-      seasonYear={franchise.season.year}
-      season={franchise.season}
-      capYear={franchise.season.year + (franchise.season.phase === "offseason" ? 1 : 0)}
-      commissioner={franchise.role === "commissioner"}
-    />
+    <>
+      <RosterManager
+        initialTeam={team}
+        initialRoster={roster}
+        leagueId={franchise.league.id}
+        seasonYear={franchise.season.year}
+        season={franchise.season}
+        capYear={franchise.season.year + (franchise.season.phase === "offseason" ? 1 : 0)}
+        commissioner={franchise.role === "commissioner"}
+      />
+      <div className="mx-auto mt-6 max-w-7xl"><LockerRoomPanel room={room} /></div>
+    </>
   );
 }

@@ -240,6 +240,11 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`review`; a rolled-back final calls `unreview`). Fan mood and goal status during a
   season are derived from the record, never stored week by week. JSON columns that
   are queried for `None` need `none_as_null=True` (see `OwnerSeason`).
+- **Personalities and mood** (`services/mood.py`, `domain/personality.py`): a player's
+  traits come from his own `random.Random(f"personality:{league}:{player}")`, given the
+  first time they're needed (`ensure_traits`), never at generation. A mood is worked out
+  live (`Player.mood_base` plus this season's parts) and stored only at the offseason
+  (`carry_over`), so rollbacks never need to undo one.
 - **AI trades** (`services/ai_trades.py`): after each regular week (and as the preseason
   opens) AI front offices may offer a member a trade (`TradeOffer.from_ai`: no veto window,
   a counter answered at once by `trades.propose`) and make a deadline deal among
