@@ -1895,3 +1895,12 @@ class GmCareerOut(BaseModel):
 
 class TakeJobIn(BaseModel):
     team_id: int
+
+
+class FrontOfficeOut(BaseModel):
+    """A team's front office: an AI team's direction and why, or who runs it."""
+    team: TeamSummary
+    direction: str | None  # contend | middle | rebuild (None: a member runs it)
+    label: str | None  # "Contending", ...
+    reasons: list[str]
+    manager: str | None  # the member who runs it

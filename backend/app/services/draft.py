@@ -17,7 +17,9 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.domain import staff as staff_rules
 from app.domain.contracts import MIN_SALARY, market_salary
+from app.domain.direction import POTENTIAL_WEIGHT
 from app.domain.draft import (
+    AI_POTENTIAL_WEIGHT,
     PROJECTION_RANGE,
     ROOKIE_YEARS,
     ROUNDS,
@@ -319,6 +321,9 @@ def _auto_pick(season: Season, pick: DraftPick, board: _Board, user: bool,
     if not board.available:
         raise RosterError("No prospects left.")
     needs = board.needs(season, pick.team_id)
+    # (an AI team weighs potential by its direction: a rebuilder more, a contender less)
+    going = pick.team.direction
+    weight = POTENTIAL_WEIGHT[going] if going and not user else AI_POTENTIAL_WEIGHT
     rng = _rng("draft-pick", league_id, season.year, pick.number)
     if user:
         def value(p: Player) -> float:
@@ -326,7 +331,7 @@ def _auto_pick(season: Season, pick: DraftPick, board: _Board, user: bool,
             return ai_value(rng, ovr, potential, p.position in needs)
     else:
         def value(p: Player) -> float:
-            return ai_value(rng, p.overall, p.potential, p.position in needs)
+            return ai_value(rng, p.overall, p.potential, p.position in needs, weight)
     candidates = sorted(board.available, key=lambda p: -(p.overall + p.potential))[:CANDIDATES]
     return max(candidates, key=lambda p: (value(p), -p.id))
 

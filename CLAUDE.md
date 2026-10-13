@@ -239,6 +239,11 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`review`; a rolled-back final calls `unreview`). Fan mood and goal status during a
   season are derived from the record, never stored week by week. JSON columns that
   are queried for `None` need `none_as_null=True` (see `OwnerSeason`).
+- **AI direction** (`services/direction.py`, `domain/direction.py`): each offseason (after
+  development, before re-signing) every AI team decides to contend, sit in the middle or
+  rebuild (`Team.direction`, with reasons), and re-signing, free agency and the draft follow
+  it (`direction.of(team)`; the middle when there's none). Members' teams have none, except on
+  autopilot. Directions use no random draws.
 - **Job security** (`services/careers.py`): the owners' review fires general managers
   below `FIRE_LINE` when the league's `firing` rule allows (`careers.fires`). A fired member
   (`Franchise.fired_at`) must take another job (`take_job`) before the offseason begins

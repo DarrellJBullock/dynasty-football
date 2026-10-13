@@ -10,6 +10,7 @@ import type {
   LeagueRulesIn,
   LeagueLogAction,
   Finances,
+  FrontOffice,
   GmCareer,
   LiveState,
   Owner,
@@ -331,6 +332,7 @@ export const api = {
     const qs = query.toString();
     return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
   },
+  frontOffices: (leagueId: number) => request<FrontOffice[]>(`/leagues/${leagueId}/front-offices`),
   gmCareer: () => request<GmCareer>("/franchise/career"),
   takeJob: (teamId: number) => post<GmCareer>("/franchise/take-job", { team_id: teamId }),
   finances: (teamId: number) => request<Finances>(`/teams/${teamId}/finances`),

@@ -26,14 +26,17 @@ test("turns the game's sound on, plays the play's sounds, and remembers it", asy
   await expect(sound.getByRole("slider", { name: "Volume" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.dynastySound?.state)).toBe("running");
 
-  // Play it from the start: the snap count, the snap and the whistle sound in turn.
+  // Play it from the start: the snap count and the snap, then the play's end: the whistle,
+  // or, after a big play (a long touchdown has no whistle), the crowd.
   const scrubber = viewer.getByRole("slider", { name: "Play timeline" });
   await viewer.getByRole("button", { name: /^(Pause|Play|Replay)$/ }).first().click();
   await scrubber.fill("0");
   const play = viewer.getByRole("button", { name: "Play", exact: true });
   if (await play.isVisible()) await play.click();
   await expect.poll(() => page.evaluate(() => window.dynastySound?.played ?? []), { timeout: 20_000 })
-    .toEqual(expect.arrayContaining(["cadence", "snap", "whistle"]));
+    .toEqual(expect.arrayContaining(["cadence", "snap"]));
+  await expect.poll(async () => (await page.evaluate(() => window.dynastySound?.played ?? []))
+    .some((sound) => ["whistle", "cheer", "groan"].includes(sound)), { timeout: 20_000 }).toBe(true);
   // The booth calls it (spoken commentary is on with sound; the probe records each line).
   await expect.poll(() => page.evaluate(() => window.dynastySound?.spoken.length ?? 0)).toBeGreaterThan(0);
 

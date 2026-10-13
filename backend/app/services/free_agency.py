@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.domain.contracts import MIN_SALARY, preferred_years, required_salary
+from app.domain.direction import UPGRADE_MARGIN, extension_reserve, wants_free_agent
 from app.domain.free_agency import MARKET_DAYS, Bid, acceptable, demand, ranked
 from app.domain.positions import Position, available_jersey
 from app.models import FreeAgentOffer, League, Player, Season, Team
@@ -34,7 +35,7 @@ from app.schemas import (
     FreeAgentRow,
     MarketSigning,
 )
-from app.services import cap
+from app.services import cap, direction
 from app.services.errors import RosterError
 from app.services.members import human_team_ids
 from app.services.offseason import (
@@ -54,7 +55,6 @@ from app.services.teams import (
 
 AI_SALARY_RANGE = (0.9, 1.12)  # AI offers, as a share of the player's price
 AI_CHOICES = (3, 2, 1)  # weights for an AI team's top three affordable targets
-UPGRADE_MARGIN = 4  # an AI team also chases a free agent this much better than its starter
 
 
 def market_rng(league_id: int, year: int, day: int) -> random.Random:
@@ -151,11 +151,15 @@ def _ai_offers(db: Session, market: _Market) -> None:
     for player in market.pool:
         if player.overall >= FREE_AGENT_FLOOR:
             by_position[player.position].append(player)
+    direction.ensure(db, market.league)
     teams = [t for t in market.teams if t.id not in market.humans]
     rng.shuffle(teams)
     for team in teams:
+        going = direction.of(team)  # (contending, middle or rebuilding: domain/direction.py)
         open_spots = market.league.roster_max - len(market.rosters[team.id])
-        budget = market.league.salary_cap - market.payrolls[team.id]
+        # Room kept for next year's extensions.
+        budget = (market.league.salary_cap - market.payrolls[team.id] - extension_reserve(
+            going, direction.raises_due(market.rosters[team.id], season.year, going)))
         targeted: set[int] = set()
 
         # One clear upgrade a day: the free agent who most outclasses this team's best
@@ -168,7 +172,8 @@ def _ai_offers(db: Session, market: _Market) -> None:
             upgrades = []
             for candidate in market.pool:
                 gain = candidate.overall - starters.get(candidate.position, 0)
-                if (gain >= UPGRADE_MARGIN and candidate.overall >= FREE_AGENT_FLOOR
+                if (gain >= UPGRADE_MARGIN[going] and candidate.overall >= FREE_AGENT_FLOOR
+                        and wants_free_agent(going, candidate.age)
                         and market.departed_from.get(candidate.id) != team.id):
                     years = preferred_years(candidate.age)
                     salary = int(round(price(candidate, years) * rng.uniform(*AI_SALARY_RANGE),
@@ -186,7 +191,8 @@ def _ai_offers(db: Session, market: _Market) -> None:
             reserve = (open_spots - len(targeted) - 1) * ROSTER_SPOT_RESERVE
             options = []
             for candidate in by_position[position]:
-                if candidate.id in targeted or market.departed_from.get(candidate.id) == team.id:
+                if (candidate.id in targeted or market.departed_from.get(candidate.id) == team.id
+                        or not wants_free_agent(going, candidate.age)):
                     continue
                 years = preferred_years(candidate.age)
                 salary = int(round(price(candidate, years) * rng.uniform(*AI_SALARY_RANGE), -4))

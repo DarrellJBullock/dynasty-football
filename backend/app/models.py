@@ -170,6 +170,11 @@ class Team(Base):
     # Low, normal or high (domain/money.py), chosen between seasons.
     ticket_price: Mapped[str] = mapped_column(String(8), default="normal",
                                               server_default="normal")
+    # An AI front office's direction (domain/direction.py), decided each offseason, and why:
+    # contend, middle or rebuild. None for a team a member runs (they decide).
+    direction: Mapped[str | None] = mapped_column(String(8))
+    direction_reasons: Mapped[list | None] = mapped_column(
+        JSON(none_as_null=True).with_variant(JSONB(none_as_null=True), "postgresql"))
 
     league: Mapped[League] = relationship(back_populates="teams")
     division: Mapped[Division] = relationship(back_populates="teams")

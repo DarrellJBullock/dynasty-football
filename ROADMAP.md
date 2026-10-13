@@ -220,7 +220,7 @@ Design: `docs/design/owners-and-front-offices.md`.
       page, profit goals)
 - [x] Job security (firing, open jobs, taking another team, the career record; AI GMs
       judged and replaced)
-- [ ] AI direction and roster building (contending, middle, rebuilding; free agency, the
+- [x] AI direction and roster building (contending, middle, rebuilding; free agency, the
       draft, re-signing and cap planning by direction)
 - [ ] AI trades (offers to managers, AI-to-AI deadline deals, the Transactions list,
       parity calibration)

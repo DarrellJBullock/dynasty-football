@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.domain.contracts import market_salary
 from app.domain.development import contract_years, develop, retirement_chance
+from app.domain.direction import keeps
 from app.domain.positions import ROSTER_TEMPLATE, Position
 from app.models import Contract, Player, Season, Team
 from app.seed.generator import (
@@ -40,7 +41,6 @@ if TYPE_CHECKING:
     from app.schemas import OffseasonRecap
 
 ROSTER_SPOT_RESERVE = 1_000_000  # cap room kept per open roster spot while re-signing
-VETERAN_KEEP = (30, 70)  # teams let expiring players this old and below this OVR walk
 FREE_AGENT_FLOOR = 64  # AI teams don't bid on free agents below this OVR
 FREE_AGENT_TARGET = (62, 5)
 FREE_AGENT_POOL_MAX = 250  # unsigned players kept from one offseason to the next
@@ -124,6 +124,13 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
         log["retired"].append({"player": player.id, "team": None})
         player.retired_year = season.year
 
+    # Every AI front office decides where it's going this season (services/direction.py),
+    # which shapes whom it keeps, signs and drafts.
+    from app.services import direction  # (it builds on this module's league)
+
+    db.flush()
+    direction.decide(db, league, autopilot)
+
     # 3. Expiring contracts.
     teams = list(db.scalars(select(Team).where(Team.league_id == league.id).order_by(Team.id)))
     active = [p for p in players if p.retired_year is None]
@@ -153,8 +160,8 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
             salary = market_salary(Position(player.position), player.overall)
             # Keep enough room to fill the rest of the roster.
             reserve = max(0, league.roster_max - committed - 1) * ROSTER_SPOT_RESERVE
-            worth_keeping = team.id not in humans and (
-                player.age < VETERAN_KEEP[0] or player.overall >= VETERAN_KEEP[1])
+            worth_keeping = team.id not in humans and keeps(
+                direction.of(team), player.age, player.overall)
             if worth_keeping and payroll + salary + reserve <= salary_cap:
                 years = contract_years(rng, player.age)
                 _sign(player, team, year, salary, years)
