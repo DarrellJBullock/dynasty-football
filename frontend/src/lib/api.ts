@@ -5,6 +5,7 @@ import type {
   StaffMarket,
   PlayerCoaching,
   Credentials,
+  LiveState,
   TeamStaff,
   HallOfFame,
   TeamRecords,
@@ -313,6 +314,14 @@ export const api = {
   resetGamePlan: (teamId: number) =>
     request<GamePlan>(`/teams/${teamId}/game-plan`, { method: "DELETE" }),
   nextGame: () => request<NextGame>("/franchise/next-game"),
+  liveGame: (gameId: number) => request<LiveState>(`/games/${gameId}/live`),
+  offerLive: (gameId: number, clockSeconds: number | null) =>
+    post<LiveState>(`/games/${gameId}/live`, { clock_seconds: clockSeconds }),
+  acceptLive: (gameId: number) => post<LiveState>(`/games/${gameId}/live/accept`),
+  declineLive: (gameId: number) => post<LiveState>(`/games/${gameId}/live/decline`),
+  liveCall: (gameId: number, call: CoachCallIn) => post<LiveState>(`/games/${gameId}/live/call`, call),
+  liveAuto: (gameId: number, scope: "play" | "drive" | "game") =>
+    post<LiveState>(`/games/${gameId}/live/auto`, { scope }),
   coachState: (gameId: number) => request<CoachState>(`/games/${gameId}/coach`),
   startCoaching: (gameId: number) => post<CoachState>(`/games/${gameId}/coach`),
   coachCall: (gameId: number, call: CoachCallIn) => post<CoachState>(`/games/${gameId}/coach/call`, call),

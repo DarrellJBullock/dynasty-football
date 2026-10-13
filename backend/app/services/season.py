@@ -130,6 +130,16 @@ def _play_week(db: Session, season: Season, games: list[Game], sim_teams: dict[i
     """Play one week (or playoff round) with this week's lineups, then update injuries:
     players hurt this week miss the coming weeks, earlier injuries count down. A game the
     user coached to the end is already played; its injuries count with its week."""
+    # A live game (head-to-head) not finished by now: the AI finishes it from both game
+    # plans, the calls so far standing (services/live.py).
+    from app.models import LiveGame
+    from app.services import live
+
+    for unfinished in db.scalars(select(LiveGame).where(
+            LiveGame.game_id.in_([g.id for g in games]),
+            LiveGame.status == "in_progress")).all():
+        live.finish_with_ai(db, unfinished)
+    games = [g for g in games if g.status == "scheduled"]
     in_progress = db.scalar(select(CoachedGame).where(
         CoachedGame.game_id.in_([g.id for g in games]), CoachedGame.status == "in_progress"))
     if in_progress:
@@ -138,9 +148,12 @@ def _play_week(db: Session, season: Season, games: list[Game], sim_teams: dict[i
     coached = [c for c in db.scalars(select(CoachedGame).join(Game).where(
         Game.season_id == season.id, Game.stage == stage, CoachedGame.status == "final"))
         if stage == "playoff" or c.game.week == week]
-    hurt = [e for c in coached for play in c.game.play_log or [] for e in play["events"]
-            if e["t"] == "injury"]
-    for c in coached:
+    played_live = [g for g in db.scalars(select(LiveGame).join(Game).where(
+        Game.season_id == season.id, Game.stage == stage, LiveGame.status == "final"))
+        if stage == "playoff" or g.game.week == week]
+    hurt = [e for c in [*coached, *played_live] for play in c.game.play_log or []
+            for e in play["events"] if e["t"] == "injury"]
+    for c in [*coached, *played_live]:
         c.status = "settled"
     refresh_availability(db, season.league_id, sim_teams)
     hurt += [e for game in games

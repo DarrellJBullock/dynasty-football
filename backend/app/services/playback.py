@@ -42,7 +42,12 @@ def _live_plays(db: Session, game: Game) -> list[dict]:
     from app.services import coach  # (coach builds on the season services)
 
     coached = coach.coached_game(db, game)
-    return coach.live_plays(coached) if coached and coached.status == "in_progress" else []
+    if coached and coached.status == "in_progress":
+        return coach.live_plays(coached)
+    from app.services import live  # (a game between two members, played head-to-head)
+
+    found = live.live_game(db, game)
+    return live.live_plays(found) if found else []
 
 
 def _approximate(offense: SimTeam, defense: SimTeam, play: dict) -> Personnel:

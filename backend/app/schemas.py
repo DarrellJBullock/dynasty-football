@@ -1424,6 +1424,27 @@ class CoachCallIn(BaseModel):
     timeout: bool = False  # call a timeout before the snap
 
 
+class LiveOfferIn(BaseModel):
+    clock_seconds: int | None = None  # each call's clock (None: no clock)
+
+
+class LiveStateOut(BaseModel):
+    """A live game as one coach (or a watcher) sees it: never the other side's calls."""
+    game: "GameOut"
+    status: Literal["proposed", "declined", "in_progress", "final", "settled"]
+    side: Literal["home", "away"] | None  # the viewer's (None: watching)
+    team: TeamSummary | None  # the viewer's team
+    proposed_by_you: bool
+    managers: dict[str, str]  # side -> who coaches it
+    clock_seconds: int | None
+    deadline: datetime | None  # when the call clock runs out (the AI calls)
+    autopilot: bool  # the AI calls the rest of your game
+    situation: "CoachSituation | None"  # your call to make, if it's yours
+    waiting_on: list[str]  # the other side(s) the snap waits on (abbreviations)
+    plays: list["PlayOut"]
+    new_plays: int
+
+
 class CoachAutoIn(BaseModel):
     scope: Literal["play", "drive", "game"]
 
@@ -1431,6 +1452,7 @@ class CoachAutoIn(BaseModel):
 class NextGameOut(BaseModel):
     game: "GameOut | None"  # the franchise's game this week, if it hasn't been played
     coaching: bool  # the user has started coaching it
+    head_to_head: bool = False  # against another member's team: played live, or simulated
 
 
 class Credentials(BaseModel):

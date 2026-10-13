@@ -69,8 +69,8 @@ def start(db: Session, game: Game, team_id: int | None) -> CoachedGame:
     if upcoming is None or upcoming.id != game.id:
         raise RosterError("You can only coach your team's next game.")
     if {game.home_team_id, game.away_team_id} <= human_team_ids(db, season.league_id):
-        raise RosterError("Games between two members' teams are simulated from both game "
-                          "plans: set yours on the Game Plan page.")
+        raise RosterError("Games between two members' teams are played live (offer it on the "
+                          "game's Live page) or simulated from both game plans.")
     if season.phase == "preseason":
         _check_franchise_roster(db, season)
     sim_teams = league_sim_teams(db, season.league_id)

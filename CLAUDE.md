@@ -29,7 +29,8 @@ backend/    FastAPI + SQLAlchemy 2 + Alembic (Python 3.12+, developed on 3.14)
 unity/      Unity 6 project: the Unity viewer's WebGL renderer (C#; docs/unity.md)
 frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 + R3F
   src/app/(app)/  the game (with the sidebar): / (dashboard), /roster, /depth-chart,
-                  /schedule, /games/[id], /games/[id]/watch (3D), /games/[id]/coach and
+                  /schedule, /games/[id], /games/[id]/watch (3D), /games/[id]/coach,
+                  /games/[id]/live (head-to-head) and
                   /coach (Coach Mode), /playoffs, /contracts, /free-agency, /draft,
                   /trades, /history, /stats, /players/[id], /league, /members, /leagues,
                   /leagues/new, /account
@@ -204,7 +205,11 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
 - **Head-to-head games** (`sim/coaching.replay_both`) script both sides: before each snap
   both coaches are asked, and `NeedCalls` names every side still to call, so neither sees
   the other's call first; kicking decisions and audibles stop for one side (`NeedCall.side`).
-  Both sides on autopilot is the AI's game, draw for draw.
+  Both sides on autopilot is the AI's game, draw for draw. A live game (`services/live.py`,
+  `LiveGame`) keeps both sides' calls and replays them on every read; nothing may reveal one
+  side's calls to the other (`live.state` shows only the viewer's situation). The week's sim
+  finishes an unfinished one with the AI (`finish_with_ai`), and `turns.tick` runs call clocks.
+  `CoachView` takes `actions` (call/auto/load) so `LiveView` reuses the call screen.
 - **Audibles** are decided at the line inside a snap (`engine.at_the_line`): the answer is
   stored on that snap's recorded call (`CoachCall.audible`), not as a new call, and the look
   draws from its own `random.Random(f"look:{seed}:{n}:{role}")`, never the game's stream.

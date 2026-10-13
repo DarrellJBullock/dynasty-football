@@ -14,6 +14,7 @@ from app.api import (
     jobs,
     leagues,
     legacy,
+    live,
     members,
     notifications,
     playbook,
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     api.include_router(notifications.router, dependencies=locked)
     api.include_router(legacy.router, dependencies=locked)
     api.include_router(staff.router, dependencies=locked)
+    api.include_router(live.router, dependencies=locked)
     # The read-only public link: no session; the link's token is the key.
     api.include_router(public.router, dependencies=[Depends(same_site)])
     api.include_router(members.invites_router, dependencies=[Depends(same_site)])
