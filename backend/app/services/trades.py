@@ -34,6 +34,7 @@ from app.schemas import (
     TradeOut,
     TradeProposal,
     TradeResult,
+    TransactionOut,
 )
 from app.services import cap, draft
 from app.services.depth_chart import remove_player
@@ -444,3 +445,22 @@ def reverse(db: Session, trade: Trade) -> None:
         player.team_id = left
     trade.reversed_at = datetime.now(UTC)
     db.flush()
+
+
+def transactions(db: Session, league: League, year: int | None = None) -> list[TransactionOut]:
+    """Every trade in a season (the current one by default), newest first, for everyone."""
+    season = (db.scalar(select(Season).where(Season.league_id == league.id, Season.year == year))
+              if year is not None else current_season(db, league.id))
+    if season is None:
+        return []
+    humans = human_team_ids(db, league.id)
+    out = []
+    for trade in db.scalars(select(Trade).where(Trade.season_id == season.id)
+                            .order_by(Trade.id.desc())):
+        managed = (trade.team_id in humans) + (trade.partner_id in humans)
+        out.append(TransactionOut(
+            id=trade.id, team=team_summary(trade.team), partner=team_summary(trade.partner),
+            year=season.year, season_phase=trade.phase, week=trade.week, sent=trade.sent,
+            received=trade.received, reversed=trade.reversed_at is not None,
+            between=("ai", "manager_and_ai", "managers")[managed]))
+    return out

@@ -131,7 +131,8 @@ def accept(db: Session, offer: TradeOffer, team_id: int | None) -> TradeOffer:
     _check(deal)
     offer.decided_at = _now()
     taker = manager_name(db, offer.to_team_id)
-    if league.trade_review_hours:
+    from_ai = offer.from_ai
+    if league.trade_review_hours and not from_ai:  # (the AI's offers: no veto window)
         offer.status = "review"
         offer.review_ends_at = offer.decided_at + timedelta(hours=league.trade_review_hours)
         db.flush()
@@ -146,7 +147,8 @@ def accept(db: Session, offer: TradeOffer, team_id: int | None) -> TradeOffer:
                        "/trades", role="commissioner")
         return offer
     _complete(db, offer, deal)
-    _tell(db, offer, offer.from_team_id, f"{taker} accepted your offer: the trade is done")
+    if not from_ai:
+        _tell(db, offer, offer.from_team_id, f"{taker} accepted your offer: the trade is done")
     return offer
 
 
@@ -188,7 +190,18 @@ def counter(db: Session, offer: TradeOffer, team_id: int | None, proposal: Trade
     if proposal.partner_id != offer.from_team_id:
         raise RosterError("A counter-offer goes back to the team that made the offer.")
     _open(db, offer, "pending")
-    countered = make(db, db.get(League, offer.league_id), team_id, proposal, note, parent=offer)
+    league = db.get(League, offer.league_id)
+    if offer.from_ai:
+        # The AI answers a counter at once, as it answers any proposal (trades.propose).
+        result = trades.propose(db, league, proposal, team_id)
+        offer.status, offer.decided_at = "countered", _now()
+        offer.reason = ("They took your counter-offer: the trade is done." if result.accepted
+                        else f"They turned your counter-offer down: {result.evaluation.message}")
+        db.flush()
+        if result.accepted:
+            _invalidate_moved(db, league.id)
+        return offer
+    countered = make(db, league, team_id, proposal, note, parent=offer)
     offer.status, offer.decided_at = "countered", _now()
     db.flush()
     return countered
@@ -238,7 +251,8 @@ def _invalidate_moved(db: Session, league_id: int) -> None:
     humans = human_team_ids(db, league_id)
     for offer in db.scalars(select(TradeOffer).where(TradeOffer.league_id == league_id,
                                                      TradeOffer.status.in_(OPEN))):
-        if _moved(db, offer) or not {offer.from_team_id, offer.to_team_id} <= humans:
+        managers = {offer.to_team_id} if offer.from_ai else {offer.from_team_id, offer.to_team_id}
+        if _moved(db, offer) or not managers <= humans:
             offer.status = "invalid"
             offer.reason = "A player or pick in it moved, or a manager left."
     db.flush()

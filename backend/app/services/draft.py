@@ -485,6 +485,9 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
     from app.services.owners import ensure_owners  # (owners build on the draft's rosters)
 
     ensure_owners(db, season.league)  # (the owners set the season's goals)
+    from app.services import ai_trades  # (front offices build on the draft)
+
+    ai_trades.offer_managers(db, season.league, season, 0)  # (offers as the preseason opens)
     flag_modified(season, "offseason_log")
     db.flush()
     # Jobs still open (a member's team that didn't hire) get an interim hire.
