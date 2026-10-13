@@ -14,6 +14,8 @@ from app.services import owners
 from app.services import season as season_service
 from tests.conftest import rollover
 
+CAP = 255_000_000
+
 
 @pytest.fixture
 def season(league: League) -> Season:
@@ -35,14 +37,18 @@ class TestTheRules:
             "contender", "contender", "middle", "middle", "rebuilding", "rebuilding"]
 
     def test_goals_come_from_the_owner_and_the_roster(self):
-        kinds = [g.kind for g in rules.goals("win_now", "contender", 17)]
+        kinds = [g.kind for g in rules.goals("win_now", "contender", 17, CAP)]
         assert kinds == ["title", "wins", "playoffs"]
-        assert rules.goals("win_now", "contender", 17)[1].target == 11  # (.65 of 17)
-        assert [g.kind for g in rules.goals("build", "rebuilding", 17)] == ["young", "wins"]
-        assert rules.goals("build", "rebuilding", 17)[1].target == 6
-        assert [g.kind for g in rules.goals("profit", "middle", 10)] == ["fans", "wins"]
-        assert rules.goals("win_now", "contender", 17)[0].label == "Win the championship"
-        assert rules.goals("build", "middle", 17)[0].label == "Start 6 players aged 25 or younger"
+        assert rules.goals("win_now", "contender", 17, CAP)[1].target == 11  # (.65 of 17)
+        assert [g.kind for g in rules.goals("build", "rebuilding", 17, CAP)] == ["young", "wins"]
+        assert rules.goals("build", "rebuilding", 17, CAP)[1].target == 6
+        profit = rules.goals("profit", "middle", 10, CAP)
+        assert [g.kind for g in profit] == ["profit", "wins"]
+        assert profit[0].target == 10_000_000 and profit[0].label == "Make a profit of $10M"
+        assert rules.goals("profit", "contender", 10, CAP)[0].label == "Turn a profit"
+        assert rules.goals("win_now", "contender", 17, CAP)[0].label == "Win the championship"
+        assert (rules.goals("build", "middle", 17, CAP)[0].label
+                == "Start 6 players aged 25 or younger")
 
     def test_fans_follow_the_season(self):
         unbeaten = _season(wins=17, playoffs=True, playoff_wins=4, title=True, stars=7)

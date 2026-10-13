@@ -48,7 +48,7 @@ Times are ISO 8601 strings in UTC, and money is whole dollars.
 | Key | What |
 |---|---|
 | `league` | Its name, salary cap, settings (draft clock, daily advance, veto window), rules (roster size, cap growth, playoff seeds, season length), men's or women's |
-| `conferences`, `divisions`, `teams` | The structure, and each team's identity (city, nickname, colors, stadium), market and fans' mood |
+| `conferences`, `divisions`, `teams` | The structure, and each team's identity (city, nickname, colors, stadium), market, fans' mood and ticket price |
 | `players`, `player_ratings` | Everyone (on a team, a free agent, a draft prospect, or retired), and the 24 ratings |
 | `contracts`, `dead_money` | Every contract, past and present, and cap charges left behind |
 | `depth_charts` | Each team's saved depth chart |
@@ -57,7 +57,7 @@ Times are ISO 8601 strings in UTC, and money is whole dollars.
 | `draft_picks`, `trades` | Picks (made and to come) and completed trades |
 | `staff`, `staff_seasons`, `staff_dead_money` | Every coach, scout and trainer (on a team, out of work, or retired), each one's seasons (the team's record, playoff wins, titles, Coach of the Year), and what teams still owe staff they let go |
 | `facilities` | Each team's training facility, medical center and scouting department: level 1–5, and an upgrade under way |
-| `owners`, `owner_seasons` | Each team's owner (priority, patience, confidence in the general manager), and each season's goals and review (goals met, what moved confidence and the fans, before and after) |
+| `owners`, `owner_seasons` | Each team's owner (priority, patience, confidence in the general manager), and each season's goals and review (goals met, what moved confidence and the fans, before and after, and the season's money: revenue, expenses, profit) |
 | `hall_of_fame`, `retired_numbers` | Each year's Hall of Fame ballot (`inducted` marks the members; the rest came close), and numbers teams retired |
 
 ## What's left out

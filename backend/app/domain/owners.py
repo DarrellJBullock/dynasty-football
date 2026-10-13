@@ -8,6 +8,8 @@ import random
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.domain import money
+
 PRIORITIES = {  # priority: what the owner wants, in words
     "win_now": "wants to win now",
     "build": "wants something that lasts",
@@ -50,6 +52,7 @@ GOAL_LABELS = {
     "division": "Win the division",
     "young": "Start {target} players aged {age} or younger",
     "fans": "Keep fan mood at {target} or better",
+    "profit": "Make a profit of {millions}",
 }
 
 
@@ -90,12 +93,15 @@ class Goal:
 
     @property
     def label(self) -> str:
-        return GOAL_LABELS[self.kind].format(target=self.target, age=YOUNG_AGE)
+        if self.kind == "profit" and self.target <= 0:
+            return "Turn a profit"
+        return GOAL_LABELS[self.kind].format(target=self.target, age=YOUNG_AGE,
+                                             millions=f"${self.target / 1_000_000:.0f}M")
 
 
-def goals(priority: str, place: str, weeks: int) -> list[Goal]:
+def goals(priority: str, place: str, weeks: int, salary_cap: int) -> list[Goal]:
     """The season's goals: one from what the owner wants, one or two from where the roster
-    stands. (Profit goals come with the money, Milestone 14 part 2.)"""
+    stands."""
     wins = max(1, round(EXPECTED_WIN_PCT[place] * weeks))
     primary = {
         ("win_now", "contender"): Goal("title", 1, PRIMARY_WEIGHT),
@@ -104,10 +110,8 @@ def goals(priority: str, place: str, weeks: int) -> list[Goal]:
         ("build", "contender"): Goal("playoff_win", 1, PRIMARY_WEIGHT),
         ("build", "middle"): Goal("young", 6, PRIMARY_WEIGHT),
         ("build", "rebuilding"): Goal("young", 8, PRIMARY_WEIGHT),
-        ("profit", "contender"): Goal("fans", 65, PRIMARY_WEIGHT),
-        ("profit", "middle"): Goal("fans", 55, PRIMARY_WEIGHT),
-        ("profit", "rebuilding"): Goal("fans", 45, PRIMARY_WEIGHT),
-    }[(priority, place)]
+    }.get((priority, place)) or Goal("profit", money.profit_target(salary_cap, place),
+                                     PRIMARY_WEIGHT)
     chosen = [primary, Goal("wins", wins, SECONDARY_WEIGHT)]
     if place == "contender" and primary.kind != "playoffs":
         chosen.append(Goal("playoffs", 1, SECONDARY_WEIGHT))
@@ -127,6 +131,9 @@ class Season:
     division: bool = False
     young_starters: int = 0
     stars: int = 0
+    ticket_price: str = "normal"
+    profit: int = 0  # so far (the season's, once it's over)
+    projected_profit: int = 0  # the season's, at this pace
 
     @property
     def played(self) -> int:
@@ -147,6 +154,9 @@ def fan_change(season: Season) -> list[tuple[str, int]]:
         parts.append(("Playoff wins", FAN_PLAYOFF_WIN * season.playoff_wins))
     if season.title:
         parts.append(("Champions", FAN_TITLE))
+    if season.ticket_price != "normal" and share:
+        label = "Cheap tickets" if season.ticket_price == "low" else "Dear tickets"
+        parts.append((label, round(money.PRICE_FAN_MOOD[season.ticket_price] * share)))
     stars = min(season.stars, FAN_STARS)
     if stars:
         parts.append((f"{stars} star player{'s' if stars != 1 else ''}", FAN_STAR * stars))
@@ -184,6 +194,8 @@ def met(goal: Goal, season: Season, mood: int, final: bool) -> bool | None:
         return season.young_starters >= goal.target if final else None
     if goal.kind == "fans":
         return mood >= goal.target if final else None
+    if goal.kind == "profit":
+        return season.profit >= goal.target if final else None
     raise ValueError(goal.kind)
 
 
@@ -200,6 +212,8 @@ def on_track(goal: Goal, season: Season, mood: int) -> bool:
         return season.young_starters >= goal.target
     if goal.kind == "fans":
         return mood >= goal.target
+    if goal.kind == "profit":
+        return season.projected_profit >= goal.target
     raise ValueError(goal.kind)
 
 

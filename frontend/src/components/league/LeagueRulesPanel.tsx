@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
@@ -23,7 +22,6 @@ export function LeagueRulesPanel({ leagueId, initial, commissioner }: {
   initial: LeagueRules;
   commissioner: boolean;
 }) {
-  const router = useRouter();
   const [rules, setRules] = useState(initial);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => toForm(initial));
@@ -65,7 +63,6 @@ export function LeagueRulesPanel({ leagueId, initial, commissioner }: {
       setForm(toForm(saved));
       setEditing(false);
       setNotice("Saved: the change is in the League log.");
-      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {

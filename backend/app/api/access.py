@@ -94,6 +94,7 @@ def owned_league(request: Request, user: User = Depends(current_user),
 WRITES = {
     "DELETE /api/leagues/{league_id}": "commissioner",
     "PATCH /api/teams/{team_id}": "team",
+    "PUT /api/teams/{team_id}/ticket-price": "team",
     "POST /api/teams/{team_id}/players": "commissioner",
     "POST /api/teams/{team_id}/signings": "team",
     "POST /api/teams/{team_id}/cut-down": "team",
