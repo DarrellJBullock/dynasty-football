@@ -131,6 +131,16 @@ describe("PlayerView", () => {
     expect(rows[3]).toHaveTextContent("650/1000");
   });
 
+
+  it("marks a Hall of Famer and the teams that retired his number", () => {
+    render(<PlayerView player={makePlayerDetail({ position: "QB" })} stats={stats}
+      career={{ player_id: 1, games: 34, totals: { pass_yds: 8000 }, seasons: [],
+        awards: [{ award: "mvp", label: "Most Valuable Player", year: 2027, player_id: 1, name: "K",
+          position: "QB", team, summary: "" }], hall_of_fame: 2034, retired_by: ["Ironclads"] }} />);
+    const career = screen.getByRole("region", { name: "Career" });
+    expect(within(career).getByRole("link", { name: "Hall of Fame · 2034" })).toHaveAttribute("href", "/hall-of-fame");
+    expect(career).toHaveTextContent("Number retired · Ironclads");
+  });
   it("marks retired players", () => {
     render(<PlayerView player={makePlayerDetail({ retired_year: 2026 })} stats={{ ...stats, games: 0, totals: {}, game_log: [], team: null }} />);
     expect(screen.getByText(/Retired after 2026/)).toBeInTheDocument();

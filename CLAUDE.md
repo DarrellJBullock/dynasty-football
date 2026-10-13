@@ -224,6 +224,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   controls. Public pages live under `PUBLIC_PREFIXES` in `proxy.ts`.
 - **The league export** (`sharing.export_league`, docs/league-export.md) dumps each table's
   rows as stored; a new league-owned table goes there (or in the list of what's left out).
+- **Legacy** (`services/legacy.py`, `domain/legacy.py`): the Hall of Fame votes once a
+  year, at the end of `offseason.advance`, from careers summed out of the box scores.
+  **Anywhere that issues a jersey number must skip the team's retired numbers**
+  (`services/retired.py`: add them to the `taken` set given to `available_jersey`).
 - **Notifications** (`services/notifications.py`): call `notify` / `notify_team` /
   `notify_members` where something happens (a new kind goes in `KINDS`); pass a `key` when
   it must only happen once. Email is never sent in a request: a notification is marked

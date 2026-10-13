@@ -185,6 +185,18 @@ Design: `docs/design/leagues-with-friends.md`.
 - [x] Notifications (an in-app inbox, optional email)
 - [x] Sharing and export (a read-only public link, the whole-league export)
 
+## M12 — Staff and legacy
+
+Design: `docs/design/staff-and-legacy.md`.
+
+- [x] The Hall of Fame and legacy (inductions by legacy score, retired numbers, team
+      record books)
+- [ ] Staff (head coach, coordinators, scout and trainer, with ratings and careers; Coach
+      of the Year)
+- [ ] What staff do (development, scouting and injuries, explained on the player page)
+- [ ] The coaching carousel and the staff budget (contracts, hiring and firing, the AI)
+- [ ] Facilities (training, medical, scouting; levels and upgrades)
+
 ## Later
 
 - [x] Women's leagues (a men's / women's choice in the league builder; women's leagues get

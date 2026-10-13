@@ -27,6 +27,7 @@ KINDS = {  # kind: what the settings call it
     "game_result": "Your team's result",
     "waiting": "Everyone's waiting on you (or ready to go)",
     "member_joined": "Someone joined your league",
+    "legacy": "The Hall of Fame class, and numbers to retire",
 }
 KEEP = 100  # notifications listed at a time
 

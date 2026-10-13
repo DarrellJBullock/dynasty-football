@@ -11,6 +11,7 @@ from app.services import cap
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.injuries import heal
+from app.services.retired import retired_numbers
 from app.services.teams import current_season, load_roster, payroll
 
 DEFAULT_RATING = 50
@@ -156,7 +157,7 @@ def sign_player(db: Session, team: Team, request: SigningRequest) -> Player:
         Position(player.position), player.overall)
     _check_cap(db, team, roster, salary)
 
-    taken = {p.jersey_number for p in roster}
+    taken = {p.jersey_number for p in roster} | retired_numbers(db, team.id)
     if player.jersey_number in taken:
         player.jersey_number = available_jersey(player.position, taken)
     player.team_id = team.id

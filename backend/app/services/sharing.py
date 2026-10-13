@@ -24,10 +24,12 @@ from app.models import (
     Division,
     DraftPick,
     Game,
+    HallOfFameVote,
     League,
     Player,
     PlayerRatings,
     PlayoffSeed,
+    RetiredNumber,
     Season,
     Team,
     TeamGameStats,
@@ -126,6 +128,8 @@ def export_league(db: Session, league: League) -> dict:
         "awards": _rows(db, Award, Award.season_id.in_(season_ids)),
         "draft_picks": _rows(db, DraftPick, DraftPick.league_id == league.id),
         "trades": _rows(db, Trade, Trade.league_id == league.id),
+        "hall_of_fame": _rows(db, HallOfFameVote, HallOfFameVote.league_id == league.id),
+        "retired_numbers": _rows(db, RetiredNumber, RetiredNumber.team_id.in_(team_ids)),
     }
 
 

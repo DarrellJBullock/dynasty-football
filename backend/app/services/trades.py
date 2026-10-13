@@ -38,6 +38,7 @@ from app.services import cap, draft
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.members import human_team_ids
+from app.services.retired import retired_numbers
 from app.services.season import season_view
 from app.services.serializers import player_summary, team_summary
 from app.services.teams import current_season, load_roster, payroll
@@ -311,7 +312,7 @@ def _execute(db: Session, deal: _Deal) -> Trade:
 
     sent, received = [label(a) for a in deal.send], [label(a) for a in deal.receive]
     for items, to_team in ((deal.send, partner), (deal.receive, user)):
-        taken = {p.jersey_number for p in desk.roster(to_team)}
+        taken = {p.jersey_number for p in desk.roster(to_team)} | retired_numbers(db, to_team)
         for item in items:
             if isinstance(item, DraftPick):
                 item.team_id = to_team

@@ -42,6 +42,7 @@ from app.services.offseason import (
     ROSTER_SPOT_RESERVE,
     _sign,
 )
+from app.services.retired import league_retired
 from app.services.season import season_view
 from app.services.serializers import player_summary, team_summary
 from app.services.teams import (
@@ -80,6 +81,7 @@ class _Market:
         self.log: dict = season.offseason_log or {}
         self.teams = list(db.scalars(select(Team).where(Team.league_id == self.league.id)
                                      .order_by(Team.id)))
+        self.retired = league_retired(db, self.league.id)  # (numbers never reissued)
         players = db.scalars(
             select(Player).where(Player.league_id == self.league.id,
                                  Player.retired_year.is_(None), Player.is_prospect.is_(False))
@@ -112,7 +114,7 @@ class _Market:
 
     def sign(self, player: Player, team: Team, salary: int, years: int) -> None:
         roster = self.rosters[team.id]
-        taken = {p.jersey_number for p in roster}
+        taken = {p.jersey_number for p in roster} | self.retired[team.id]
         if player.jersey_number in taken:
             player.jersey_number = available_jersey(player.position, taken)
         player.team_id = team.id

@@ -133,7 +133,7 @@ export function SeasonCard({ season, team, site = GAME }: {
   );
 }
 
-function RecordLine({ row, rank, site }: { row: RecordRow; rank: number; site: Site }) {
+export function RecordLine({ row, rank, site = GAME }: { row: RecordRow; rank: number; site?: Site }) {
   return (
     <li className="flex items-center gap-2 text-sm">
       <span className="w-4 text-xs tabular-nums text-mist">{rank}</span>

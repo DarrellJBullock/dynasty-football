@@ -323,6 +323,44 @@ class Award(Base):
     team: Mapped["Team | None"] = relationship()
 
 
+class HallOfFameVote(Base):
+    """A player's case on a year's Hall of Fame ballot (services/legacy.py): his legacy
+    score, and whether he got in. The Hall of Fame is everyone `inducted`."""
+
+    __tablename__ = "hall_of_fame"
+    __table_args__ = (UniqueConstraint("league_id", "year", "player_id",
+                                       name="uq_hall_of_fame_ballot"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    year: Mapped[int] = mapped_column(Integer)  # the class (the season just played)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    team_id: Mapped[int | None] = mapped_column(  # where he played the most games
+        ForeignKey("teams.id", ondelete="SET NULL"))
+    score: Mapped[float] = mapped_column()
+    inducted: Mapped[bool] = mapped_column(default=False)
+    case: Mapped[str] = mapped_column(String(200))  # "3× MVP · 2 titles · 41,250 pass yds"
+
+    player: Mapped["Player"] = relationship()
+    team: Mapped["Team | None"] = relationship()
+
+
+class RetiredNumber(Base):
+    """A number a team retired for one of its greats: it's never issued again there."""
+
+    __tablename__ = "retired_numbers"
+    __table_args__ = (UniqueConstraint("team_id", "number", name="uq_retired_numbers"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    number: Mapped[int] = mapped_column(Integer)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    year: Mapped[int] = mapped_column(Integer)
+
+    player: Mapped["Player"] = relationship()
+
+
 class DeadMoney(Base):
     """A cap charge for a player no longer on the team: the rest of his signing bonus,
     accelerated when he was released, traded, or retired mid-deal."""
