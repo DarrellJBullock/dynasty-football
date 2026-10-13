@@ -151,6 +151,28 @@ class TestAManagersMoves:
 
 
 class TestTheOffseason:
+    def test_a_head_coach_who_retires_isnt_fired_too(self, db: Session, season: Season,
+                                                      franchise: Franchise, league: League):
+        """(The app's sessions don't autoflush: a coach retired in memory must not then be
+        fired by the team he just left, with dead money charged to no team.)"""
+        ai = db.scalar(select(Team).where(Team.league_id == league.id,
+                                          Team.id != franchise.team_id).order_by(Team.id))
+        head = _member(db, ai.id, "head_coach")
+        head.age, head.contract_end = 75, season.year + 2  # (he retires)
+        older = Season(league_id=league.id, year=season.year - 1, phase="offseason")
+        db.add(older)
+        db.flush()
+        for row in (season, older):  # (two losing seasons: he'd be fired)
+            db.add(StaffSeason(staff_id=head.id, season_id=row.id, team_id=ai.id,
+                               role="head_coach", wins=2, losses=15, ties=0))
+        db.flush()
+        with db.no_autoflush:
+            carousel.offseason(db, league, season)
+        db.flush()
+        assert head.retired_year == season.year and head.team_id is None
+        assert db.scalar(select(StaffDeadMoney.id).where(
+            StaffDeadMoney.staff_id == head.id)) is None
+
     def test_the_carousel_turns(self, db: Session, season: Season, franchise: Franchise,
                                 league: League, owner: User):
         ai = db.scalar(select(Team).where(Team.league_id == league.id,

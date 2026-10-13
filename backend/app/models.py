@@ -811,6 +811,9 @@ class TradeOffer(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     trade_id: Mapped[int | None] = mapped_column(ForeignKey("trades.id", ondelete="SET NULL"))
+    # An AI front office made it (services/ai_trades.py): no veto window, and it answers a
+    # counter at once.
+    from_ai: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     from_team: Mapped["Team"] = relationship(foreign_keys=[from_team_id])
     to_team: Mapped["Team"] = relationship(foreign_keys=[to_team_id])

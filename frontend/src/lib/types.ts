@@ -810,6 +810,21 @@ export interface FrontOffice {
   manager: string | null;
 }
 
+/** A completed trade, league-wide (`schemas.TransactionOut`): `team` sent `sent` to `partner`. */
+export interface Transaction {
+  id: number;
+  team: TeamSummary;
+  partner: TeamSummary;
+  year: number;
+  season_phase: string;
+  week: number;
+  sent: TradeItem[];
+  received: TradeItem[];
+  reversed: boolean;
+  /** Who made it. */
+  between: "ai" | "managers" | "manager_and_ai";
+}
+
 /** The league's rules (`schemas.RulesOut`): changed between seasons by the commissioner. */
 export interface LeagueRules {
   roster_max: number;

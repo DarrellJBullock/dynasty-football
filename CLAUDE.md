@@ -57,6 +57,7 @@ make e2e              # Playwright: real browser, own DB and ports (8001/3001)
 make lint             # ruff + eslint + tsc
 make reseed           # wipe and regenerate the sample league
 make perf             # time every API read on a league with seasons played
+make parity           # 20 seasons in memory: records' spread, champions, streaks
 make unity-test       # Unity's edit-mode tests (needs Unity installed)
 make unity-build      # the Unity viewer's WebGL build into frontend/public/unity
 scripts/setup-unity-runner.sh  # once, on the Unity Mac: the self-hosted runner (docs/unity.md)
@@ -239,6 +240,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`review`; a rolled-back final calls `unreview`). Fan mood and goal status during a
   season are derived from the record, never stored week by week. JSON columns that
   are queried for `None` need `none_as_null=True` (see `OwnerSeason`).
+- **AI trades** (`services/ai_trades.py`): after each regular week (and as the preseason
+  opens) AI front offices may offer a member a trade (`TradeOffer.from_ai`: no veto window,
+  a counter answered at once by `trades.propose`) and make a deadline deal among
+  themselves; draws come from their own `ai-trades:` stream. A trade's `team_id` is whoever
+  proposed it, an AI team included. Changing how AI teams build rosters or trade? Run
+  `make parity`.
 - **AI direction** (`services/direction.py`, `domain/direction.py`): each offseason (after
   development, before re-signing) every AI team decides to contend, sit in the middle or
   rebuild (`Team.direction`, with reasons), and re-signing, free agency and the draft follow

@@ -221,6 +221,9 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
             _play_week(db, season, games, sim_teams, "regular", week)
             played += games
             season.current_week = week + 1
+            from app.services import ai_trades  # (front offices build on the season)
+
+            ai_trades.after_week(db, season, week)
             steps += 1
             if on_step:
                 on_step(f"Week {week} of {weeks}", week < last_week)

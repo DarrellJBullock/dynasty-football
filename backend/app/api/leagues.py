@@ -15,10 +15,12 @@ from app.schemas import (
     LeagueOut,
     PlayerSummary,
     TeamDetail,
+    TransactionOut,
 )
 from app.seed.generator import league_template
 from app.services import cap, direction
 from app.services import leagues as league_service
+from app.services import trades as trade_service
 from app.services.dashboard import franchise_out
 from app.services.members import league_ids
 from app.services.serializers import league_out, player_summary
@@ -122,3 +124,11 @@ def front_offices(league: League = Depends(get_league), db: Session = Depends(ge
     view = direction.front_offices(db, league)
     db.commit()  # (a league from before directions decides them the first time)
     return view
+
+
+@router.get("/{league_id}/transactions", response_model=list[TransactionOut])
+def transactions(league: League = Depends(get_league), year: int | None = None,
+                 db: Session = Depends(get_db)):
+    """Every trade in a season (the current one unless `year`), newest first: between
+    managers, with the AI, and between AI teams."""
+    return trade_service.transactions(db, league, year)

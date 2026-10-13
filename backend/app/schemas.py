@@ -1904,3 +1904,17 @@ class FrontOfficeOut(BaseModel):
     label: str | None  # "Contending", ...
     reasons: list[str]
     manager: str | None  # the member who runs it
+
+
+class TransactionOut(BaseModel):
+    """A completed trade, league-wide: `team` sent `sent` to `partner` for `received`."""
+    id: int
+    team: TeamSummary
+    partner: TeamSummary
+    year: int
+    season_phase: str
+    week: int
+    sent: list[TradeItem]
+    received: list[TradeItem]
+    reversed: bool
+    between: Literal["ai", "managers", "manager_and_ai"]  # who made it

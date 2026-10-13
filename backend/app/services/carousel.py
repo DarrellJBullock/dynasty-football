@@ -151,6 +151,7 @@ def offseason(db: Session, league: League, season: Season, autopilot: bool = Fal
                             "Hire a replacement on the Staff page.", "/staff",
                             key=f"staff-retired:{member.id}")
             member.retired_year, member.team_id = year, None
+    db.flush()  # (the app's sessions don't autoflush: the queries below must see them gone)
     # 2. AI teams fire head coaches after a bad season (not in their first).
     records = compute_records(db, season, [t.id for t in teams])
     for team in teams:
@@ -158,8 +159,9 @@ def offseason(db: Session, league: League, season: Season, autopilot: bool = Fal
             continue
         head = db.scalar(select(StaffMember).where(StaffMember.team_id == team.id,
                                                    StaffMember.role == "head_coach"))
-        if head is None or records[team.id].win_pct >= rules.FIRE_WIN_PCT:
-            continue
+        if (head is None or head.team_id != team.id
+                or records[team.id].win_pct >= rules.FIRE_WIN_PCT):
+            continue  # (no head coach, one who just retired, or a good season)
         seasons_here = db.scalar(select(func.count(StaffSeason.id)).where(
             StaffSeason.staff_id == head.id, StaffSeason.team_id == team.id)) or 0
         if seasons_here >= 2:

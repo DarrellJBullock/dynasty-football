@@ -25,6 +25,7 @@ import type {
   Notifications,
   NotificationSettings,
   TradeOffer,
+  Transaction,
   LeagueSettings,
   Turn,
   InviteCreated,
@@ -332,6 +333,8 @@ export const api = {
     const qs = query.toString();
     return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
   },
+  transactions: (leagueId: number, year?: number) =>
+    request<Transaction[]>(`/leagues/${leagueId}/transactions${year ? `?year=${year}` : ""}`),
   frontOffices: (leagueId: number) => request<FrontOffice[]>(`/leagues/${leagueId}/front-offices`),
   gmCareer: () => request<GmCareer>("/franchise/career"),
   takeJob: (teamId: number) => post<GmCareer>("/franchise/take-job", { team_id: teamId }),

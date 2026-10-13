@@ -20,7 +20,7 @@ UNITY ?= /Applications/Unity/Hub/Editor/$(UNITY_VERSION)/Unity.app/Contents/MacO
 E2E_DB_NAME ?= dynasty_football_e2e
 TEST_DATABASE_URL ?= postgresql+psycopg://localhost:5432/$(TEST_DB_NAME)
 
-.PHONY: help setup setup-backend setup-frontend db-start db-create migrate seed reseed worker perf \
+.PHONY: help setup setup-backend setup-frontend db-start db-create migrate seed reseed worker perf parity \
         dev-backend dev-frontend test test-backend test-backend-fast test-frontend lint build \
         e2e-setup e2e unity-test unity-build
 
@@ -57,6 +57,9 @@ perf: ## Time every API read on a league with seasons played (its own database)
 	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/dynasty_football_perf .venv/bin/alembic upgrade head
 	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/dynasty_football_perf .venv/bin/python -m app.perf build --seasons 3
 	cd $(BACKEND) && DATABASE_URL=postgresql+psycopg://localhost:5432/dynasty_football_perf .venv/bin/python -m app.perf measure --budget-ms 300 --max-queries 80
+
+parity: ## Play 20 seasons in memory: does the league stay competitive? (app/parity.py)
+	cd $(BACKEND) && .venv/bin/python -m app.parity --seasons 20
 
 reseed: ## Wipe all game data and regenerate the sample league
 	cd $(BACKEND) && .venv/bin/python -m app.seed --reset
