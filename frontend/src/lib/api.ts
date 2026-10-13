@@ -6,6 +6,8 @@ import type {
   PlayerCoaching,
   Credentials,
   LeagueLog,
+  LeagueRules,
+  LeagueRulesIn,
   LeagueLogAction,
   LiveState,
   Rollback,
@@ -325,6 +327,9 @@ export const api = {
     const qs = query.toString();
     return request<LeagueLog>(`/leagues/${leagueId}/log${qs ? `?${qs}` : ""}`);
   },
+  leagueRules: (leagueId: number) => request<LeagueRules>(`/leagues/${leagueId}/rules`),
+  updateRules: (leagueId: number, rules: LeagueRulesIn) =>
+    request<LeagueRules>(`/leagues/${leagueId}/rules`, { method: "PATCH", body: JSON.stringify(rules) }),
   reverseTrade: (tradeId: number) => post<SeasonTrade>(`/trades/${tradeId}/reverse`),
   rollback: (leagueId: number) => request<Rollback>(`/leagues/${leagueId}/rollback`),
   rollBack: (leagueId: number) => post<Rollback>(`/leagues/${leagueId}/rollback`),

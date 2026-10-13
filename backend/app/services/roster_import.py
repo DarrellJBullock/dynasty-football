@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.domain.contracts import market_salary
-from app.domain.positions import ROSTER_MAX, available_jersey
+from app.domain.positions import available_jersey
 from app.models import Player, Team
 from app.roster_import.readers import detect_format, read_rows
 from app.roster_import.rows import ParsedRow, parse_rows
@@ -49,13 +49,14 @@ def plan_import(db: Session, team: Team, filename: str, content: bytes,
     plan = ImportPlan(format=fmt.value, mode=mode, rows=parsed.rows,
                       file_warnings=parsed.warnings, current=current, kept=kept)
 
-    capacity = ROSTER_MAX - len(kept)
+    limit = team.league.roster_max
+    capacity = limit - len(kept)
     taken = {p.jersey_number for p in kept} | retired_numbers(db, team.id)
     for row in plan.rows:
         if not row.is_valid:
             continue
         if capacity <= 0:
-            row.error(f"Roster would exceed {ROSTER_MAX} players.")
+            row.error(f"Roster would exceed {limit} players.")
             continue
         capacity -= 1
         assert row.position is not None and row.overall is not None
@@ -109,7 +110,7 @@ def preview(plan: ImportPlan, team: Team) -> ImportPreview:
         roster_before=len(plan.current),
         released=len(plan.current) - len(plan.kept),
         roster_after=len(plan.kept) + valid,
-        roster_max=ROSTER_MAX,
+        roster_max=team.league.roster_max,
         payroll_after=_payroll_after(plan),
         salary_cap=team.league.salary_cap,
         can_commit=errors == 0 and valid > 0,

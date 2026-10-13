@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { LeagueRulesPanel } from "@/components/league/LeagueRulesPanel";
 import { TeamEditButton } from "@/components/leagues/TeamEditButton";
 import { OvrBadge } from "@/components/ui/OvrBadge";
 import { PageHeader, Panel, Skeleton } from "@/components/ui/Panel";
@@ -33,14 +34,15 @@ export default function LeaguePage() {
 async function LeagueContent() {
   const result = await attempt(async () => {
     const franchise = await api.franchise();
-    const [standings, teams] = await Promise.all([
+    const [standings, teams, rules] = await Promise.all([
       api.standings(franchise.league.id),
       api.leagueTeams(franchise.league.id),
+      api.leagueRules(franchise.league.id),
     ]);
-    return { franchise, standings, teams };
+    return { franchise, standings, teams, rules };
   });
   if (!result.ok) return <ServerError error={result.error} />;
-  const { franchise, standings, teams } = result.data;
+  const { franchise, standings, teams, rules } = result.data;
   const ratings = new Map(teams.map((t) => [t.id, t]));
   const powerRanking = [...teams].sort((a, b) => b.ratings.overall - a.ratings.overall);
   const conferences = [...new Set(standings.map((d) => d.conference))];
@@ -108,6 +110,7 @@ async function LeagueContent() {
           ))}
         </div>
 
+        <div className="space-y-6">
         <Panel title="Power rankings" className="h-fit">
           <ol className="space-y-1">
             {powerRanking.map((team, i) => (
@@ -128,6 +131,9 @@ async function LeagueContent() {
             ))}
           </ol>
         </Panel>
+        <LeagueRulesPanel key={JSON.stringify(rules)} leagueId={franchise.league.id} initial={rules}
+          commissioner={franchise.role === "commissioner"} />
+        </div>
       </div>
     </div>
   );

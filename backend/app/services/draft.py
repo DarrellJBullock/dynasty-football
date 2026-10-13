@@ -32,7 +32,6 @@ from app.domain.draft import (
     scout_noise,
 )
 from app.domain.positions import (
-    ROSTER_MAX,
     ROSTER_TEMPLATE,
     SPECIAL_TEAMS,
     Position,
@@ -446,7 +445,7 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
     for team in teams:
         roster = _roster(db, team.id)
         lost = _lost(season, team.id)
-        while lost and len(roster) < ROSTER_MAX and (undrafted or veterans):
+        while lost and len(roster) < team.league.roster_max and (undrafted or veterans):
             player = (next((p for p in undrafted if p.position == lost[0]), None)
                       or (undrafted[0] if undrafted else veterans[0]))
             fills_own_spot = player.position in lost  # (then _join crosses it off)
@@ -473,7 +472,7 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
             continue  # (members cut their own rosters)
         roster = _roster(db, team.id)
         for player in sorted(roster, key=lambda p: (p.overall, -p.age, p.id))[
-                :max(0, len(roster) - ROSTER_MAX)]:
+                :max(0, len(roster) - team.league.roster_max)]:
             _release(db, player, season)
             cuts.append({"player": player.id, "team": team.id})
         _fit_under_cap(db, season, team, cap, veterans, cuts)
@@ -528,12 +527,12 @@ def _release(db: Session, player: Player, season: Season) -> None:
 
 def cut_down(db: Session, team: Team) -> list[Player]:
     """Release the lowest-rated players (the cheapest to cut among equals) until the
-    roster is at 53."""
+    roster is at the league's limit."""
     season = current_season(db, team.league_id)
     year = cap_rules.cap_year(season)
     roster = _roster(db, team.id)
     excess = sorted(roster, key=lambda p: (p.overall, cap_rules.release_cost(
-        p.active_contract, year), -p.age, p.id))[:max(0, len(roster) - ROSTER_MAX)]
+        p.active_contract, year), -p.age, p.id))[:max(0, len(roster) - team.league.roster_max)]
     for player in excess:
         _release(db, player, season)
     db.flush()
@@ -581,7 +580,7 @@ def draft_view(db: Session, league: League, user_team: int | None = None) -> Dra
         my_next_pick=next((p.number for p in picks
                            if p.player_id is None and p.team_id == user_team), None),
         prospects=prospects, scouting_left=scouting_left(db, league.id, year, reports),
-        roster_count=roster_count, roster_max=ROSTER_MAX,
+        roster_count=roster_count, roster_max=league.roster_max,
         clock_ends_at=clock_ends_at(db, season) if clock else None)
 
 

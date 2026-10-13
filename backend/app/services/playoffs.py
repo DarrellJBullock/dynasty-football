@@ -12,9 +12,9 @@ from app.domain.playoffs import (
     pair_round,
     round_names,
     seed_conference,
-    seeds_per_conference,
+    seed_count,
 )
-from app.models import Conference, Game, PlayoffSeed, Season, Team
+from app.models import Conference, Game, League, PlayoffSeed, Season, Team
 from app.services.errors import RosterError
 
 if TYPE_CHECKING:
@@ -45,12 +45,21 @@ def conference_ids(db: Session, league_id: int) -> list[int]:
                            .order_by(Conference.id)))
 
 
+def _chosen(db: Session, league_id: int) -> int | None:
+    """The league's playoff seeds per conference (a league rule; None: by size)."""
+    return db.scalar(select(League.playoff_seeds).where(League.id == league_id))
+
+
 def _round_names(db: Session, season: Season) -> list[str]:
     conferences = conference_ids(db, season.league_id)
-    teams = db.scalar(select(func.count(Team.id)).join(Team.division)
-                      .where(Team.league_id == season.league_id)) or 0
-    return round_names(seeds_per_conference(teams // max(1, len(conferences))),
-                       len(conferences))
+    stored = _seeds(db, season)
+    if stored:  # (the season's own field, whatever the rules say now)
+        count = max(len(s) for s in stored.values())
+    else:
+        teams = db.scalar(select(func.count(Team.id)).join(Team.division)
+                          .where(Team.league_id == season.league_id)) or 0
+        count = seed_count(teams // max(1, len(conferences)), _chosen(db, season.league_id))
+    return round_names(count, len(conferences))
 
 
 def round_name(db: Session, season: Season, playoff_round: int) -> str:
@@ -73,7 +82,7 @@ def start(db: Session, season: Season) -> None:
     """Fix the seeds and schedule the first round. Called once the regular season ends."""
     rank = ranker(db, season)
     for conference_id in conference_ids(db, season.league_id):
-        for seed in seed_conference(rank, conference_id):
+        for seed in seed_conference(rank, conference_id, _chosen(db, season.league_id)):
             db.add(PlayoffSeed(season_id=season.id, conference_id=conference_id,
                                team_id=seed.team_id, seed=seed.seed,
                                division_winner=seed.division_winner))
@@ -176,7 +185,7 @@ def playoffs_view(db: Session, season: Season) -> "PlayoffsOut":
     if not stored:  # projected from current standings
         rank = ranker(db, season)
         for conference in conferences:
-            projected = seed_conference(rank, conference.id)
+            projected = seed_conference(rank, conference.id, _chosen(db, season.league_id))
             stored[conference.id] = {s.seed: s.team_id for s in projected}
             winners |= {s.team_id for s in projected if s.division_winner}
 

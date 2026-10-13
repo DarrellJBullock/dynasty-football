@@ -16,9 +16,11 @@ from app.schemas import (
     PlayerDetail,
     PlayerMoveIn,
     RollbackOut,
+    RulesIn,
+    RulesOut,
     SeasonTradeOut,
 )
-from app.services import league_log, rollback
+from app.services import league_log, rollback, rules
 from app.services import trades as trade_service
 from app.services.notifications import notify_members, notify_team
 from app.services.serializers import player_detail
@@ -112,3 +114,26 @@ def roll_back(league: League = Depends(get_league), user: User = Depends(current
                        f"The commissioner undid {label}: it will be played again.", "/",
                        skip={user.id})
     return RollbackOut(label=label)
+
+
+@router.get("/leagues/{league_id}/rules", response_model=RulesOut)
+def read_rules(league: League = Depends(get_league), db: Session = Depends(get_db)):
+    """The league's rules: roster size, the cap and its growth, playoff seeds, the season's
+    length, and whether they can change now."""
+    return rules.rules_view(db, league)
+
+
+@router.patch("/leagues/{league_id}/rules", response_model=RulesOut)
+def change_rules(body: RulesIn, league: League = Depends(get_league),
+                 user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """The commissioner changes the rules, between seasons only (409 otherwise)."""
+    before = rules.fields(league)
+    with roster_errors(db):
+        rules.update(db, league, body)
+        changes = league_log.diff(before, rules.fields(league))
+        if changes:
+            league_log.record(db, league.id, user, "rules", "Changed the league rules", changes)
+            notify_members(db, league.id, "rules", f"{league.name}: the rules changed",
+                           "See the League page for the new rules.", "/league",
+                           skip={user.id})
+    return rules.rules_view(db, league)

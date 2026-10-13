@@ -25,7 +25,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.domain.contracts import MIN_SALARY, preferred_years, required_salary
 from app.domain.free_agency import MARKET_DAYS, Bid, acceptable, demand, ranked
-from app.domain.positions import ROSTER_MAX, Position, available_jersey
+from app.domain.positions import Position, available_jersey
 from app.models import FreeAgentOffer, League, Player, Season, Team
 from app.schemas import (
     ContractTerms,
@@ -109,7 +109,7 @@ class _Market:
                 for t in self.teams}
 
     def fits(self, team_id: int, salary: int) -> bool:
-        return (len(self.rosters[team_id]) < ROSTER_MAX
+        return (len(self.rosters[team_id]) < self.league.roster_max
                 and self.payrolls[team_id] + salary <= self.league.salary_cap)
 
     def sign(self, player: Player, team: Team, salary: int, years: int) -> None:
@@ -154,7 +154,7 @@ def _ai_offers(db: Session, market: _Market) -> None:
     teams = [t for t in market.teams if t.id not in market.humans]
     rng.shuffle(teams)
     for team in teams:
-        open_spots = ROSTER_MAX - len(market.rosters[team.id])
+        open_spots = market.league.roster_max - len(market.rosters[team.id])
         budget = market.league.salary_cap - market.payrolls[team.id]
         targeted: set[int] = set()
 
@@ -301,8 +301,9 @@ def make_offer(db: Session, player: Player, terms: ContractTerms, team_id: int |
     if team_id is None:
         raise RosterError("You don't run a team in this league.", 400)
     market = _Market(db, season)
-    if len(market.rosters[team_id]) >= ROSTER_MAX:
-        raise RosterError(f"Your roster is full ({ROSTER_MAX}); release a player first.")
+    if len(market.rosters[team_id]) >= market.league.roster_max:
+        raise RosterError(f"Your roster is full ({market.league.roster_max}); release a "
+                          "player first.")
     if market.payrolls[team_id] + terms.salary > market.league.salary_cap:
         raise RosterError("That offer would put your payroll over the cap.")
     offer = _user_offer(db, season, player.id, team_id)
@@ -360,7 +361,7 @@ def market_view(db: Session, league: League, team_id: int | None = None) -> Free
         season=season_view(db, season), open=is_open,
         day=season.free_agency_day if is_open else None, days=MARKET_DAYS,
         demand=demand(season.free_agency_day) if is_open else None,
-        open_spots=ROSTER_MAX - len(market.rosters[team_id]) if team_id else 0,
+        open_spots=league.roster_max - len(market.rosters[team_id]) if team_id else 0,
         cap_space=(league.salary_cap - market.payrolls[team_id]) if team_id else 0,
         players=rows, signings=signings)
 

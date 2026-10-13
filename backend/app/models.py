@@ -85,6 +85,14 @@ class League(Base):
     name: Mapped[str] = mapped_column(String(80))
     abbreviation: Mapped[str] = mapped_column(String(8))
     salary_cap: Mapped[int] = mapped_column(Integer)  # whole dollars
+    # League rules (services/rules.py), changed between seasons: the most players a team
+    # may have, how much the cap grows each offseason (basis points: 300 = 3%), playoff
+    # seeds per conference (None: by conference size, domain/playoffs), and the regular
+    # season's weeks for the next schedule (None: as long as the last).
+    roster_max: Mapped[int] = mapped_column(Integer, default=53, server_default="53")
+    cap_growth_bp: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    playoff_seeds: Mapped[int | None] = mapped_column(Integer)
+    season_weeks: Mapped[int | None] = mapped_column(Integer)
     # Who plays: "men" or "women" (names and builds of generated players).
     players: Mapped[str] = mapped_column(String(8), default="men", server_default="men")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

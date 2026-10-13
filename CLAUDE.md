@@ -232,6 +232,11 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   commissioner action records there too (add its action to `ACTIONS` and the frontend's
   `LeagueLogAction`). Editing players (ratings, bio, adding, importing, moving, contracts) is
   the commissioner's; a manager may only change their own player's jersey number.
+- **League rules** (`services/rules.py`, `League.roster_max`, `cap_growth_bp`,
+  `playoff_seeds`, `season_weeks`) change only between seasons. **Never check a roster
+  against `domain.positions.ROSTER_MAX`** (it's only the default): use the league's
+  `roster_max`. Playoff seeding takes the league's choice (`playoffs._chosen`); a season's
+  stored seeds decide its own rounds.
 - **Rolling back a week** (`services/rollback.py`): `season.simulate` takes a
   `WeekSnapshot` before each week or round (the phase, the week, the games, every injury;
   one per league). `roll_back` undoes the week's games and everything they led to. Anything

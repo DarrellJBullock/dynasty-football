@@ -26,6 +26,30 @@ def _validate_rating_keys(value: dict[str, int] | None) -> dict[str, int] | None
 LeaguePlayers = Literal["men", "women"]
 
 
+class RulesOut(BaseModel):
+    """The league's rules (services/rules.py), and what they come to."""
+    roster_max: int
+    salary_cap: int
+    cap_growth_pct: float  # each offseason
+    playoff_seeds: int | None  # chosen seeds per conference (None: by conference size)
+    seeds: int  # the seeds per conference they come to
+    byes: int  # first-round byes per conference
+    seed_choices: list[int]
+    season_weeks: int  # the regular season's length (this season's, or the one chosen)
+    max_weeks: int
+    locked_reason: str | None  # why they can't change now (None: they can)
+
+
+class RulesIn(BaseModel):
+    """A change to the rules: only the fields given change (`playoff_seeds: null` is
+    automatic)."""
+    roster_max: int | None = None
+    salary_cap: int | None = Field(default=None, ge=50_000_000, le=1_000_000_000)
+    cap_growth_pct: float | None = Field(default=None, ge=0, le=10)
+    playoff_seeds: int | None = None
+    season_weeks: int | None = None
+
+
 class RollbackOut(BaseModel):
     """The week (or playoff round) a commissioner can roll back, if any."""
     label: str | None
