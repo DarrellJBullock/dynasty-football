@@ -80,20 +80,23 @@ _SKIP = {
 }
 
 
+def _value(value: object) -> object:
+    return value.isoformat() if isinstance(value, (datetime, date)) else value
+
+
 def _row(row: Base) -> dict:
     skip = _SKIP.get(type(row), set())
-    out = {}
-    for column in row.__table__.columns:
-        if column.key in skip:
-            continue
-        value = getattr(row, column.key)
-        out[column.key] = value.isoformat() if isinstance(value, (datetime, date)) else value
-    return out
+    return {c.key: _value(getattr(row, c.key)) for c in row.__table__.columns
+            if c.key not in skip}
 
 
 def _rows(db: Session, model: type[Base], *where) -> list[dict]:
-    order = list(model.__table__.primary_key.columns)  # (in a stable order)
-    return [_row(r) for r in db.scalars(select(model).where(*where).order_by(*order))]
+    """The rows as stored, read as plain rows (no ORM objects: a league has many)."""
+    table = model.__table__
+    skip = _SKIP.get(model, set())
+    columns = [c for c in table.columns if c.key not in skip]
+    stmt = select(*columns).where(*where).order_by(*table.primary_key.columns)
+    return [{k: _value(v) for k, v in row.items()} for row in db.execute(stmt).mappings()]
 
 
 def export_league(db: Session, league: League) -> dict:
