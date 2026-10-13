@@ -18,7 +18,7 @@ from app.schemas import (
     StaffMarketOut,
     TeamStaffOut,
 )
-from app.services import carousel, staff
+from app.services import carousel, facilities, staff
 from app.services.members import user_team_id
 
 router = APIRouter(tags=["staff"])
@@ -92,3 +92,12 @@ def extend(body: ExtendIn, member: StaffMember = Depends(get_staff),
     with roster_errors(db):
         carousel.extend(db, member, body.years)
     return staff.team_staff(db, db.get(Team, member.team_id))
+
+
+@router.post("/teams/{team_id}/facilities/{kind}/upgrade", response_model=TeamStaffOut)
+def upgrade_facility(kind: str, team: Team = Depends(get_team), db: Session = Depends(get_db)):
+    """Build a facility's next level: paid from this season's staff budget, ready next
+    season."""
+    with roster_errors(db):
+        facilities.upgrade(db, team, kind)
+    return staff.team_staff(db, team)

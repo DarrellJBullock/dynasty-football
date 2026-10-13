@@ -30,10 +30,16 @@ def heal(player: Player) -> None:
 
 def _trainers(db: Session, league_id: int) -> dict:
     from app.models import League
-    from app.services import staff  # (staff builds on the season services)
+    from app.services import (
+        facilities,
+        staff,  # (staff builds on the season services)
+    )
 
-    crew = staff.by_team(db, db.get(League, league_id))
-    return {team_id: staff.coach(roles.get("trainer")) for team_id, roles in crew.items()}
+    league = db.get(League, league_id)
+    crew = staff.by_team(db, league)
+    built = facilities.levels(db, league)
+    return {team_id: (staff.coach(roles.get("trainer")), built.get(team_id, {}).get("medical", 1))
+            for team_id, roles in crew.items()}
 
 
 def after_week(db: Session, league_id: int, events: list[dict]) -> None:
@@ -58,7 +64,8 @@ def after_week(db: Session, league_id: int, events: list[dict]) -> None:
         player.injury_count = (player.injury_count or 0) + 1
         # His team's trainer gets him back sooner (services/staff.py); the play log keeps
         # the injury as it happened.
-        weeks = layoff(event["weeks"], trainers.get(player.team_id), SEASON_ENDING)
+        trainer, medical = trainers.get(player.team_id, (None, 1))
+        weeks = layoff(event["weeks"], trainer, SEASON_ENDING, medical)
         # A questionable player can get hurt again; the worse injury wins.
         if player.injury is None or weeks >= player.injury_weeks:
             player.injury = event["injury"]

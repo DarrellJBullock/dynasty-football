@@ -195,7 +195,7 @@ Design: `docs/design/staff-and-legacy.md`.
       of the Year)
 - [x] What staff do (development, scouting and injuries, explained on the player page)
 - [x] The coaching carousel and the staff budget (contracts, hiring and firing, the AI)
-- [ ] Facilities (training, medical, scouting; levels and upgrades)
+- [x] Facilities (training, medical, scouting; levels and upgrades)
 
 ## Later
 

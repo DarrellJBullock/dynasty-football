@@ -238,7 +238,10 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   the play log keeps the injury as it happened). Pass a team when a view depends on it.
   The coaching carousel (`services/carousel.py`) runs in `offseason.advance` (with its
   `autopilot` flag) and fills open jobs when the preseason opens (`draft._finish`); staff
-  spend a staff budget (`leagues.staff_budget`), not the player cap.
+  spend a staff budget (`leagues.staff_budget`), not the player cap. Facilities
+  (`services/facilities.py`) add to the staff's effects by level (1 adds nothing): their
+  upkeep and upgrades count in the staff payroll (`carousel.payroll`), and an upgrade
+  arrives at the next offseason (`complete_upgrades`, before development).
 - **Notifications** (`services/notifications.py`): call `notify` / `notify_team` /
   `notify_members` where something happens (a new kind goes in `KINDS`); pass a `key` when
   it must only happen once. Email is never sent in a request: a notification is marked

@@ -23,6 +23,7 @@ from app.models import (
     DepthChartEntry,
     Division,
     DraftPick,
+    Facility,
     Game,
     HallOfFameVote,
     League,
@@ -136,6 +137,7 @@ def export_league(db: Session, league: League) -> dict:
         "staff": _rows(db, StaffMember, StaffMember.league_id == league.id),
         "staff_seasons": _rows(db, StaffSeason, StaffSeason.season_id.in_(season_ids)),
         "staff_dead_money": _rows(db, StaffDeadMoney, StaffDeadMoney.team_id.in_(team_ids)),
+        "facilities": _rows(db, Facility, Facility.team_id.in_(team_ids)),
     }
 
 

@@ -30,6 +30,11 @@ test("the staff page: our coaches, scout and trainer, another team's, and the le
   await expect(main.getByRole("status")).toContainText(`${name} is your new scout`);
   await expect(staff.getByRole("article", { name: "Scout" })).toContainText(name);
 
+  // Facilities: build the training facility's next level; it arrives next season.
+  const training = main.getByRole("list", { name: "Facilities" }).getByRole("listitem", { name: "Training facility" });
+  await training.getByRole("button", { name: /^Build level 2/ }).click();
+  await expect(training).toContainText("Level 2 arrives next season.");
+
   // A player's page says what his coaches do for him.
   const roster = await (await page.request.get(`/api/teams/${franchise.team.id}/roster`)).json();
   const qb = roster.find((p: { position: string }) => p.position === "QB");

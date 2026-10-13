@@ -1056,6 +1056,18 @@ class PlayerCoachingOut(BaseModel):
     injuries: str | None = None  # "Injured players come back 15% sooner."
 
 
+class FacilityOut(BaseModel):
+    kind: Literal["training", "medical", "scouting"]
+    name: str  # "Training facility"
+    duty: str  # what it does, in a line
+    level: int  # 1-5
+    effect: str  # what it adds at this level
+    upkeep: int  # a season
+    next_cost: int | None  # to build the next level (None: at the top)
+    upgrading: bool  # the next level arrives next season
+    upgrade_effect: str | None  # what the next level would add
+
+
 class StaffBudget(BaseModel):
     year: int
     budget: int  # the league's staff budget a season
@@ -1070,6 +1082,7 @@ class TeamStaffOut(BaseModel):
     payroll: int  # the staff's salaries a season
     budget: StaffBudget | None = None
     vacancies: list[StaffRole] = []  # jobs open
+    facilities: list[FacilityOut] = []
 
 
 class StaffMarketOut(BaseModel):

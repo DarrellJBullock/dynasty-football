@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domain import staff as rules
-from app.models import League, Season, StaffDeadMoney, StaffMember, StaffSeason, Team
+from app.models import Facility, League, Season, StaffDeadMoney, StaffMember, StaffSeason, Team
 from app.schemas import StaffBudget, StaffMarketOut
 from app.seed import data
 from app.services.errors import RosterError
@@ -38,12 +38,22 @@ def dead_money(db: Session, team_id: int, year: int) -> int:
         StaffDeadMoney.team_id == team_id, StaffDeadMoney.year == year)) or 0
 
 
+def facilities_cost(db: Session, team_id: int, year: int) -> int:
+    """Its facilities' upkeep, and upgrades bought in `year`."""
+    total = 0
+    for level, upgrade_year, cost in db.execute(select(
+            Facility.level, Facility.upgrade_year, Facility.upgrade_cost)
+            .where(Facility.team_id == team_id)):
+        total += rules.upkeep(level) + (cost if upgrade_year == year else 0)
+    return total
+
+
 def payroll(db: Session, team_id: int, year: int) -> int:
-    """What the team's staff cost in `year`: salaries of those under contract then, and
-    dead money."""
+    """What the team's staff cost in `year`: salaries of those under contract then, dead
+    money, and its facilities (services/facilities.py)."""
     salaries = db.scalar(select(func.sum(StaffMember.salary)).where(
         StaffMember.team_id == team_id, StaffMember.contract_end >= year)) or 0
-    return salaries + dead_money(db, team_id, year)
+    return salaries + dead_money(db, team_id, year) + facilities_cost(db, team_id, year)
 
 
 def budget(db: Session, team: Team, year: int) -> StaffBudget:
@@ -170,8 +180,14 @@ def offseason(db: Session, league: League, season: Season, autopilot: bool = Fal
         member.team_id = None
     # 4. New staff join the market.
     _newcomers(db, league, year)
-    # 5. AI teams fill their jobs.
-    fill_vacancies(db, league, year + 1, only=[t for t in teams if t.id not in humans])
+    # 5. AI teams fill their jobs, and build with what's left; anyone over budget lets
+    # facilities slip.
+    from app.services import facilities  # (it builds on the budget here)
+
+    ai_teams = [t for t in teams if t.id not in humans]
+    fill_vacancies(db, league, year + 1, only=ai_teams)
+    facilities.ai_upgrades(db, league, year + 1, ai_teams)
+    facilities.keep_up(db, league, year + 1)
     db.flush()
 
 

@@ -10,7 +10,8 @@ const router = { push: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, api: { hireStaff: vi.fn(), fireStaff: vi.fn(), extendStaff: vi.fn(), staffMarket: vi.fn() } };
+  return { ...actual, api: { hireStaff: vi.fn(), fireStaff: vi.fn(), extendStaff: vi.fn(), staffMarket: vi.fn(),
+    upgradeFacility: vi.fn() } };
 });
 const mocked = vi.mocked(api);
 
@@ -108,5 +109,39 @@ describe("StaffView for the team you run", () => {
     render(<StaffView staff={staff} coaches={coaches} teams={[team]} season={2026} />);
     expect(screen.queryByRole("button", { name: "Let go" })).toBeNull();
     expect(screen.queryByRole("region", { name: "The market" })).toBeNull();
+  });
+});
+
+describe("facilities", () => {
+  const facilities = [
+    { kind: "training" as const, name: "Training facility", duty: "Young players grow faster.", level: 3,
+      effect: "Young players grow 8% faster; veterans decline 6% slower.", upkeep: 600_000, next_cost: 3_000_000,
+      upgrading: false, upgrade_effect: "Young players grow 12% faster; veterans decline 9% slower." },
+    { kind: "medical" as const, name: "Medical center", duty: "Injured players come back sooner.", level: 1,
+      effect: "Level 1: adds nothing yet.", upkeep: 0, next_cost: 1_000_000, upgrading: true, upgrade_effect: "x" },
+    { kind: "scouting" as const, name: "Scouting department", duty: "Sharper projections.", level: 5,
+      effect: "Draft projections 24% closer; +4 scouting reports a class.", upkeep: 1_200_000, next_cost: null,
+      upgrading: false, upgrade_effect: null },
+  ];
+
+  it("shows each facility's level and effect, and builds the next level", async () => {
+    mocked.upgradeFacility.mockResolvedValue({ ...staff, facilities });
+    mocked.staffMarket.mockResolvedValue({ year: 2026, candidates: [], budget: null });
+    render(<StaffView staff={{ ...staff, facilities }} coaches={coaches} teams={[team]} season={2026}
+      market={{ year: 2026, candidates: [], budget: null }} leagueId={4} />);
+    const list = screen.getByRole("list", { name: "Facilities" });
+    const training = within(list).getByRole("listitem", { name: "Training facility" });
+    expect(within(training).getByLabelText("Level 3 of 5")).toBeInTheDocument();
+    expect(training).toHaveTextContent("Upkeep $600K a season");
+    expect(within(list).getByRole("listitem", { name: "Medical center" })).toHaveTextContent("Level 2 arrives next season.");
+    expect(within(within(list).getByRole("listitem", { name: "Scouting department" })).queryByRole("button")).toBeNull();
+    await userEvent.click(within(training).getByRole("button", { name: "Build level 4 · $3.0M" }));
+    expect(mocked.upgradeFacility).toHaveBeenCalledWith(team.id, "training");
+    expect(await screen.findByRole("status")).toHaveTextContent("reaches level 4 next season");
+  });
+
+  it("can't be built on another team's page", () => {
+    render(<StaffView staff={{ ...staff, facilities }} coaches={coaches} teams={[team]} season={2026} />);
+    expect(within(screen.getByRole("list", { name: "Facilities" })).queryByRole("button")).toBeNull();
   });
 });

@@ -152,9 +152,15 @@ def _scout(db: Session, league_id: int, team_id: int | None):
 
 
 def scouting(db: Session, league_id: int, team_id: int | None) -> tuple[float, int]:
-    """(projection scale, scouting reports a class) for a team, from its scout."""
+    """(projection scale, scouting reports a class) for a team, from its scout and its
+    scouting department."""
+    from app.services import facilities  # (it builds on the staff budget)
+
     scout = _scout(db, league_id, team_id)
-    return staff_rules.scout_scale(scout), staff_rules.scouting_reports(SCOUTING_REPORTS, scout)
+    level = facilities.levels(db, db.get(League, league_id)).get(team_id, {}).get(
+        "scouting", 1) if team_id is not None else 1
+    return (staff_rules.scout_scale(scout, level),
+            staff_rules.scouting_reports(SCOUTING_REPORTS, scout, level))
 
 
 def scout(db: Session, player: Player, team_id: int | None = None) -> ProspectRow:

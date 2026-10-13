@@ -141,6 +141,7 @@ WRITES = {
     "POST /api/teams/{team_id}/staff/hire": "team",
     "POST /api/staff/{staff_id}/fire": "staff",
     "POST /api/staff/{staff_id}/extend": "staff",
+    "POST /api/teams/{team_id}/facilities/{kind}/upgrade": "team",
     "DELETE /api/leagues/{league_id}/invites/{invite_id}": "commissioner",
     "PATCH /api/leagues/{league_id}/members/{member_id}": "commissioner",
     "DELETE /api/leagues/{league_id}/members/{member_id}": "member",  # (leave, or remove)

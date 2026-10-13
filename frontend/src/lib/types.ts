@@ -1288,6 +1288,25 @@ export interface TeamStaff {
   budget?: StaffBudget | null;
   /** Jobs open. */
   vacancies?: StaffRole[];
+  facilities?: Facility[];
+}
+
+/** A team's training facility, medical center or scouting department (`schemas.FacilityOut`). */
+export interface Facility {
+  kind: "training" | "medical" | "scouting";
+  name: string;
+  duty: string;
+  /** 1–5 */
+  level: number;
+  /** What it adds at this level. */
+  effect: string;
+  /** A season. */
+  upkeep: number;
+  /** To build the next level (null: at the top). */
+  next_cost: number | null;
+  /** The next level arrives next season. */
+  upgrading: boolean;
+  upgrade_effect: string | null;
 }
 
 export interface StaffMarket {

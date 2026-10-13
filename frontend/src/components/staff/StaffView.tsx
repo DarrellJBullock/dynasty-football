@@ -109,6 +109,36 @@ export function StaffView({ staff: initial, coaches, teams, season, market: init
             : {formatMoney(staff.budget.room)} to spend.</>}
         </p>
 
+        {(staff.facilities?.length ?? 0) > 0 && (
+          <Panel title="Facilities">
+            <ul className="grid gap-4 md:grid-cols-3" aria-label="Facilities">
+              {staff.facilities!.map((f) => (
+                <li key={f.kind} aria-label={f.name} className="rounded-lg border border-white/5 p-4">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="font-semibold">{f.name}</h3>
+                    <span className="text-sm text-gold" aria-label={`Level ${f.level} of 5`}>
+                      {"●".repeat(f.level)}<span className="text-white/15">{"●".repeat(5 - f.level)}</span>
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-mist">{f.duty}</p>
+                  <p className="mt-2 text-sm">{f.effect}</p>
+                  {f.upkeep > 0 && <p className="mt-1 text-xs text-mist">Upkeep {formatMoney(f.upkeep)} a season</p>}
+                  {f.upgrading ? (
+                    <p className="mt-3 text-sm text-emerald-300">Level {f.level + 1} arrives next season.</p>
+                  ) : manage && f.next_cost !== null ? (
+                    <button type="button" className="btn btn-ghost mt-3" disabled={busy}
+                      title={f.upgrade_effect ?? undefined}
+                      onClick={() => act(() => api.upgradeFacility(team.id, f.kind),
+                        `The ${f.name.toLowerCase()} reaches level ${f.level + 1} next season.`)}>
+                      Build level {f.level + 1} · {formatMoney(f.next_cost)}
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+
         {manage && market && (
           <Panel title="The market" action={
             <label className="flex items-center gap-2 text-xs">

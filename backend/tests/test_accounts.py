@@ -222,7 +222,7 @@ class TestLeaguesBelongToTheirOwner:
             "member_id": members.member(db, league.id, owner).id,
             "offer_id": _an_offer(db, league, season, franchise).id,
             "staff_id": _a_staff_member(db, league).id,
-            "slot": "QB", "fmt": "csv", "token": "not-a-shared-link",
+            "slot": "QB", "fmt": "csv", "token": "not-a-shared-link", "kind": "training",
         }
         unscoped = set()
         checked = 0
