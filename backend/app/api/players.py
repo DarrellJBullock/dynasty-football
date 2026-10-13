@@ -9,6 +9,7 @@ from app.schemas import (
     ContractTerms,
     NegotiationResult,
     PlayerDetail,
+    PlayerMoodOut,
     PlayerUpdate,
     ProspectRow,
     ReSignOffer,
@@ -16,7 +17,7 @@ from app.schemas import (
 from app.services import contracts as contract_service
 from app.services import draft as draft_service
 from app.services import free_agency as free_agency_service
-from app.services import league_log
+from app.services import league_log, mood
 from app.services import roster as roster_service
 from app.services.members import is_commissioner, user_team_id
 from app.services.serializers import player_detail
@@ -57,6 +58,15 @@ def update_player(payload: PlayerUpdate, player: Player = Depends(get_player),
                               f"Edited {player.full_name}", changes,
                               team_id=player.team_id, player_id=player.id)
     return player_detail(player)
+
+
+@router.get("/{player_id}/mood", response_model=PlayerMoodOut)
+def read_mood(player: Player = Depends(get_player), db: Session = Depends(get_db)):
+    """His personality and mood: the base he carried into the season, and what this season
+    has done to it, part by part."""
+    view = mood.player_mood(db, player)
+    db.commit()  # (players from before personalities get theirs the first time)
+    return view
 
 
 @router.post("/{player_id}/release", response_model=PlayerDetail)

@@ -224,6 +224,12 @@ class Player(Base):
     draft_year: Mapped[int | None] = mapped_column(Integer)
     draft_round: Mapped[int | None] = mapped_column(Integer)
     draft_pick: Mapped[int | None] = mapped_column(Integer)  # overall pick number
+    # Personality and mood (services/mood.py, domain/personality.py): two traits, made once
+    # from the player's own random stream, and the mood he carried into this season (this
+    # season's is worked out from it).
+    drive: Mapped[str | None] = mapped_column(String(12))
+    temperament: Mapped[str | None] = mapped_column(String(12))
+    mood_base: Mapped[int] = mapped_column(Integer, default=60, server_default="60")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     league: Mapped[League] = relationship()

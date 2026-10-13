@@ -225,6 +225,20 @@ Design: `docs/design/owners-and-front-offices.md`.
 - [x] AI trades (offers to managers, AI-to-AI deadline deals, the Transactions list,
       parity calibration)
 
+## M15 — Living players and storylines
+
+Design: `docs/design/players-and-storylines.md`.
+
+- [x] Personalities and mood (two traits for every player, a mood and what moved it, the
+      player page's mood panel, the Roster page's locker room)
+- [ ] What mood does (development, re-signing, free agency, trade requests, holdouts,
+      mentoring; AI teams managing moods)
+- [ ] Chemistry (from moods, temperaments and time together; a small pre-game rating
+      adjustment)
+- [ ] The news feed and rivalries (stories from every week and offseason step, the News
+      page, the Dashboard and inbox; rivalry scores and games)
+- [ ] The press (a question after each of your games, three answers, their effects)
+
 ## Later
 
 - [x] Women's leagues (a men's / women's choice in the league builder; women's leagues get

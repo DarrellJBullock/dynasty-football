@@ -70,6 +70,9 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
     from app.services.careers import settle_before_offseason  # (careers build on this)
 
     settle_before_offseason(db, league, autopilot)
+    from app.services.mood import carry_over  # (it builds on this module's league)
+
+    carry_over(db, league)  # (part of each player's mood carries into next season)
     year = season.year + 1
     rng = offseason_rng(league.id, year)
     log: dict = {"from_year": season.year, "retired": [], "departed": [], "re_signed": [],
