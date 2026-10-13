@@ -10,12 +10,13 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import League, LeagueMember, Season, Team, User
+from app.models import Game, League, LeagueMember, Season, Team, User
 from app.schemas import LeagueSettingsIn, SimulateRequest, TurnMember, TurnOut
 from app.services import draft, free_agency, offseason, playoffs, trade_offers
 from app.services import season as season_service
 from app.services.errors import RosterError
 from app.services.members import display_name, human_team_ids, member, user_team_id
+from app.services.notifications import notify, notify_members, notify_team, send_pending
 from app.services.serializers import team_summary
 from app.services.teams import current_season
 from app.services.trade_offers import REVIEW_HOURS
@@ -112,8 +113,28 @@ def set_ready(db: Session, league: League, user: User, ready: bool) -> None:
     you = member(db, league.id, user)
     if you is None or user_team_id(db, league.id, user) is None:
         raise RosterError("You don't run a team in this league.", 403)
-    you.ready_for = step_key(db, current_season(db, league.id)) if ready else None
+    season = current_season(db, league.id)
+    key = step_key(db, season)
+    you.ready_for = key if ready else None
     db.flush()
+    if ready:
+        _nudge(db, league, season, key)
+
+
+def _nudge(db: Session, league: League, season: Season, key: str) -> None:
+    """When one manager is all that's left, tell them; when everyone's ready, tell the
+    commissioners. Once per step each."""
+    managers = _managers(db, league)
+    waiting = [m for m, _team in managers if m.ready_for != key]
+    step = step_label(db, season)
+    if len(waiting) == 1 and len(managers) > 1:
+        notify(db, waiting[0].user_id, "waiting", f"Everyone else is ready: {step}",
+               f"The other managers in {league.name} are ready for {step.lower()}.", league.id,
+               "/", key=f"waiting:{key}")
+    elif not waiting:
+        notify_members(db, league.id, "waiting", f"Everyone's ready: {step}",
+                       f"Every manager in {league.name} is ready. Advance when you like.", "/",
+                       key=f"ready:{key}", role="commissioner")
 
 
 def update_settings(db: Session, league: League, settings: LeagueSettingsIn) -> None:
@@ -135,9 +156,10 @@ def update_settings(db: Session, league: League, settings: LeagueSettingsIn) -> 
     db.flush()
 
 
-def advance(db: Session, league: League) -> str:
+def advance(db: Session, league: League, actor: User | None = None) -> str:
     """Advance the league one step; returns what was played. Refused while a background
-    sim is running."""
+    sim is running. Members hear about it (but `actor`, who did it), and managers whose
+    teams played get their results."""
     if season_service.active_job(db, league.id) is not None:
         raise RosterError("A simulation is running in this league.")
     season = current_season(db, league.id)
@@ -151,10 +173,30 @@ def advance(db: Session, league: League) -> str:
     elif season.phase == "draft":
         draft.draft_view(db, league)  # (generates the class if it isn't there)
         draft.play(db, season, "my_pick")
-    else:
-        season_service.simulate(db, season, SimulateRequest(until="next_week"))
+    played = []
+    if season.phase not in ("offseason", "free_agency", "draft"):
+        played = season_service.simulate(db, season, SimulateRequest(until="next_week"))[1]
     db.flush()
+    after = current_season(db, league.id)
+    notify_members(db, league.id, "advanced", f"{league.name}: {label} is done",
+                   f"Next: {step_label(db, after)}.", "/", key=f"advanced:{step_key(db, after)}",
+                   skip={actor.id} if actor else set())
+    for game in played:
+        _results(db, game)
     return label
+
+
+def _results(db: Session, game: Game) -> None:
+    """Each manager whose team played hears how it went."""
+    for team, other, scored, allowed in (
+            (game.home_team, game.away_team, game.home_score, game.away_score),
+            (game.away_team, game.home_team, game.away_score, game.home_score)):
+        verb = "beat" if scored > allowed else "lost to" if scored < allowed else "tied"
+        when = "Playoffs" if game.stage == "playoff" else f"Week {game.week}"
+        notify_team(db, team.id, "game_result",
+                    f"The {team.nickname} {verb} the {other.nickname} {scored}–{allowed}",
+                    f"{when}: the box score and play-by-play.", f"/games/{game.id}",
+                    key=f"result:{game.id}")
 
 
 def multiplayer(db: Session, league_id: int) -> bool:
@@ -194,4 +236,5 @@ def tick(db: Session, now: datetime | None = None) -> int:
                      extra={"league_id": league.id})
             changed += 1
         db.commit()
+    send_pending(db)  # (notifications' email)
     return changed

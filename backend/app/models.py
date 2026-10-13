@@ -658,8 +658,33 @@ class LeagueMember(Base):
     # The step of the season (turns.step_key) the member is ready for: they're ready
     # while it's still the league's current step.
     ready_for: Mapped[str | None] = mapped_column(String(60))
+    # Which kinds of notification (services/notifications.py) they also get by email.
+    email_kinds: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"),
+                                              default=list, server_default="[]")
 
     user: Mapped[User] = relationship()
+
+
+class Notification(Base):
+    """Something for someone to know (services/notifications.py): their pick, a trade offer,
+    the week played. Shown in their inbox; emailed too if they asked for that kind
+    (`email`: None, "pending" until the worker sends it, then "sent")."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (UniqueConstraint("user_id", "key", name="uq_notifications_user_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    league_id: Mapped[int | None] = mapped_column(
+        ForeignKey("leagues.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(24))
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(String(300), default="")
+    link: Mapped[str | None] = mapped_column(String(200))  # a page in the app
+    key: Mapped[str | None] = mapped_column(String(80))  # (once per key: no repeats)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    email: Mapped[str | None] = mapped_column(String(8), index=True)
 
 
 class LeagueInvite(Base):

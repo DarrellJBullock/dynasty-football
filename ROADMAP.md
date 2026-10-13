@@ -182,7 +182,7 @@ Design: `docs/design/leagues-with-friends.md`.
 - [x] The season together (ready check-ins, the commissioner advancing, the draft clock,
       several managers in free agency, games between managers simulated)
 - [x] Trades between managers (offers, counters, expiry, an optional veto)
-- [ ] Notifications (an in-app inbox, optional email)
+- [x] Notifications (an in-app inbox, optional email)
 - [ ] Sharing and export (a read-only public link, the whole-league export)
 
 ## Later

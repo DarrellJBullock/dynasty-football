@@ -1368,6 +1368,44 @@ class TurnOut(BaseModel):
     trade_review_hours: int = 0  # trades between managers wait for a veto (0: they don't)
 
 
+class NotificationOut(BaseModel):
+    id: int
+    kind: str
+    title: str
+    body: str
+    link: str | None  # a page in the app
+    league: str | None  # the league's name
+    created_at: datetime
+    read: bool
+
+
+class NotificationsOut(BaseModel):
+    unread: int
+    items: list[NotificationOut]  # latest first
+
+
+class UnreadOut(BaseModel):
+    unread: int
+
+
+class MarkReadIn(BaseModel):
+    ids: list[int] | None = None  # (none: all of them)
+
+
+class NotificationKind(BaseModel):
+    kind: str
+    label: str
+    email: bool
+
+
+class NotificationSettingsOut(BaseModel):
+    kinds: list[NotificationKind]
+
+
+class NotificationSettingsIn(BaseModel):
+    email: list[str]  # the kinds to email
+
+
 class ReadyIn(BaseModel):
     ready: bool
 

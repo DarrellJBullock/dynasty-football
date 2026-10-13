@@ -16,7 +16,7 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import League, PasswordReset, User, UserSession
+from app.models import League, Notification, PasswordReset, User, UserSession
 from app.services.errors import RosterError
 
 SESSION_DAYS = 30
@@ -187,6 +187,7 @@ def delete_account(db: Session, user: User, password: str) -> None:
         delete_league(db, league)
     db.execute(delete(UserSession).where(UserSession.user_id == user.id))
     db.execute(delete(PasswordReset).where(PasswordReset.user_id == user.id))
+    db.execute(delete(Notification).where(Notification.user_id == user.id))
     db.delete(user)
     db.flush()
 

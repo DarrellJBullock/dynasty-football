@@ -45,6 +45,7 @@ from app.services import cap as cap_rules
 from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.members import human_team_ids
+from app.services.notifications import notify_team
 from app.services.serializers import player_summary, team_summary
 from app.services.standings import compute_records
 from app.services.teams import current_season
@@ -328,6 +329,12 @@ def _clocked(db: Session, season: Season) -> bool:
     return len(human_team_ids(db, season.league_id)) > 1
 
 
+def _clock_words(minutes: int) -> str:
+    if minutes < 60:
+        return f"{minutes} minutes"
+    return "a day" if minutes == 1440 else f"{minutes // 60} hour{'s' if minutes > 60 else ''}"
+
+
 def _as_utc(moment: datetime) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)  # (SQLite drops it)
 
@@ -373,6 +380,10 @@ def play(db: Session, season: Season, until: str, autopilot: bool = False) -> li
         if mine and until == "my_pick":
             if (made or season.pick_clock_started_at is None) and _clocked(db, season):
                 season.pick_clock_started_at = datetime.now(UTC)  # (their clock starts)
+                notify_team(db, pick.team_id, "your_pick", "You're on the clock",
+                            f"Round {pick.round}, pick {pick.number} of the {season.year} draft. "
+                            f"You have {_clock_words(season.league.draft_clock_minutes)}.",
+                            "/draft", key=f"pick:{pick.id}")
             break
         _make_pick(db, season, pick, _auto_pick(season, pick, board, user=mine), board)
         made.append(pick)

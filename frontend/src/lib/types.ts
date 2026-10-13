@@ -1124,3 +1124,33 @@ export interface LeagueSettings {
   advance_minute_utc?: number | null;
   trade_review_hours?: number;
 }
+
+/** Something for you to know (`schemas.NotificationOut`). */
+export interface Notification {
+  id: number;
+  kind: string;
+  title: string;
+  body: string;
+  /** A page in the app. */
+  link: string | null;
+  /** The league's name. */
+  league: string | null;
+  created_at: string;
+  read: boolean;
+}
+
+export interface Notifications {
+  unread: number;
+  /** Latest first. */
+  items: Notification[];
+}
+
+export interface NotificationKind {
+  kind: string;
+  label: string;
+  email: boolean;
+}
+
+export interface NotificationSettings {
+  kinds: NotificationKind[];
+}

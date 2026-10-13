@@ -214,6 +214,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`settle`: expiry, offers whose players or picks moved, the end of the veto window) on
   every read and answer, and on the worker's tick. A trade's `team_id` is the proposer:
   show it from the viewer's side (`trades._trade_out(trade, viewer)`).
+- **Notifications** (`services/notifications.py`): call `notify` / `notify_team` /
+  `notify_members` where something happens (a new kind goes in `KINDS`); pass a `key` when
+  it must only happen once. Email is never sent in a request: a notification is marked
+  `email="pending"` (for the kinds the member chose) and the worker's tick sends it. The
+  sidebar's badge polls `/api/notifications/unread`; pages refresh when the tab comes back
+  (`RefreshOnReturn`).
 - **The franchise on autopilot:** the offseason, free agency and the draft take
   `autopilot=True` (sim ahead), which treats members' teams like AI teams. Anything new
   that skips the franchise for the user to decide needs the same flag.
