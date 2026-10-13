@@ -776,6 +776,8 @@ export interface RecordCategory {
   label: string;
   single_season: RecordRow[];
   career: RecordRow[];
+  /** A team's record book only. */
+  single_game?: RecordRow[];
 }
 
 export interface HistoryOut {
@@ -796,6 +798,64 @@ export interface CareerOut {
   games: number;
   totals: Record<string, number>;
   awards: AwardOut[];
+  /** The year he was inducted into the Hall of Fame. */
+  hall_of_fame?: number | null;
+  /** Teams that retired his number (nicknames). */
+  retired_by?: string[];
+}
+
+// ---------- legacy (schemas: HallOfFame…, TeamRecordsOut) ----------
+
+export interface HallOfFamer {
+  player_id: number;
+  name: string;
+  position: string;
+  /** The class. */
+  year: number;
+  /** Where he played the most games. */
+  team: TeamSummary | null;
+  score: number;
+  /** "3× MVP · 2 titles · 41,250 pass yds · 12 seasons" */
+  case: string;
+  inducted: boolean;
+  retired_year: number | null;
+}
+
+export interface RetiredNumber {
+  team: TeamSummary;
+  number: number;
+  player_id: number;
+  name: string;
+  year: number;
+}
+
+export interface HallOfFame {
+  /** Latest class first. */
+  members: HallOfFamer[];
+  ballot_year: number | null;
+  /** The latest ballot's best cases that didn't get in. */
+  near_misses: HallOfFamer[];
+  retired_numbers: RetiredNumber[];
+  eligible_after: number;
+  bar: number;
+}
+
+export interface RetireCandidate {
+  player_id: number;
+  name: string;
+  position: string;
+  number: number;
+  hall_of_fame: boolean;
+}
+
+export interface TeamRecords {
+  team: TeamSummary;
+  /** Games for this team only. */
+  records: RecordCategory[];
+  hall_of_famers: HallOfFamer[];
+  retired_numbers: RetiredNumber[];
+  /** Its manager's choices (empty for anyone else). */
+  retire_candidates: RetireCandidate[];
 }
 
 // ---------- playback (3D) ----------

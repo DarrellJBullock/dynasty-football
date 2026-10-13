@@ -125,6 +125,16 @@ function Career({ career }: { career: CareerOut }) {
     <section className="panel overflow-x-auto" aria-label="Career">
       <div className="flex flex-wrap items-center gap-2 px-4 pt-4">
         <h2 className="eyebrow mr-2">Career · {career.games} games</h2>
+        {career.hall_of_fame && (
+          <Link href="/hall-of-fame" className="rounded bg-gold px-2 py-0.5 text-[10px] font-bold uppercase text-ink-950">
+            Hall of Fame · {career.hall_of_fame}
+          </Link>
+        )}
+        {career.retired_by?.map((team) => (
+          <span key={team} className="rounded border border-gold/40 px-2 py-0.5 text-[10px] font-semibold uppercase text-gold">
+            Number retired · {team}
+          </span>
+        ))}
         {career.awards.map((a) => (
           <span key={`${a.award}-${a.year}`} title={a.summary}
             className="rounded bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-gold">

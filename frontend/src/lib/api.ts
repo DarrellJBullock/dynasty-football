@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
   Credentials,
+  HallOfFame,
+  TeamRecords,
   PublicLeague,
   ShareLink,
   Notifications,
@@ -197,6 +199,10 @@ export const api = {
     return request<LeadersOut>(`/public/${encodeURIComponent(token)}/leaders${query}`);
   },
   publicHistory: (token: string) => request<HistoryOut>(`/public/${encodeURIComponent(token)}/history`),
+  hallOfFame: (leagueId: number) => request<HallOfFame>(`/leagues/${leagueId}/hall-of-fame`),
+  teamRecords: (teamId: number) => request<TeamRecords>(`/teams/${teamId}/records`),
+  retireNumber: (teamId: number, playerId: number) =>
+    post<TeamRecords>(`/teams/${teamId}/retired-numbers`, { player_id: playerId }),
   turn: (leagueId: number) => request<Turn>(`/leagues/${leagueId}/turn`),
   setReady: (leagueId: number, ready: boolean) =>
     request<Turn>(`/leagues/${leagueId}/ready`, { method: "PUT", body: JSON.stringify({ ready }) }),

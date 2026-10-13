@@ -930,6 +930,7 @@ class RecordCategory(BaseModel):
     label: str
     single_season: list[RecordRow]
     career: list[RecordRow]
+    single_game: list[RecordRow] = []  # (a team's record book)
 
 
 class HistoryOut(BaseModel):
@@ -950,6 +951,60 @@ class CareerOut(BaseModel):
     games: int
     totals: dict[str, int]
     awards: list[AwardOut]
+    hall_of_fame: int | None = None  # the year he was inducted
+    retired_by: list[str] = []  # teams that retired his number (nicknames)
+
+
+# ---------- legacy (services/legacy.py) ----------
+
+
+class HallOfFamer(BaseModel):
+    player_id: int
+    name: str
+    position: str
+    year: int  # the class
+    team: "TeamSummary | None"  # where he played the most games
+    score: float
+    case: str  # "3× MVP · 2 titles · 41,250 pass yds · 12 seasons"
+    inducted: bool
+    retired_year: int | None
+
+
+class RetiredNumberOut(BaseModel):
+    team: "TeamSummary"
+    number: int
+    player_id: int
+    name: str
+    year: int
+
+
+class HallOfFameOut(BaseModel):
+    members: list[HallOfFamer]  # latest class first
+    ballot_year: int | None
+    near_misses: list[HallOfFamer]  # the latest ballot's best cases that didn't get in
+    retired_numbers: list[RetiredNumberOut]
+    eligible_after: int  # seasons after retiring
+    bar: float  # the score a case needs
+
+
+class RetireCandidate(BaseModel):
+    player_id: int
+    name: str
+    position: str
+    number: int
+    hall_of_fame: bool
+
+
+class TeamRecordsOut(BaseModel):
+    team: "TeamSummary"
+    records: list[RecordCategory]  # games for this team only
+    hall_of_famers: list[HallOfFamer]
+    retired_numbers: list[RetiredNumberOut]
+    retire_candidates: list[RetireCandidate]  # (its manager's choices; empty for others)
+
+
+class RetireNumberIn(BaseModel):
+    player_id: int
 
 
 # ---------- playback (3D) ----------

@@ -46,6 +46,7 @@ from app.services.depth_chart import remove_player
 from app.services.errors import RosterError
 from app.services.members import human_team_ids
 from app.services.notifications import notify_team
+from app.services.retired import league_retired, retired_numbers
 from app.services.serializers import player_summary, team_summary
 from app.services.standings import compute_records
 from app.services.teams import current_season
@@ -258,6 +259,8 @@ class _Board:
                 .where(Team.league_id == season.league_id)):
             self.counts[team_id][position] += 1
             self.jerseys[team_id].add(jersey)
+        for team_id, numbers in league_retired(db, season.league_id).items():
+            self.jerseys[team_id] |= numbers  # (never reissued)
 
     def needs(self, season: Season, team_id: int) -> set[str]:
         """Positions the team lost and hasn't refilled, or is below its usual count at."""
@@ -416,7 +419,7 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
             player = (next((p for p in undrafted if p.position == lost[0]), None)
                       or (undrafted[0] if undrafted else veterans[0]))
             fills_own_spot = player.position in lost  # (then _join crosses it off)
-            taken = {p.jersey_number for p in roster}
+            taken = {p.jersey_number for p in roster} | retired_numbers(db, team.id)
             if player.is_prospect:
                 undrafted.remove(player)
                 _join(season, player, team.id, MIN_SALARY, UDFA_YEARS, taken)

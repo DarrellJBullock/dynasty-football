@@ -12,7 +12,18 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.awards import AWARDS, Candidate, choose, summary
-from app.models import Award, Game, League, Player, PlayerGameStats, PlayoffSeed, Season, Team
+from app.models import (
+    Award,
+    Game,
+    HallOfFameVote,
+    League,
+    Player,
+    PlayerGameStats,
+    PlayoffSeed,
+    RetiredNumber,
+    Season,
+    Team,
+)
 from app.schemas import (
     AwardOut,
     CareerOut,
@@ -190,16 +201,21 @@ def season_histories(db: Session, league: League, years: range | None = None,
 # ---------- records ----------
 
 
-def records(db: Session, league: League) -> list[RecordCategory]:
-    """Single-season and career leaders for each record category. One pass sums every
-    category by player and season (rather than two scans of the league's stat lines per
-    category); ties go to the earlier season, then the lower player id."""
+def records(db: Session, league: League, team_id: int | None = None) -> list[RecordCategory]:
+    """Single-season and career leaders for each record category (only games for
+    `team_id`, for a team's record book). One pass sums every category by player and
+    season (rather than two scans of the league's stat lines per category); ties go to the
+    earlier season, then the lower player id. A team's book adds single-game records."""
     stats = [stat for _, _, stat in RECORD_CATEGORIES]
-    rows = db.execute(_regular(
+    stmt = _regular(
         select(PlayerGameStats.player_id, Season.year,
                func.count(PlayerGameStats.id).label("games"),
                *[func.sum(getattr(PlayerGameStats, stat)).label(stat) for stat in stats]),
-        league.id).group_by(PlayerGameStats.player_id, Season.year)).mappings().all()
+        league.id)
+    if team_id is not None:
+        stmt = stmt.where(PlayerGameStats.team_id == team_id)
+    rows = db.execute(stmt.group_by(PlayerGameStats.player_id, Season.year)).mappings().all()
+    games = _single_games(db, league, team_id, stats) if team_id is not None else {}
     careers: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for row in rows:
         totals = careers[row["player_id"]]
@@ -216,7 +232,8 @@ def records(db: Session, league: League) -> list[RecordCategory]:
                         key=lambda r: (-r[0], r[1]))[:RECORDS_SHOWN]
         tops[stat] = (single, career)
     ids = {r[2] for single, _ in tops.values() for r in single} | {
-        r[1] for _, career in tops.values() for r in career}
+        r[1] for _, career in tops.values() for r in career} | {
+        r[2] for best in games.values() for r in best}
     players = {p.id: p for p in db.scalars(select(Player).where(Player.id.in_(ids))
                                            .options(selectinload(Player.team)))}
     return [
@@ -225,9 +242,25 @@ def records(db: Session, league: League) -> list[RecordCategory]:
             single_season=[_record_row(players[pid], value, games, year)
                            for value, year, pid, games in tops[stat][0]],
             career=[_record_row(players[pid], value, games, None)
-                    for value, pid, games in tops[stat][1]])
+                    for value, pid, games in tops[stat][1]],
+            single_game=[_record_row(players[pid], value, 1, year)
+                         for value, year, pid in games.get(stat, [])])
         for key, label, stat in RECORD_CATEGORIES
     ]
+
+
+def _single_games(db: Session, league: League, team_id: int,
+                  stats: list[str]) -> dict[str, list[tuple[int, int, int]]]:
+    """The team's best single games in each category: stat -> [(value, year, player)]."""
+    best = {}
+    for stat in stats:
+        column = getattr(PlayerGameStats, stat)
+        best[stat] = [(value, year, pid) for value, year, pid in db.execute(_regular(
+            select(column, Season.year, PlayerGameStats.player_id), league.id)
+            .where(PlayerGameStats.team_id == team_id, column > 0)
+            .order_by(column.desc(), Season.year, PlayerGameStats.player_id)
+            .limit(RECORDS_SHOWN))]
+    return best
 
 
 def _record_row(player: Player, value: int, games: int, year: int | None) -> RecordRow:
@@ -257,9 +290,15 @@ def career(db: Session, player: Player) -> CareerOut:
             totals[k] += v
     awards = db.execute(select(Award, Season.year).join(Season, Season.id == Award.season_id)
                         .where(Award.player_id == player.id).order_by(Season.year)).all()
+    inducted = db.scalar(select(HallOfFameVote.year).where(
+        HallOfFameVote.player_id == player.id, HallOfFameVote.inducted))
+    retired_by = db.scalars(select(Team.nickname).join(
+        RetiredNumber, RetiredNumber.team_id == Team.id)
+        .where(RetiredNumber.player_id == player.id).order_by(Team.nickname)).all()
     return CareerOut(player_id=player.id, seasons=rows, games=games,
                      totals={k: v for k, v in totals.items() if v},
-                     awards=[_award_out(a, year) for a, year in awards])
+                     awards=[_award_out(a, year) for a, year in awards],
+                     hall_of_fame=inducted, retired_by=list(retired_by))
 
 
 def _player_season(db: Session, season: Season, player_id: int):

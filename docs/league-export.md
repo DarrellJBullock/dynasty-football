@@ -26,7 +26,9 @@ a copy, for spreadsheets and scripts, and, later, for importing a league.
   "playoff_seeds": [ … ],
   "awards": [ … ],
   "draft_picks": [ … ],
-  "trades": [ … ]
+  "trades": [ … ],
+  "hall_of_fame": [ … ],
+  "retired_numbers": [ … ]
 }
 ```
 
@@ -47,6 +49,7 @@ Times are ISO 8601 strings in UTC, and money is whole dollars.
 | `seasons`, `games`, `team_game_stats`, `playoff_seeds` | Every season, its schedule and results, team box scores, and playoff seeding |
 | `awards` | MVP, offensive and defensive player and rookie of the year, by season |
 | `draft_picks`, `trades` | Picks (made and to come) and completed trades |
+| `hall_of_fame`, `retired_numbers` | Each year's Hall of Fame ballot (`inducted` marks the members; the rest came close), and numbers teams retired |
 
 ## What's left out
 

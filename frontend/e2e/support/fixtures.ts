@@ -13,6 +13,19 @@ export function resetDatabase(): void {
 }
 
 /**
+ * Run Python against the e2e database (backend code importable), for setup the game
+ * can't reach in a test's time, such as a career long enough for the Hall of Fame.
+ * Returns its stdout.
+ */
+export function backendScript(code: string): string {
+  return execFileSync(E2E_PYTHON, ["-c", code], {
+    cwd: BACKEND_DIR,
+    env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
+    encoding: "utf8",
+  });
+}
+
+/**
  * Every test starts from a freshly seeded league, signed in as its owner, and fails if
  * the page throws an uncaught error (React render errors, hydration failures, etc.).
  */

@@ -178,6 +178,10 @@ def advance(db: Session, season: Season, autopilot: bool = False) -> Season:
     from app.services import compaction, free_agency  # (they build on this module)
 
     compaction.compact_old_seasons(db, league.id, year)
+    # 7. The Hall of Fame votes on the retired players who've waited long enough.
+    from app.services import legacy  # (it builds on this module's league)
+
+    legacy.induct(db, league, season.year)
 
     free_agency.open_market(db, new_season)
     return new_season

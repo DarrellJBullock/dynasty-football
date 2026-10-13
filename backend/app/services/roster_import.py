@@ -21,6 +21,7 @@ from app.schemas import (
     ImportSummary,
 )
 from app.services.errors import RosterError
+from app.services.retired import retired_numbers
 from app.services.roster import contract_start_year, new_player, release_player
 from app.services.teams import load_roster, payroll
 
@@ -49,7 +50,7 @@ def plan_import(db: Session, team: Team, filename: str, content: bytes,
                       file_warnings=parsed.warnings, current=current, kept=kept)
 
     capacity = ROSTER_MAX - len(kept)
-    taken = {p.jersey_number for p in kept}
+    taken = {p.jersey_number for p in kept} | retired_numbers(db, team.id)
     for row in plan.rows:
         if not row.is_valid:
             continue
