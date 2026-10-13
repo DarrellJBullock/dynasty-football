@@ -21,7 +21,7 @@ from app.models import (
     TeamGameStats,
 )
 from app.schemas import SeasonOut, SimulateRequest, SimulationResult
-from app.services import injuries, playoffs
+from app.services import injuries, playoffs, rollback
 from app.services.errors import RosterError
 from app.services.gameplans import saved_plans
 from app.services.serializers import game_out, job_out, season_out, team_summary
@@ -206,12 +206,16 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
     steps = 0
     if not regular_done:
         last_week = season.current_week if request.until == "next_week" else weeks
+        phase = season.phase  # (week 1 moves the preseason on: a rollback moves it back)
         if season.phase == "preseason":
             season.phase = "regular_season"
         for week in range(season.current_week, last_week + 1):
-            games = list(db.scalars(select(Game).where(
-                Game.season_id == season.id, Game.week == week, Game.stage == "regular",
-                Game.status == "scheduled").order_by(Game.id)))
+            every = list(db.scalars(select(Game).where(
+                Game.season_id == season.id, Game.week == week, Game.stage == "regular")
+                .order_by(Game.id)))
+            rollback.snapshot(db, season, f"Week {week}", "regular", every, phase)
+            phase = None
+            games = [g for g in every if g.status == "scheduled"]
             _play_week(db, season, games, sim_teams, "regular", week)
             played += games
             season.current_week = week + 1
@@ -226,6 +230,10 @@ def simulate(db: Session, season: Season, request: SimulateRequest,
     while season.phase == "playoffs":
         games = playoffs.next_round_games(db, season)
         name = playoffs.round_name(db, season, games[0].playoff_round) if games else "Playoffs"
+        if games:
+            rollback.snapshot(db, season, name, "playoff", [g for g in db.scalars(
+                select(Game).where(Game.season_id == season.id, Game.stage == "playoff",
+                                   Game.playoff_round == games[0].playoff_round))])
         _play_week(db, season, games, sim_teams, "playoff")
         played += games
         playoffs.finish_round(db, season)

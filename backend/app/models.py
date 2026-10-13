@@ -544,6 +544,30 @@ class CoachedGame(Base):
     game: Mapped[Game] = relationship()
 
 
+class WeekSnapshot(Base):
+    """What playing a week (or playoff round) changes that its games can't give back, taken
+    just before it's played, so the commissioner can roll it back (services/rollback.py):
+    the season's phase and week, the games played, and every injury in the league. A league
+    keeps only its latest."""
+
+    __tablename__ = "week_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"),
+                                           index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"))
+    label: Mapped[str] = mapped_column(String(40))  # "Week 5", "Wild Card"
+    stage: Mapped[str] = mapped_column(String(10))  # regular | playoff
+    playoff_round: Mapped[int | None] = mapped_column(Integer)
+    phase: Mapped[str] = mapped_column(String(20))  # the season's, before
+    current_week: Mapped[int] = mapped_column(Integer)
+    game_ids: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    # player id -> [injury, injury_weeks, injury_status, injury_count], for every player
+    # hurt (or ever hurt) before the week
+    injuries: Mapped[dict] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class LeagueLogEntry(Base):
     """One entry in the League log (services/league_log.py): an edit or a commissioner's
     action, who did it, and what changed (`changes`: [{field, before, after}])."""
@@ -656,6 +680,8 @@ class Trade(Base):
     sent: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
     received: Mapped[list] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # The commissioner undid it (services/trades.reverse): everything went back.
+    reversed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     team: Mapped["Team"] = relationship(foreign_keys=[team_id])
     partner: Mapped["Team"] = relationship(foreign_keys=[partner_id])
