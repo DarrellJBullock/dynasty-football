@@ -221,6 +221,13 @@ def tick(db: Session, now: datetime | None = None) -> int:
         if draft.run_clock(db, season, now):
             db.commit()
             changed += 1
+    from app.models import LiveGame
+    from app.services import live  # (call clocks in live games)
+
+    for game in db.scalars(select(LiveGame).where(LiveGame.status == "in_progress",
+                                                  LiveGame.clock_seconds.is_not(None))).all():
+        if live.settle_clock(db, game, now):
+            db.commit()
     for league in trade_offers.leagues_to_settle(db):  # (expiries and veto windows)
         trade_offers.settle(db, league, now)
         db.commit()

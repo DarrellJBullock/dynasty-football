@@ -43,7 +43,10 @@ def next_game(franchise: Franchise = Depends(get_franchise), db: Session = Depen
     season = current_season(db, franchise.league_id)
     game = coach_service.next_game(db, season, franchise.team_id) if season else None
     coaching = bool(game and coach_service.coached_game(db, game))
-    return NextGameOut(game=game_out(game) if game else None, coaching=coaching)
+    both = bool(game and {game.home_team_id, game.away_team_id} <= human_team_ids(
+        db, franchise.league_id))
+    return NextGameOut(game=game_out(game) if game else None, coaching=coaching,
+                       head_to_head=both)
 
 
 @router.get("/games/{game_id}/coach", response_model=CoachStateOut)

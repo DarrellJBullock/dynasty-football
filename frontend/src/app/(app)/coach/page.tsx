@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CoachLoader } from "@/components/coach/CoachLoader";
+import { LiveLoader } from "@/components/coach/LiveLoader";
 import { Skeleton } from "@/components/ui/Panel";
 import { ServerError } from "@/components/ui/ServerError";
 import { api, attempt } from "@/lib/api";
@@ -9,7 +10,7 @@ import { api, attempt } from "@/lib/api";
 export const metadata: Metadata = { title: "Play Game" };
 
 /**
- * "Play Game": the franchise's next game in Coach Mode. Rendered here rather than by
+ * "Play Game": the franchise's next game in Coach Mode (or live, against another manager). Rendered here rather than by
  * redirecting to /games/[id]/coach: the client router remembers a redirect, so after the
  * game is played "Play Game" would keep opening it.
  */
@@ -31,7 +32,10 @@ export default function PlayGamePage() {
 async function NextGame() {
   const result = await attempt(() => api.nextGame());
   if (!result.ok) return <ServerError error={result.error} />;
-  if (result.data.game) return <CoachLoader gameId={result.data.game.id} />;
+  const { game, head_to_head } = result.data;
+  // Against another manager: played live if you both agree (or simulated from both plans).
+  if (game && head_to_head) return <LiveLoader gameId={game.id} />;
+  if (game) return <CoachLoader gameId={game.id} />;
   return (
     <div className="mx-auto max-w-3xl">
       <section className="panel space-y-3 p-6 text-center" aria-label="Play Game">

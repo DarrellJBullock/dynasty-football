@@ -25,6 +25,7 @@ from app.models import (
     League,
     LeagueInvite,
     LeagueMember,
+    LiveGame,
     Notification,
     Player,
     PlayerGameStats,
@@ -132,6 +133,8 @@ def delete_league(db: Session, league: League, user: User | None = None) -> None
         delete(PlayerGameStats).where(PlayerGameStats.player_id.in_(player_ids)),
         delete(TeamGameStats).where(TeamGameStats.team_id.in_(team_ids)),
         delete(CoachedGame).where(CoachedGame.game_id.in_(
+            select(Game.id).where(Game.season_id.in_(season_ids)))),
+        delete(LiveGame).where(LiveGame.game_id.in_(
             select(Game.id).where(Game.season_id.in_(season_ids)))),
         delete(Game).where(Game.season_id.in_(season_ids)),
         delete(Franchise).where(Franchise.league_id == league.id),

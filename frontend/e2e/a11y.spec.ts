@@ -31,6 +31,8 @@ test("every page in a fresh league", async ({ page }) => {
     "/account", "/coach", "/dynasty", "/game-plan", "/members", "/join?token=x", "/inbox", "/hall-of-fame", "/records", "/staff"];
   const problems: string[] = [];
   for (const url of pages) problems.push(...await audit(page, url));
+  const next = await (await page.request.get("/api/franchise/next-game")).json();
+  problems.push(...await audit(page, `/games/${next.game.id}/live`));
   expect(problems, problems.join("\n")).toEqual([]);
 });
 

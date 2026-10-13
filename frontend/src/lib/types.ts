@@ -1038,6 +1038,30 @@ export interface CoachCallIn {
 export interface NextGame {
   game: Game | null;
   coaching: boolean;
+  /** Against another member's team: played live, or simulated from both game plans. */
+  head_to_head?: boolean;
+}
+
+/** A live game between two managers, as one coach (or a watcher) sees it (`schemas.LiveStateOut`). */
+export interface LiveState {
+  game: Game;
+  status: "proposed" | "declined" | "in_progress" | "final" | "settled";
+  /** The viewer's side (null: watching). */
+  side: "home" | "away" | null;
+  team: TeamSummary | null;
+  proposed_by_you: boolean;
+  /** side -> who coaches it */
+  managers: Record<string, string>;
+  clock_seconds: number | null;
+  /** When the call clock runs out and the AI calls. */
+  deadline: string | null;
+  autopilot: boolean;
+  /** Your call to make, when it's yours. */
+  situation: CoachSituation | null;
+  /** The other side(s) the snap waits on (abbreviations). */
+  waiting_on: string[];
+  plays: PlayOut[];
+  new_plays: number;
 }
 
 /** The signed-in account (`schemas.UserOut`). */

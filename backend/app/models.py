@@ -544,6 +544,33 @@ class CoachedGame(Base):
     game: Mapped[Game] = relationship()
 
 
+class LiveGame(Base):
+    """A game between two members' teams played head-to-head (services/live.py): both
+    coach, each side's calls replayed from the kickoff (sim/coaching.replay_both).
+    status: proposed (one manager offered) -> in_progress (the other accepted) -> final
+    (played; settled once its week is) | declined."""
+
+    __tablename__ = "live_games"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey("games.id", ondelete="CASCADE"),
+                                         unique=True)
+    proposed_by: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(12), default="proposed", index=True)
+    clock_seconds: Mapped[int | None] = mapped_column(Integer)  # each call's (None: no clock)
+    calls: Mapped[dict] = mapped_column(  # side -> its calls
+        JSON().with_variant(JSONB(), "postgresql"), default=dict)
+    autopilot: Mapped[dict] = mapped_column(  # side -> the AI calls the rest
+        JSON().with_variant(JSONB(), "postgresql"), default=dict)
+    teams: Mapped[dict | None] = mapped_column(  # both teams as they were at the kickoff
+        JSON().with_variant(JSONB(), "postgresql"))
+    waiting_since: Mapped[datetime | None] = mapped_column(  # (the call clock counts from)
+        DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    game: Mapped[Game] = relationship()
+
+
 class PlayoffSeed(Base):
     """A team's seed in its conference's bracket, fixed when the regular season ends."""
 

@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { choreographGame } from "@/components/field/playback/choreograph";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { api } from "@/lib/api";
 import { callLabel } from "@/lib/games";
-import type { CoachSituation, CoachState, DefensivePlay, FatigueLine, Game, GamePlayback, OffensivePlay,
+import type { CoachCallIn, CoachSituation, CoachState, DefensivePlay, FatigueLine, Game, GamePlayback, OffensivePlay,
               Playbook } from "@/lib/types";
 import { PlayReel } from "./PlayReel";
 
@@ -38,6 +38,24 @@ const KICK_CHOICES: Record<"kickoff" | "conversion", { key: string; label: strin
     { key: "two", label: "Go for two", note: "One play from the 2, about half the time: two points." },
   ],
 };
+/** What the screen needs from a coached game: Coach Mode's state, or a live game's (LiveView). */
+export type CoachViewState = Pick<CoachState, "game" | "team" | "side" | "situation" | "plays" | "new_plays"> & {
+  status: string;
+  /** A live game: the other coach the snap waits on (abbreviations). */
+  waiting_on?: string[];
+  /** A live game's call clock: when the AI calls for whoever hasn't. */
+  deadline?: string | null;
+};
+
+/** How calls reach the game: Coach Mode's API by default; a live game passes its own. */
+export interface CoachActions {
+  call: (call: CoachCallIn) => Promise<CoachViewState>;
+  auto: (scope: "play" | "drive" | "game") => Promise<CoachViewState>;
+  /** Reload the game (a live game polls it while it waits on the other coach). */
+  load?: () => Promise<CoachViewState>;
+}
+
+export const POLL_MS = 4000;
 const REEL_LENGTH = 4; // after letting the AI call a stretch, show only its last few plays
 
 function ordinal(n: number): string {
@@ -60,12 +78,18 @@ function suggestedTab(situation: CoachSituation | null, playbook: Playbook): str
  * Coach Mode: call every snap of your team's game from the playbook, watch it run in 3D,
  * and live with the result.
  */
-export function CoachView({ game, playbook, initialState, initialPlayback }: {
+export function CoachView({ game, playbook, initialState, initialPlayback, actions, mode = "Coach Mode" }: {
   game: Game;
   playbook: Playbook;
-  initialState: CoachState | null;
+  initialState: CoachViewState | null;
   initialPlayback: GamePlayback | null;
+  actions?: CoachActions;
+  mode?: string;
 }) {
+  const act: CoachActions = actions ?? {
+    call: (c) => api.coachCall(game.id, c),
+    auto: (scope) => api.coachAuto(game.id, scope),
+  };
   const [state, setState] = useState(initialState);
   const [playback, setPlayback] = useState(initialPlayback);
   const [reel, setReel] = useState({ key: 0, from: 0 });
@@ -80,27 +104,54 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
   const choreographed = useMemo(() => (playback ? choreographGame(playback) : []), [playback]);
   const reelPlays = choreographed.slice(reel.from);
 
-  async function run(request: () => Promise<CoachState>, showAll = true) {
+  async function show(next: CoachViewState, fresh: number) {
+    const plays = await api.playback(game.id);
+    const total = plays.plays.length;
+    setState(next);
+    setPlayback(plays);
+    setReel((r) => ({ key: r.key + 1, from: Math.max(0, total - Math.max(fresh, 1)) }));
+    setTab(suggestedTab(next.situation, playbook));
+    setPkg("auto");
+    setTimeoutCall(false);
+    setConfirmFinish(false);
+  }
+
+  async function run(request: () => Promise<CoachViewState>, showAll = true) {
     setBusy(true);
     setError(null);
     try {
       const next = await request();
-      const plays = await api.playback(game.id);
-      const total = plays.plays.length;
-      const fresh = showAll ? next.new_plays : Math.min(next.new_plays, REEL_LENGTH);
-      setState(next);
-      setPlayback(plays);
-      setReel((r) => ({ key: r.key + 1, from: Math.max(0, total - Math.max(fresh, 1)) }));
-      setTab(suggestedTab(next.situation, playbook));
-      setPkg("auto");
-      setTimeoutCall(false);
-      setConfirmFinish(false);
+      await show(next, showAll ? next.new_plays : Math.min(next.new_plays, REEL_LENGTH));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+
+  // A live game waiting on the other coach: poll until the snap plays (or it's our call).
+  const waiting = state?.status === "in_progress" && !state.situation;
+  const latest = useRef(state);
+  useEffect(() => { latest.current = state; }, [state]);
+  const load = actions?.load;
+  useEffect(() => {
+    if (!waiting || !load) return;
+    const timer = setInterval(async () => {
+      try {
+        const next = await load();
+        const now = latest.current;
+        if (!now) return;
+        const fresh = next.plays.length - now.plays.length;
+        if (fresh > 0 || next.status !== now.status || Boolean(next.situation) !== Boolean(now.situation)) {
+          await show(next, Math.min(Math.max(fresh, 0), REEL_LENGTH));
+        }
+      } catch {
+        // (try again next time)
+      }
+    }, POLL_MS);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, load]);
 
   if (!state) return <StartScreen game={game} busy={busy} error={error}
     onStart={() => run(() => api.startCoaching(game.id))} />;
@@ -116,7 +167,7 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link href="/" className="text-sm text-gold hover:underline">← Dashboard</Link>
         <span className="eyebrow">
-          Coach Mode · {game.away.full_name} at {game.home.full_name} · {game.round_name ?? `Week ${game.week}`}
+          {mode} · {game.away.full_name} at {game.home.full_name} · {game.round_name ?? `Week ${game.week}`}
         </span>
       </div>
 
@@ -149,14 +200,14 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
 
               {situation.role === "audible" ? (
                 <AtTheLine situation={situation} busy={busy}
-                  onCall={(play) => run(() => api.coachCall(game.id, { play }))} />
+                  onCall={(play) => run(() => act.call({ play }))} />
               ) : (<>
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-gold/[0.06] px-3 py-2 text-sm">
                 <span className="text-mist">AI suggests</span>
                 <span className="font-semibold">{situation.suggestion_name}</span>
                 {situation.suggested_package && <span className="text-xs text-mist">({situation.suggested_package})</span>}
                 <button type="button" className="btn btn-primary ml-auto px-3 py-1 text-xs" disabled={busy}
-                  onClick={() => run(() => api.coachCall(game.id, {
+                  onClick={() => run(() => act.call({
                     play: situation.suggestion, package: situation.suggested_package, timeout }))}>
                   Call it
                 </button>
@@ -164,11 +215,11 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
 
               {situation.role === "kickoff" || situation.role === "conversion" ? (
                 <KickChoices role={situation.role} suggestion={situation.suggestion} busy={busy}
-                  onCall={(play) => run(() => api.coachCall(game.id, { play }))} />
+                  onCall={(play) => run(() => act.call({ play }))} />
               ) : (
                 <PlaybookGrid role={situation.role} playbook={playbook} tab={tab} setTab={setTab}
                   suggestion={situation.suggestion} busy={busy}
-                  onCall={(play) => run(() => api.coachCall(game.id, {
+                  onCall={(play) => run(() => act.call({
                     play, timeout, package: situation.role === "defense" && pkg !== "auto" ? pkg : null }))} />
               )}
 
@@ -201,13 +252,13 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
                 aria-label="Let the AI call">
                 <span className="text-xs text-mist">Let the AI call</span>
                 <button type="button" className="btn btn-ghost px-3 py-1 text-xs" disabled={busy}
-                  onClick={() => run(() => api.coachAuto(game.id, "play"))}>This play</button>
+                  onClick={() => run(() => act.auto("play"))}>This play</button>
                 <button type="button" className="btn btn-ghost px-3 py-1 text-xs" disabled={busy}
-                  onClick={() => run(() => api.coachAuto(game.id, "drive"), false)}>This drive</button>
+                  onClick={() => run(() => act.auto("drive"), false)}>This drive</button>
                 {confirmFinish ? (
                   <>
                     <button type="button" className="btn btn-primary px-3 py-1 text-xs" disabled={busy}
-                      onClick={() => run(() => api.coachAuto(game.id, "game"), false)}>
+                      onClick={() => run(() => act.auto("game"), false)}>
                       Confirm: the AI finishes the game
                     </button>
                     <button type="button" className="btn btn-ghost px-3 py-1 text-xs"
@@ -225,6 +276,8 @@ export function CoachView({ game, playbook, initialState, initialPlayback }: {
               {busy && <p className="text-xs text-mist" aria-live="polite">Running the play…</p>}
               {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
             </section>
+          ) : waiting ? (
+            <WaitingCard state={state} />
           ) : (
             <FinalCard state={state} teams={teams} mine={mine} theirs={theirs} />
           )}
@@ -273,9 +326,12 @@ function StartScreen({ game, busy, error, onStart }: {
   );
 }
 
-function ScoreBug({ state, teams }: { state: CoachState; teams: { home: Game["home"]; away: Game["away"] } }) {
+function ScoreBug({ state, teams }: { state: CoachViewState; teams: { home: Game["home"]; away: Game["away"] } }) {
   const s = state.situation;
-  const score = s?.score ?? { home: state.game.home_score ?? 0, away: state.game.away_score ?? 0 };
+  const last = state.plays.at(-1);
+  const score = s?.score ?? (state.status === "in_progress" && last
+    ? { home: last.home_score, away: last.away_score }
+    : { home: state.game.home_score ?? 0, away: state.game.away_score ?? 0 });
   return (
     <section className="panel flex flex-wrap items-center justify-between gap-4 px-5 py-3" aria-label="Scoreboard">
       {(["away", "home"] as const).map((side) => (
@@ -305,6 +361,13 @@ function ScoreBug({ state, teams }: { state: CoachState; teams: { home: Game["ho
               {quarterLabel(s.quarter)} {s.clock}
             </div>
             <div className="text-xs text-mist">{s.clock_running ? "Clock running" : "Clock stopped"}</div>
+          </>
+        ) : state.status === "in_progress" ? (
+          <>
+            <div className="font-display text-lg font-semibold uppercase">
+              {last ? `${quarterLabel(last.quarter)} ${last.clock}` : "Kickoff"}
+            </div>
+            <div className="text-xs text-mist">Live</div>
           </>
         ) : (
           <div className="font-display text-lg font-semibold uppercase">
@@ -463,7 +526,7 @@ function PlaybookGrid({ role, playbook, tab, setTab, suggestion, busy, onCall }:
   );
 }
 
-function DriveLog({ state }: { state: CoachState }) {
+function DriveLog({ state }: { state: CoachViewState }) {
   const recent = [...state.plays].reverse().slice(0, 12);
   return (
     <aside className="panel self-start p-0" aria-label="Play-by-play">
@@ -486,8 +549,23 @@ function DriveLog({ state }: { state: CoachState }) {
   );
 }
 
+/** A live game: our call is in (or it's theirs), and the snap waits on the other coach. */
+function WaitingCard({ state }: { state: CoachViewState }) {
+  const who = state.waiting_on?.length ? state.waiting_on.join(" and ") : "the other coach";
+  return (
+    <section className="panel space-y-2 p-6 text-center" aria-label="Waiting">
+      <h2 className="font-display text-xl font-bold uppercase">Waiting on {who}</h2>
+      <p className="text-sm text-mist" aria-live="polite">
+        The snap plays as soon as {who} calls; this page updates by itself.
+        {state.deadline && <> If there&apos;s no call by {new Date(state.deadline).toLocaleString()}, the
+          AI calls it from their game plan.</>}
+      </p>
+    </section>
+  );
+}
+
 function FinalCard({ state, teams, mine, theirs }: {
-  state: CoachState; teams: { home: Game["home"]; away: Game["away"] }; mine: "home" | "away";
+  state: CoachViewState; teams: { home: Game["home"]; away: Game["away"] }; mine: "home" | "away";
   theirs: "home" | "away";
 }) {
   const { game } = state;
