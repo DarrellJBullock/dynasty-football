@@ -477,6 +477,9 @@ def _finish(db: Session, season: Season, autopilot: bool = False) -> None:
             cuts.append({"player": player.id, "team": team.id})
         _fit_under_cap(db, season, team, cap, veterans, cuts)
     season.phase = "preseason"
+    from app.services.owners import ensure_owners  # (owners build on the draft's rosters)
+
+    ensure_owners(db, season.league)  # (the owners set the season's goals)
     flag_modified(season, "offseason_log")
     db.flush()
     # Jobs still open (a member's team that didn't hire) get an interim hire.

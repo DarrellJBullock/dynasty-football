@@ -670,6 +670,50 @@ export interface SeasonTrade {
   problem: string | null;
 }
 
+/** A team's owner and fans (`schemas.OwnerOut`, services/owners.py). */
+export interface OwnerGoal {
+  label: string;
+  kind: string;
+  status: "met" | "missed" | "on_track" | "behind";
+  /** The owner's main goal (it counts the most). */
+  primary: boolean;
+}
+
+/** [what, how much it moved things] */
+export type OwnerPart = [string, number];
+
+export interface OwnerReview {
+  year: number;
+  /** "is pleased", ... */
+  verdict: string;
+  results: { label: string; met: boolean }[];
+  confidence_before: number | null;
+  confidence_after: number | null;
+  confidence_parts: OwnerPart[];
+  fan_mood_before: number | null;
+  fan_mood_after: number | null;
+  fan_parts: OwnerPart[];
+}
+
+export interface Owner {
+  team: TeamSummary;
+  name: string;
+  priority: "win_now" | "build" | "profit";
+  /** The priority in words ("wants to win now"). */
+  wants: string;
+  patience: number;
+  confidence: number;
+  hot_seat: boolean;
+  market: "small" | "medium" | "large";
+  /** With this season so far. */
+  fan_mood: number;
+  fan_parts: OwnerPart[];
+  season_year: number | null;
+  situation: "contender" | "middle" | "rebuilding" | null;
+  goals: OwnerGoal[];
+  last_review: OwnerReview | null;
+}
+
 /** The league's rules (`schemas.RulesOut`): changed between seasons by the commissioner. */
 export interface LeagueRules {
   roster_max: number;

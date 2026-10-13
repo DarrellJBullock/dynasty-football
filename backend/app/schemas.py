@@ -1750,3 +1750,41 @@ class GamePlanOut(BaseModel):
     defense_choices: list[str]
     tendency_labels: dict[str, str]
     required: list[PlanRequirement]
+
+
+class OwnerGoalOut(BaseModel):
+    label: str
+    kind: str
+    status: Literal["met", "missed", "on_track", "behind"]
+    primary: bool  # the owner's main goal (it counts the most)
+
+
+class OwnerReviewOut(BaseModel):
+    """The owner's review of a season: each goal, and what moved confidence and the fans."""
+    year: int
+    verdict: str  # "is pleased", ...
+    results: list[dict]  # [{label, met}]
+    confidence_before: int | None
+    confidence_after: int | None
+    confidence_parts: list[tuple[str, int]]
+    fan_mood_before: int | None
+    fan_mood_after: int | None
+    fan_parts: list[tuple[str, int]]
+
+
+class OwnerOut(BaseModel):
+    """A team's owner and fans (services/owners.py)."""
+    team: TeamSummary
+    name: str
+    priority: str  # win_now | build | profit
+    wants: str  # the priority in words
+    patience: int  # 1-5
+    confidence: int  # 0-100
+    hot_seat: bool  # confidence is low
+    market: str  # small | medium | large
+    fan_mood: int  # 0-100, with this season so far
+    fan_parts: list[tuple[str, int]]  # what this season has done to it so far
+    season_year: int | None
+    situation: str | None  # where the roster stood when the goals were set
+    goals: list[OwnerGoalOut]
+    last_review: OwnerReviewOut | None

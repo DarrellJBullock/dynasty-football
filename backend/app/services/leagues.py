@@ -28,6 +28,8 @@ from app.models import (
     LeagueMember,
     LiveGame,
     Notification,
+    Owner,
+    OwnerSeason,
     Player,
     PlayerGameStats,
     PlayerRatings,
@@ -62,6 +64,9 @@ def create_league(db: Session, spec: LeagueCreate, user: User) -> Franchise:
     from app.services.staff import ensure_staff  # (staff builds on leagues' seasons)
 
     ensure_staff(db, franchise.league)
+    from app.services.owners import ensure_owners  # (owners build on leagues' seasons)
+
+    ensure_owners(db, franchise.league)
     return franchise
 
 
@@ -122,6 +127,8 @@ def delete_league(db: Session, league: League, user: User | None = None) -> None
         delete(Award).where(Award.season_id.in_(season_ids)),
         delete(HallOfFameVote).where(HallOfFameVote.league_id == league.id),
         delete(StaffSeason).where(StaffSeason.season_id.in_(season_ids)),
+        delete(OwnerSeason).where(OwnerSeason.season_id.in_(season_ids)),
+        delete(Owner).where(Owner.league_id == league.id),
         delete(StaffDeadMoney).where(StaffDeadMoney.team_id.in_(team_ids)),
         delete(Facility).where(Facility.team_id.in_(team_ids)),
         delete(StaffMember).where(StaffMember.league_id == league.id),

@@ -7,10 +7,11 @@ import { Panel } from "@/components/ui/Panel";
 import { TeamCrest } from "@/components/ui/TeamCrest";
 import { formatMoney, formatPhase, formatRecord, injuryDetail, injuryLabel, type InjurySeason, ratingTier, TIER_BAR } from "@/lib/format";
 import { gameLabel, OUTCOME_STYLES, resultFor } from "@/lib/games";
+import type { Alert, Dashboard, Game, Owner, PlayerSummary, PositionGroupSummary, TeamSummary } from "@/lib/types";
 import { OffseasonRecap } from "./OffseasonRecap";
-import type { Alert, Dashboard, Game, PlayerSummary, PositionGroupSummary, TeamSummary } from "@/lib/types";
+import { OwnerCard } from "./OwnerCard";
 
-export function DashboardView({ data }: { data: Dashboard }) {
+export function DashboardView({ data, owner }: { data: Dashboard; owner?: Owner | null }) {
   const { franchise, team, record } = data;
   const nextGame = data.upcoming_games[0];
   const opponent = nextGame && (nextGame.home.id === team.id ? nextGame.away : nextGame.home);
@@ -41,6 +42,8 @@ export function DashboardView({ data }: { data: Dashboard }) {
         />
         <RecordCard record={record} division={data.division_standings.division} />
       </div>
+
+      {owner && <OwnerCard owner={owner} />}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Panel

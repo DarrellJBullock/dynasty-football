@@ -6,6 +6,7 @@ from app.api.errors import roster_errors
 from app.db import get_db
 from app.models import Team, User
 from app.schemas import (
+    OwnerOut,
     PlayerCreate,
     PlayerDetail,
     PlayerSummary,
@@ -16,7 +17,7 @@ from app.schemas import (
 )
 from app.services import contracts as contract_service
 from app.services import draft as draft_service
-from app.services import league_log
+from app.services import league_log, owners
 from app.services import leagues as league_service
 from app.services import roster as roster_service
 from app.services.serializers import player_detail, player_summary
@@ -50,6 +51,15 @@ def update_team(payload: TeamUpdate, team: Team = Depends(get_team),
             league_log.record(db, team.league_id, user, "team", f"Edited the {team.full_name}",
                               changes, team_id=team.id)
     return team_detail(team, load_roster(db, team.id), load_overrides(db, [team.id])[team.id])
+
+
+@router.get("/{team_id}/owner", response_model=OwnerOut)
+def read_owner(team: Team = Depends(get_team), db: Session = Depends(get_db)):
+    """The team's owner and fans: what the owner wants, this season's goals and how they're
+    going, confidence and fan mood (and what moved them), and the last review."""
+    view = owners.owner_view(db, team)
+    db.commit()  # (a league from before owners gets them the first time they're asked)
+    return view
 
 
 @router.get("/{team_id}/roster", response_model=list[PlayerSummary])

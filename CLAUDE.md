@@ -232,6 +232,13 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   commissioner action records there too (add its action to `ACTIONS` and the frontend's
   `LeagueLogAction`). Editing players (ratings, bio, adding, importing, moving, contracts) is
   the commissioner's; a manager may only change their own player's jersey number.
+- **Owners and fans** (`services/owners.py`, `domain/owners.py`): owners are made once per
+  league (`ensure_owners`, with `random.Random(f"owners:{league.id}")`; a new league at
+  creation, an older one when first needed), goals are set when the preseason opens (and
+  before any sim), and every owner reviews the season when the champion is crowned
+  (`review`; a rolled-back final calls `unreview`). Fan mood and goal status during a
+  season are derived from the record, never stored week by week. JSON columns that
+  are queried for `None` need `none_as_null=True` (see `OwnerSeason`).
 - **League rules** (`services/rules.py`, `League.roster_max`, `cap_growth_bp`,
   `playoff_seeds`, `season_weeks`) change only between seasons. **Never check a roster
   against `domain.positions.ROSTER_MAX`** (it's only the default): use the league's
