@@ -32,7 +32,8 @@ frontend/   Next.js 16 (App Router, Cache Components) + React 19 + Tailwind v4 +
                   /schedule, /games/[id], /games/[id]/watch (3D), /games/[id]/coach,
                   /games/[id]/live (head-to-head) and
                   /coach (Coach Mode), /playoffs, /contracts, /free-agency, /draft,
-                  /trades, /history, /stats, /players/[id], /league, /members, /leagues,
+                  /trades, /history, /stats, /players/[id], /league, /members,
+                  /league-log, /leagues,
                   /leagues/new, /account
   src/app/(auth)/ /signin, /signup, /join (invite links) (no sidebar; a second root layout)
   src/app/(share)/ /share/[token]/… a league's read-only public link (no account; a third
@@ -225,6 +226,12 @@ PostgreSQL is Homebrew `postgresql@17` (keg-only; the Makefile finds its binarie
   (`settle`: expiry, offers whose players or picks moved, the end of the veto window) on
   every read and answer, and on the worker's tick. A trade's `team_id` is the proposer:
   show it from the viewer's side (`trades._trade_out(trade, viewer)`).
+- **The League log** (`services/league_log.py`): every edit to a player or team and every
+  commissioner action (vetoes, settings, member roles and removals) is recorded with
+  `league_log.record` in the same transaction, with `changes` from `league_log.diff`. A new
+  commissioner action records there too (add its action to `ACTIONS` and the frontend's
+  `LeagueLogAction`). Editing players (ratings, bio, adding, importing, moving, contracts) is
+  the commissioner's; a manager may only change their own player's jersey number.
 - **The read-only public link** (`services/sharing.py`, `api/public.py`): routes under
   `/api/public/{token}` need no session and only read; never return contracts there
   (`test_sharing.py` checks). The token is a key: `observability.loggable_path` hides it

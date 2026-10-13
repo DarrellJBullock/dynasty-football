@@ -143,6 +143,39 @@ class PlayerUpdate(BaseModel):
     _check_ratings = field_validator("ratings")(_validate_rating_keys)
 
 
+class PlayerMoveIn(BaseModel):
+    """The commissioner moves a player: to a team, or (null) to free agency."""
+    team_id: int | None
+
+
+class ContractEditIn(BaseModel):
+    """The commissioner rewrites a contract: a salary a season, for seasons from this one."""
+    salary: int = Field(ge=750_000, le=100_000_000)
+    years: int = Field(ge=1, le=7)
+
+
+class LeagueLogChange(BaseModel):
+    field: str
+    before: str | int | float | bool | None
+    after: str | int | float | bool | None
+
+
+class LeagueLogEntryOut(BaseModel):
+    id: int
+    created_at: datetime
+    actor: str
+    action: str
+    summary: str
+    team_id: int | None
+    player_id: int | None
+    changes: list[LeagueLogChange]
+
+
+class LeagueLogOut(BaseModel):
+    entries: list[LeagueLogEntryOut]
+    more: bool
+
+
 class SigningRequest(BaseModel):
     player_id: int
     salary: int | None = Field(default=None, ge=0)

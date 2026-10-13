@@ -8,7 +8,7 @@ from app.api.access import current_user
 from app.api.errors import roster_errors
 from app.api.leagues import get_league
 from app.db import get_db
-from app.models import League, User
+from app.models import League, LeagueMember, User
 from app.schemas import (
     FranchiseOut,
     InviteCreated,
@@ -19,8 +19,8 @@ from app.schemas import (
     RoleChange,
     ShareLinkOut,
 )
+from app.services import league_log, sharing
 from app.services import members as member_service
-from app.services import sharing
 from app.services.dashboard import franchise_out
 
 router = APIRouter(tags=["members"])
@@ -55,7 +55,14 @@ def revoke_invite(invite_id: int, league: League = Depends(get_league),
 def set_role(member_id: int, change: RoleChange, league: League = Depends(get_league),
              user: User = Depends(current_user), db: Session = Depends(get_db)):
     with roster_errors(db):
+        member = db.get(LeagueMember, member_id)
+        before = member.role if member is not None else None
         member_service.set_role(db, league, member_id, change.role)
+        if before != change.role:
+            name = member_service.display_name(db.get(User, member.user_id))
+            league_log.record(db, league.id, user, "member",
+                              f"Made {name} a {change.role}",
+                              [{"field": "role", "before": before, "after": change.role}])
     return member_service.members_view(db, league, user)
 
 
@@ -65,7 +72,16 @@ def remove_member(member_id: int, league: League = Depends(get_league),
     """Leave the league (your own membership), or, as a commissioner, remove someone:
     their team goes back to the AI."""
     with roster_errors(db):
+        member = db.get(LeagueMember, member_id)
+        gone = db.get(User, member.user_id) if member is not None else None
+        someone_else = gone is not None and gone.id != user.id
+        name = member_service.display_name(gone) if someone_else else ""
+        team_id = member_service.user_team_id(db, league.id, gone) if someone_else else None
         member_service.remove(db, league, user, member_id)
+        if someone_else:
+            league_log.record(db, league.id, user, "member",
+                              f"Removed {name} from the league (their team goes to the AI)",
+                              team_id=team_id)
 
 
 # The invite's token travels in the body, never the URL, so it stays out of logs.

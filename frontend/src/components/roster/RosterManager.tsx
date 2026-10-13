@@ -45,6 +45,7 @@ export function RosterManager({
   seasonYear,
   capYear = seasonYear,
   season,
+  commissioner = true,
 }: {
   initialTeam: TeamDetail;
   initialRoster: PlayerSummary[];
@@ -53,6 +54,8 @@ export function RosterManager({
   /** For injured players' return weeks. */
   season?: InjurySeason;
   capYear?: number; // the cap a release counts against
+  /** Creating, importing and editing players is the commissioner's. */
+  commissioner?: boolean;
 }) {
   const [team, setTeam] = useState(initialTeam);
   const [roster, setRoster] = useState(initialRoster);
@@ -139,22 +142,26 @@ export function RosterManager({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-ghost" onClick={() => setDialog("import")}>
-            Import
-          </button>
+          {commissioner && (
+            <button type="button" className="btn btn-ghost" onClick={() => setDialog("import")}>
+              Import
+            </button>
+          )}
           <ExportMenu teamId={team.id} />
           <button type="button" className="btn btn-ghost" onClick={() => setDialog("free-agents")}>
             Free agents
           </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={rosterFull}
-            title={rosterFull ? "Roster is full — release a player first" : undefined}
-            onClick={() => setDialog("add")}
-          >
-            + Create player
-          </button>
+          {commissioner && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={rosterFull}
+              title={rosterFull ? "Roster is full — release a player first" : undefined}
+              onClick={() => setDialog("add")}
+            >
+              + Create player
+            </button>
+          )}
         </div>
       </div>
 
@@ -234,6 +241,7 @@ export function RosterManager({
           onClose={closePanel}
           onUpdated={handleUpdated}
           onReleased={handleReleased}
+          canEdit={commissioner}
         />
       )}
       {dialog === "free-agents" && (

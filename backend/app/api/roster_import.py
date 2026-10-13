@@ -3,15 +3,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
 
+from app.api.access import current_user
 from app.api.errors import roster_errors
 from app.api.teams import get_team
 from app.db import get_db
-from app.models import Team
+from app.models import Team, User
 from app.roster_import.readers import MAX_FILE_BYTES, FileFormat, ImportFileError
 from app.roster_import.templates import build_template
 from app.roster_import.writers import MEDIA_TYPES
 from app.schemas import ImportMode, ImportPreview, ImportResult
-from app.services import roster_export, roster_import
+from app.services import league_log, roster_export, roster_import
 from app.services.teams import load_overrides, load_roster, team_detail
 
 router = APIRouter(tags=["roster import & export"])
@@ -42,12 +43,16 @@ def commit_import(
     mode: Annotated[ImportMode, Form()] = "append",
     skip_invalid: Annotated[bool, Form()] = False,
     team: Team = Depends(get_team),
+    user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
     """Import the file. All-or-nothing unless skip_invalid is set."""
     plan = _plan(db, team, file, mode)
     with roster_errors(db):
         imported, released, skipped = roster_import.commit(db, team, plan, skip_invalid)
+        league_log.record(db, team.league_id, user, "import",
+                          f"Imported {imported} players to the {team.full_name}"
+                          + (f", replacing {released}" if released else ""), team_id=team.id)
     return ImportResult(imported=imported, released=released, skipped=skipped,
                         team=team_detail(team, load_roster(db, team.id),
                                          load_overrides(db, [team.id])[team.id]))
