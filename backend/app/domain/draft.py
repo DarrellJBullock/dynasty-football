@@ -82,6 +82,8 @@ def draft_order(finishes: Sequence[Finish], salt: str) -> list[int]:
     return [f.team_id for f in ordered]
 
 
-def ai_value(rng: random.Random, overall: int, potential: int, needed: bool) -> float:
-    return (overall * (1 - AI_POTENTIAL_WEIGHT) + potential * AI_POTENTIAL_WEIGHT
+def ai_value(rng: random.Random, overall: int, potential: int, needed: bool,
+             potential_weight: float = AI_POTENTIAL_WEIGHT) -> float:
+    """A prospect's worth to an AI team (a rebuilder weighs potential more: domain/direction)."""
+    return (overall * (1 - potential_weight) + potential * potential_weight
             + rng.gauss(0, AI_NOISE_SD) + (AI_NEED_BONUS if needed else 0.0))

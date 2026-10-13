@@ -10,13 +10,14 @@ from app.models import League, Player, Team, User
 from app.schemas import (
     DivisionStandings,
     FranchiseOut,
+    FrontOfficeOut,
     LeagueCreate,
     LeagueOut,
     PlayerSummary,
     TeamDetail,
 )
 from app.seed.generator import league_template
-from app.services import cap
+from app.services import cap, direction
 from app.services import leagues as league_service
 from app.services.dashboard import franchise_out
 from app.services.members import league_ids
@@ -112,3 +113,12 @@ def free_agents(position: Position | None = None, league: League = Depends(get_l
     if position is not None:
         stmt = stmt.where(Player.position == position.value)
     return [player_summary(p) for p in db.scalars(stmt)]
+
+
+@router.get("/{league_id}/front-offices", response_model=list[FrontOfficeOut])
+def front_offices(league: League = Depends(get_league), db: Session = Depends(get_db)):
+    """Every team's front office: an AI team's direction (contending, in the middle,
+    rebuilding) and why, or the member who runs it."""
+    view = direction.front_offices(db, league)
+    db.commit()  # (a league from before directions decides them the first time)
+    return view

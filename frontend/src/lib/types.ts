@@ -799,6 +799,17 @@ export interface GmCareer {
   firing: "auto" | "on" | "off";
 }
 
+/** A team's front office (`schemas.FrontOfficeOut`): an AI team's direction and why, or who runs it. */
+export interface FrontOffice {
+  team: TeamSummary;
+  direction: "contend" | "middle" | "rebuild" | null;
+  /** "Contending", ... */
+  label: string | null;
+  reasons: string[];
+  /** The member who runs it. */
+  manager: string | null;
+}
+
 /** The league's rules (`schemas.RulesOut`): changed between seasons by the commissioner. */
 export interface LeagueRules {
   roster_max: number;
