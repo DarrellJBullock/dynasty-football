@@ -191,7 +191,7 @@ Design: `docs/design/staff-and-legacy.md`.
 
 - [x] The Hall of Fame and legacy (inductions by legacy score, retired numbers, team
       record books)
-- [ ] Staff (head coach, coordinators, scout and trainer, with ratings and careers; Coach
+- [x] Staff (head coach, coordinators, scout and trainer, with ratings and careers; Coach
       of the Year)
 - [ ] What staff do (development, scouting and injuries, explained on the player page)
 - [ ] The coaching carousel and the staff budget (contracts, hiring and firing, the AI)

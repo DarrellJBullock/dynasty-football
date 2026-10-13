@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { gameServerUrl } from "@/lib/gameServer";
 import type {
+  Coaches,
   Credentials,
+  TeamStaff,
   HallOfFame,
   TeamRecords,
   PublicLeague,
@@ -199,6 +201,8 @@ export const api = {
     return request<LeadersOut>(`/public/${encodeURIComponent(token)}/leaders${query}`);
   },
   publicHistory: (token: string) => request<HistoryOut>(`/public/${encodeURIComponent(token)}/history`),
+  teamStaff: (teamId: number) => request<TeamStaff>(`/teams/${teamId}/staff`),
+  coaches: (leagueId: number) => request<Coaches>(`/leagues/${leagueId}/coaches`),
   hallOfFame: (leagueId: number) => request<HallOfFame>(`/leagues/${leagueId}/hall-of-fame`),
   teamRecords: (teamId: number) => request<TeamRecords>(`/teams/${teamId}/records`),
   retireNumber: (teamId: number, playerId: number) =>
