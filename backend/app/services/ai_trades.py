@@ -38,6 +38,21 @@ YOUNG_BACKUP = 26  # teams pay with picks and backups this young or younger
 OFFER_DAYS = 3
 
 
+class _Desk(trades._Desk):
+    """A trade desk that reads each roster once: a front office looks at many teams, and a
+    call shares what it has read (`rosters`) until a trade goes through."""
+
+    def __init__(self, db: Session, league: League, team_id: int,
+                 rosters: dict[int, list[Player]]):
+        super().__init__(db, league, team_id)
+        self._rosters = rosters
+
+    def roster(self, team_id: int) -> list[Player]:
+        if team_id not in self._rosters:
+            self._rosters[team_id] = super().roster(team_id)
+        return self._rosters[team_id]
+
+
 def _rng(league: League, season: Season, week: int) -> random.Random:
     return random.Random(f"ai-trades:{league.id}:{season.year}:{week}")
 
@@ -143,6 +158,7 @@ def offer_managers(db: Session, league: League, season: Season, week: int) -> li
     shoppers = sorted((t for t in league.teams if t.id not in humans
                        and t.direction in ("contend", "rebuild")), key=lambda t: t.id)
     made = []
+    rosters: dict[int, list[Player]] = {}  # (read once for the whole call)
     for member in humans:
         if rng.random() >= OFFER_CHANCE or not shoppers:
             continue
@@ -152,7 +168,7 @@ def offer_managers(db: Session, league: League, season: Season, week: int) -> li
                 TradeOffer.from_team_id.not_in(humans)).limit(1)):
             continue  # (one open AI offer at a time)
         ai = rng.choice(shoppers)
-        desk = trades._Desk(db, league, ai.id)
+        desk = _Desk(db, league, ai.id, rosters)
         if ai.direction == "contend":
             found = _buy(desk, ai.id, member)
             if found is None:
@@ -212,9 +228,10 @@ def deadline_deals(db: Session, league: League, season: Season, week: int) -> li
     sellers = [t for t in ai if t.direction == "rebuild"]
     rng.shuffle(buyers)
     rng.shuffle(sellers)
+    rosters: dict[int, list[Player]] = {}  # (read once for every pair)
     for buyer in buyers:
+        desk = _Desk(db, league, buyer.id, rosters)
         for seller in sellers:
-            desk = trades._Desk(db, league, buyer.id)
             found = _sell(desk, seller.id, buyer.id)
             if found is None:
                 continue
